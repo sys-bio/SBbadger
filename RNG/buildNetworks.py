@@ -84,7 +84,7 @@ def _pickReactionType(prob=None):
         return TReactionType.BIBI
 
 
-def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb=False, constDist=None,
+def _generateReactionList(nSpecies, kinetics='mass_action', rxnProb=None, rev_prob=False, constDist=None,
                           constParams=None, inDist='random', outDist='random', jointDist=None, inRange=None,
                           outRange=None, jointRange=None, cutOff=1.0):
 
@@ -103,17 +103,17 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
     #         print('Your stated probabilities are', rxnProb, 'and they do not add to 1.')
     #         sys.exit(1)
     #
-    # if isinstance(revProb, list):
+    # if isinstance(rev_prob, list):
     #     try:
-    #         if any(x < 0.0 for x in revProb) or any(x > 1.0 for x in revProb):
+    #         if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
     #             raise ValueError
     #     except ValueError:
     #         print('One or more of your reversibility probabilities is not between 0 and 1')
     #         sys.exit(1)
     #
-    # if isinstance(revProb, float):
+    # if isinstance(rev_prob, float):
     #     try:
-    #         if revProb < 0.0 or revProb > 1.0:
+    #         if rev_prob < 0.0 or rev_prob > 1.0:
     #             raise ValueError
     #     except ValueError:
     #         print('Your reversibility probability is not between 0 and 1')
@@ -708,18 +708,57 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
     def reversibility(rxnType):
 
         rev = False
-        if revProb and isinstance(revProb, list):
-            rev = random.choices([True, False], [revProb[rxnType], 1.0 - revProb[rxnType]])[0]
-        if isinstance(revProb, float) or isinstance(revProb, int):
-            rev = random.choices([True, False], [revProb, 1 - revProb])[0]
+        if rev_prob and isinstance(rev_prob, list):
+            rev = random.choices([True, False], [rev_prob[rxnType], 1.0 - rev_prob[rxnType]])[0]
+        if isinstance(rev_prob, float) or isinstance(rev_prob, int):
+            rev = random.choices([True, False], [rev_prob, 1 - rev_prob])[0]
 
         # todo: add straight Boolean case
 
         return rev
 
-    def getRateConstants(rxnType, rev):
+    def getMassActionRateConstants(rxnType, rev):
 
         constants = []
+        if constDist == 'uniform':
+            constants.append(uniform.rvs(loc=constParams[0], scale=constParams[1]))
+            if rev:
+                constants.append(uniform.rvs(loc=constParams[0], scale=constParams[1]))
+        if constDist == 'loguniform':
+            constants.append(loguniform.rvs(constParams[0], constParams[1]))
+            if rev:
+                constants.append(loguniform.rvs(constParams[0], constParams[1]))
+        if constDist == 'normal':
+            while True:
+                constant = norm.rvs(loc=constParams[0], scale=constParams[1])
+                if constant > 0:
+                    break
+            constants.append(constant)
+            if rev:
+                while True:
+                    constant = norm.rvs(loc=constParams[0], scale=constParams[1])
+                    if constant > 0:
+                        break
+                constants.append(constant)
+        if constDist == 'lognormal':
+            constants.append(lognorm.rvs(scale=constParams[0], s=constParams[1]))
+            if rev:
+                constants.append(lognorm.rvs(scale=constParams[0], s=constParams[1]))
+        if constDist is None:
+            constants.append(loguniform.rvs(0.01, 100))
+            if rev:
+                constants.append(loguniform.rvs(0.01, 100))
+
+        return constants
+
+    def getMichaelisMentenRateConstants(rxnType, rev):
+
+        constants = []
+
+        if rev:
+
+            pass
+
         if constDist == 'uniform':
             constants.append(uniform.rvs(loc=constParams[0], scale=constParams[1]))
             if rev:
@@ -775,7 +814,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(0)
 
-                rateConstants = getRateConstants(0, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(0, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(0, reversible)
 
                 reactionList.append([rt, [reactant], [product], rateConstants])
                 reactionList2.append([[reactant], [product]])
@@ -794,7 +836,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(1)
 
-                rateConstants = getRateConstants(1, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(1, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(1, reversible)
 
                 reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
                 reactionList2.append([[reactant1, reactant2], [product]])
@@ -814,7 +859,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(2)
 
-                rateConstants = getRateConstants(2, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(2, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(2, reversible)
 
                 reactionList.append([rt, [reactant], [product1, product2], rateConstants])
                 reactionList2.append([[reactant], [product1, product2]])
@@ -835,7 +883,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(3)
 
-                rateConstants = getRateConstants(3, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(3, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(3, reversible)
 
                 reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
@@ -872,7 +923,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(0)
 
-                rateConstants = getRateConstants(0, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(0, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(0, reversible)
 
                 inNodesCount[product] -= 1
                 reactionList.append([rt, [reactant], [product], rateConstants])
@@ -897,7 +951,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(1)
 
-                rateConstants = getRateConstants(1, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(1, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(1, reversible)
 
                 inNodesCount[product] -= 2
                 reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
@@ -923,7 +980,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(2)
 
-                rateConstants = getRateConstants(2, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(2, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(2, reversible)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -951,7 +1011,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(3)
 
-                rateConstants = getRateConstants(3, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(3, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(3, reversible)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -985,7 +1048,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(0)
 
-                rateConstants = getRateConstants(0, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(0, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(0, reversible)
 
                 outNodesCount[reactant] -= 1
                 reactionList.append([rt, [reactant], [product], rateConstants])
@@ -1011,7 +1077,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(1)
 
-                rateConstants = getRateConstants(1, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(1, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(1, reversible)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
@@ -1037,7 +1106,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(2)
 
-                rateConstants = getRateConstants(2, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(2, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(2, reversible)
 
                 outNodesCount[reactant] -= 2
                 reactionList.append([rt, [reactant], [product1, product2], rateConstants])
@@ -1064,7 +1136,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(3)
 
-                rateConstants = getRateConstants(3, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(3, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(3, reversible)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
@@ -1100,7 +1175,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(0)
 
-                rateConstants = getRateConstants(0, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(0, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(0, reversible)
 
                 inNodesCount[product] -= 1
                 outNodesCount[reactant] -= 1
@@ -1134,7 +1212,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(1)
 
-                rateConstants = getRateConstants(1, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(1, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(1, reversible)
 
                 inNodesCount[product] -= 2
                 outNodesCount[reactant1] -= 1
@@ -1169,7 +1250,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(2)
 
-                rateConstants = getRateConstants(2, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(2, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(2, reversible)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1206,7 +1290,10 @@ def _generateReactionList(nSpecies, kinetics='massAction', rxnProb=None, revProb
 
                 reversible = reversibility(3)
 
-                rateConstants = getRateConstants(3, reversible)
+                if kinetics == 'mass_action':
+                    rateConstants = getMassActionRateConstants(3, reversible)
+                if kinetics == 'michaelis_menten':
+                    rateConstants = getMichaelisMentenRateConstants(3, reversible)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1314,7 +1401,7 @@ def _removeBoundaryNodes(st):
     return [np.delete(st, indexes + orphanSpecies, axis=0), floatingIds, boundaryIds]
 
 
-def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None):
+def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, kinetics='mass_action'):
 
     for each in reactionList:
         print(each)
@@ -1337,49 +1424,51 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None):
             antStr = antStr + ', ' + 'S' + str(index)
         antStr = antStr + ';\n\n'
 
-    for reactionIndex, r in enumerate(reactionListCopy):
-        antStr = antStr + 'J' + str(reactionIndex) + ': '
-        if r[0] == TReactionType.UNIUNI:
-            # UniUni
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-            antStr = antStr + ' -> '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-            antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
-            if len(r[3]) == 2:
-                antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0])
-        if r[0] == TReactionType.BIUNI:
-            # BiUni
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-            antStr = antStr + ' + '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
-            antStr = antStr + ' -> '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-            antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
-            if len(r[3]) == 2:
-                antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0])
-        if r[0] == TReactionType.UNIBI:
-            # UniBi
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-            antStr = antStr + ' -> '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-            antStr = antStr + ' + '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
-            antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
-            if len(r[3]) == 2:
-                antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
-        if r[0] == TReactionType.BIBI:
-            # BiBi
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-            antStr = antStr + ' + '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
-            antStr = antStr + ' -> '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-            antStr = antStr + ' + '
-            antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
-            antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
-            if len(r[3]) == 2:
-                antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
-        antStr = antStr + ';\n'
+
+    if kinetics == 'mass_action':
+        for reactionIndex, r in enumerate(reactionListCopy):
+            antStr = antStr + 'J' + str(reactionIndex) + ': '
+            if r[0] == TReactionType.UNIUNI:
+                # UniUni
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
+                if len(r[3]) == 2:
+                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0])
+            if r[0] == TReactionType.BIUNI:
+                # BiUni
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
+                if len(r[3]) == 2:
+                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0])
+            if r[0] == TReactionType.UNIBI:
+                # UniBi
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
+                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
+                if len(r[3]) == 2:
+                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
+            if r[0] == TReactionType.BIBI:
+                # BiBi
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
+                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
+                if len(r[3]) == 2:
+                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
+            antStr = antStr + ';\n'
 
     if Settings.addDegradationSteps:
         reactionIndex += 1

@@ -1,14 +1,14 @@
 
 import sys
 import tellurium as te
-from teRNG import buildNetworks
+from RNG import buildNetworks
 import os
 import shutil
 import glob
 
 
-def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kinetics='massAction', rxnProb=False,
-           revProb=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
+def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kinetics='mass_action', rxnProb=False,
+           rev_prob=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
            inRange=None, outRange=None, jointRange=None, cutOff=1.0, ICparams=None):
 
     if group_name is None:
@@ -33,17 +33,17 @@ def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kin
             print('Your stated probabilities are', rxnProb, 'and they do not add to 1.')
             sys.exit(1)
 
-    if isinstance(revProb, list):
+    if isinstance(rev_prob, list):
         try:
-            if any(x < 0.0 for x in revProb) or any(x > 1.0 for x in revProb):
+            if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
                 raise ValueError
         except ValueError:
             print('One or more of your reversibility probabilities is not between 0 and 1')
             sys.exit(1)
 
-    if isinstance(revProb, float):
+    if isinstance(rev_prob, float):
         try:
-            if revProb < 0.0 or revProb > 1.0:
+            if rev_prob < 0.0 or rev_prob > 1.0:
                 raise ValueError
         except ValueError:
             print('Your reversibility probability is not between 0 and 1')
@@ -83,13 +83,13 @@ def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kin
     i = num_existing_models
     while i < n_models:
 
-        rl, dists = buildNetworks._generateReactionList(n_species, kinetics='massAction',
-                                                        rxnProb=rxnProb, revProb=revProb, constDist=constDist,
+        rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
+                                                        rxnProb=rxnProb, rev_prob=rev_prob, constDist=constDist,
                                                         constParams=constParams)
 
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
-        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams)
+        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
         print(antStr)
 
         anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
