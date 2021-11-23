@@ -1424,7 +1424,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
             antStr = antStr + ', ' + 'S' + str(index)
         antStr = antStr + ';\n\n'
 
-
     if kinetics == 'mass_action':
         for reactionIndex, r in enumerate(reactionListCopy):
             antStr = antStr + 'J' + str(reactionIndex) + ': '
@@ -1469,6 +1468,9 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
                 if len(r[3]) == 2:
                     antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
             antStr = antStr + ';\n'
+
+    if kinetics == 'michaelis_menten':
+        pass
 
     if Settings.addDegradationSteps:
         reactionIndex += 1
