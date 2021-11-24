@@ -7,7 +7,7 @@ import shutil
 import glob
 
 
-def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kinetics='mass_action', rxnProb=False,
+def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kinetics='mass_action', rxn_prob=False,
            rev_prob=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
            inRange=None, outRange=None, jointRange=None, cutOff=1.0, ICparams=None):
 
@@ -25,12 +25,12 @@ def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kin
         print("You have provided both a joint distribution and onr or both of the input and output distributions")
         sys.exit(1)
 
-    if rxnProb:
+    if rxn_prob:
         try:
-            if round(sum(rxnProb), 10) != 1:
+            if round(sum(rxn_prob), 10) != 1:
                 raise ValueError
         except ValueError:
-            print('Your stated probabilities are', rxnProb, 'and they do not add to 1.')
+            print('Your stated probabilities are', rxn_prob, 'and they do not add to 1.')
             sys.exit(1)
 
     if isinstance(rev_prob, list):
@@ -61,7 +61,7 @@ def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kin
 
     num_existing_models = 0
 
-    if start_over:
+    if overwrite:
         if os.path.exists('models/' + group_name + '/'):
             shutil.rmtree('models/' + group_name + '/')
             os.makedirs('models/' + group_name + '/' + 'antimony')
@@ -84,14 +84,23 @@ def runRNG(group_name=None, start_over=False, n_models=None, n_species=None, kin
     while i < n_models:
 
         rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
-                                                        rxnProb=rxnProb, rev_prob=rev_prob, constDist=constDist,
+                                                        rxn_prob=rxn_prob, rev_prob=rev_prob, constDist=constDist,
                                                         constParams=constParams)
-
+        print()
+        for each in rl:
+            print(each)
+        # quit()
+        print()
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
+        # print(kinetics)
+        # quit()
         antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
+        print()
+        # quit()
         print(antStr)
-
+        # quit()
+        print()
         anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
         f = open(anti_dir, 'w')
         f.write(antStr)
