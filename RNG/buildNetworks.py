@@ -157,7 +157,7 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
 
     def single_bounded_pmf(sdist, drange):
         """Start with given degree range and trim until cutoffs found"""
-        print('drange', drange)
+
         distInd = [i for i in range(drange[0], drange[1] + 1)]
         pmf = [sdist(i) for i in range(drange[0], drange[1] + 1)]
         distSum = min(sum(pmf), 1)
@@ -222,7 +222,7 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
         numTrys = 0
         while True:
             numTrys += 1
-            print('still')
+
             edges2 = 0
             nodes = 0
             samples2t = [0 for _ in pmf2]
@@ -232,14 +232,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 samples2t[ind] += 1
                 edges2 += ind + startDeg2
                 nodes += 1
-            print(edges1, edges2)
+
             if edges2 == edges1:
                 samples2 = []
                 for i in range(len(pmf2)):
                     if samples2t[i] > 0:
                         samples2.append((startDeg2 + i, samples2t[i]))
                 break
-            print(numTrys)
+
             if numTrys == 10000:
                 print("\nReconciliation of the input and output distributions was attempted 10000 times.\n"
                       "Consider revising these distributions.")
@@ -649,19 +649,19 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
 
     # =======================================================================
 
-    print('inSamples')
-    for each in inSamples:
-        print(each)
-
-    print()
-    print('outSamples')
-    for each in outSamples:
-        print(each)
-
-    print()
-    print('jointSamples')
-    for each in jointSamples:
-        print(each)
+    # print('inSamples')
+    # for each in inSamples:
+    #     print(each)
+    #
+    # print()
+    # print('outSamples')
+    # for each in outSamples:
+    #     print(each)
+    #
+    # print()
+    # print('jointSamples')
+    # for each in jointSamples:
+    #     print(each)
 
     # =======================================================================
 
@@ -695,13 +695,13 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
         random.shuffle(inNodesCount)
         random.shuffle(outNodesCount)
 
-    print()
-    print('out', sum(outNodesCount), outNodesCount)
-    print('in', sum(inNodesCount), inNodesCount)
-    print()
-    print('out', outNodesList)
-    print('in', inNodesList)
-    print()
+    # print()
+    # print('out', sum(outNodesCount), outNodesCount)
+    # print('in', sum(inNodesCount), inNodesCount)
+    # print()
+    # print('out', outNodesList)
+    # print('in', inNodesList)
+    # print()
 
     reactionList = []
     reactionList2 = []
@@ -913,8 +913,6 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                             if rxnType == 2 or rxnType == 3:
                                 constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
 
-        print(constants)
-        # quit()
 
         return constants
 
@@ -1552,7 +1550,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
     # Remove the first element which is the nSpecies
     reactionListCopy = deepcopy(reactionList)
     reactionListCopy.pop(0)
-    print()
+
     antStr = ''
     if len(floatingIds) > 0:
         antStr = antStr + 'var ' + 'S' + str(floatingIds[0])
@@ -1567,15 +1565,13 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
         antStr = antStr + ';\n\n'
 
     if kinetics is 'hanekom' or kinetics[0] is 'hanekom':
-        print(kinetics)
+
         case = None
         if isinstance(kinetics[2], str):
             case = 1
         if isinstance(kinetics[2], list):
             case = 2
-        
-        print('case', case)
-        print()
+
         # quit()
         for reactionIndex, r in enumerate(reactionListCopy):
 
@@ -1778,7 +1774,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
                 kp.append(str(r[2][1]))
             keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
 
-    print('yes')
     for each in V:
         antStr = antStr + each
     antStr = antStr + '\n'
