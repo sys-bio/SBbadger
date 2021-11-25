@@ -8,7 +8,6 @@ import glob
 from multiprocessing import Pool, cpu_count, Queue, SimpleQueue, JoinableQueue, Process, Lock
 import multiprocessing as mp
 
-mutex = Lock()
 
 def _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name):
     rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
@@ -16,10 +15,7 @@ def _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, IC
                                                     constParams=constParams)
     st = buildNetworks._getFullStoichiometryMatrix(rl)
     stt = buildNetworks._removeBoundaryNodes(st)
-    # mutex.acquire()
     antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
-
-    print(i, antStr)
 
     # todo always use the os module for handling file paths.
     #   os.path.join(absolute_directory, "models")
@@ -53,20 +49,9 @@ def _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, IC
     r = te.loada(antStr)
     r.exportToSBML(sbml_dir)
 
-    print("finished iteration i:", i)
-    # mutex.release()
-
-
-    # i += 1
 
 def _run1FromQueue(q: Queue):
-    try:
-        args = q.get_nowait()
-    except queue.Empty:
-        print("queue is empty")
-
-    else:
-        _run1(*args)
+    _run1(*q.get())
 
 def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kinetics='mass_action', rxn_prob=False,
            rev_prob=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
@@ -181,8 +166,7 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
     # The input to the queue is the arguments for each iteration. The first item in the queue is the first out (FIFO)
     mp.set_start_method("spawn", force=True)
     manager = mp.Manager()
-    # q = manager.Queue(maxsize=cpu_count()) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
-    q = manager.Queue(maxsize=2) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
+    q = manager.Queue(maxsize=cpu_count()) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
 
     i = num_existing_models
     while i < n_models:
@@ -200,15 +184,13 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
         processes.append(p)
         i += 1
 
-    # for p in processes:
-
     # processes keep executing until they call join --
     # Think of this as consolidating all processes. Main program execution continues when all
     # processes have joined (or program will hang). Not completely sure why its called "join"
     for p in processes:
         p.join()
 
-    # serial code
+    # serial code -- could run this if num processes == 1
     # i = num_existing_models
     # while i < n_models:
     #     _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name)
