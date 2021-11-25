@@ -1,20 +1,25 @@
+import queue
 import sys
 import tellurium as te
 from RNG import buildNetworks
 import os
 import shutil
 import glob
-from multiprocessing import Pool, cpu_count, Queue, SimpleQueue, JoinableQueue, Process
+from multiprocessing import Pool, cpu_count, Queue, SimpleQueue, JoinableQueue, Process, Lock
 import multiprocessing as mp
+
+mutex = Lock()
 
 def _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name):
     rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
                                                     rxn_prob=rxn_prob, rev_prob=rev_prob, constDist=constDist,
                                                     constParams=constParams)
-
     st = buildNetworks._getFullStoichiometryMatrix(rl)
     stt = buildNetworks._removeBoundaryNodes(st)
+    # mutex.acquire()
     antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
+
+    print(i, antStr)
 
     # todo always use the os module for handling file paths.
     #   os.path.join(absolute_directory, "models")
@@ -48,10 +53,20 @@ def _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, IC
     r = te.loada(antStr)
     r.exportToSBML(sbml_dir)
 
+    print("finished iteration i:", i)
+    # mutex.release()
+
+
     # i += 1
 
 def _run1FromQueue(q: Queue):
-    _run1(*q.get())
+    try:
+        args = q.get_nowait()
+    except queue.Empty:
+        print("queue is empty")
+
+    else:
+        _run1(*args)
 
 def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kinetics='mass_action', rxn_prob=False,
            rev_prob=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
@@ -157,13 +172,6 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
             os.makedirs('models/' + group_name + '/' + 'sbml')
 
     # todo consider parallelising this loop.
-    """
-    What goes in the queue? 
-        - Arguments to the function for a single iteration of RNG
-    What comes out? 
-        - Using the arguments in a function. 
-    
-    """
 
     # a list to store the processes
     processes = []
@@ -171,23 +179,28 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
     # manager.Queue is a *proxy* to a queue, not a queue. Think of this as a reference or pointer like in c/c++.
     # we need this so we can have a *shared* queue, i.e. a single queue shared between all processes.
     # The input to the queue is the arguments for each iteration. The first item in the queue is the first out (FIFO)
+    mp.set_start_method("spawn", force=True)
     manager = mp.Manager()
-    q = manager.Queue(maxsize=cpu_count()) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
+    # q = manager.Queue(maxsize=cpu_count()) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
+    q = manager.Queue(maxsize=2) # You could change this to a parameter (sometimes called j) that defaults to cpu_count().
 
-    for i in range(n_models):
+    i = num_existing_models
+    while i < n_models:
         print("running iteration", i, "Is queue full?: ", q.full())
         # Add items to the queue. These are arguments to the function we want to run.
         # Importantly, q.put will *block* program execution when it is full. This is why
         # the code halts when the queue is full.
         args = (i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name)
-        q.put(args)
+        q.put(args, block=True)
 
         # create a new process to run this iteration.
         p = Process(target=_run1FromQueue, args=(q,))
-
-        # it begins executing when you call the start method.
+        # processes begins executing when you call the start method.
         p.start()
         processes.append(p)
+        i += 1
+
+    # for p in processes:
 
     # processes keep executing until they call join --
     # Think of this as consolidating all processes. Main program execution continues when all
@@ -195,49 +208,9 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
     for p in processes:
         p.join()
 
+    # serial code
     # i = num_existing_models
     # while i < n_models:
-    #     run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name)
+    #     _run1(i, n_species, kinetics, rxn_prob, rev_prob, constDist, constParams, ICparams, group_name)
     #     i += 1
 
-    # rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
-        #                                                 rxn_prob=rxn_prob, rev_prob=rev_prob, constDist=constDist,
-        #                                                 constParams=constParams)
-        #
-        # st = buildNetworks._getFullStoichiometryMatrix(rl)
-        # stt = buildNetworks._removeBoundaryNodes(st)
-        # antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
-        #
-        # # todo always use the os module for handling file paths.
-        # #   os.path.join(absolute_directory, "models")
-        # #   os.path.join(os.path.dirname(__file__), "models") # absolute path to current dir
-        # anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
-        #
-        # # todo always use the "with" construct ( context manager) in Python for opening files
-        # # with open(anti_dir, "w") as f:
-        # #   f.write(antStr) # handles close automatically
-        # f = open(anti_dir, 'w')
-        # f.write(antStr)
-        # f.close()
-        #
-        # dist_dir = 'models/' + group_name + '/distributions/' + str(i) + '.cvs'
-        # f = open(dist_dir, 'w')
-        # f.write('out distribution\n')
-        # for each in dists[0]:
-        #     f.write(str(each[0]) + ',' + str(each[1]) + '\n')
-        # f.write('\n')
-        # f.write('in distribution\n')
-        # for each in dists[1]:
-        #     f.write(str(each[0]) + ',' + str(each[1]) + '\n')
-        # f.write('\n')
-        # f.write('joint distribution\n')
-        # for each in dists[2]:
-        #     f.write(str(each[0]) + ',' + str(each[1]) + ',' + str(each[2]) + '\n')
-        # f.write('\n')
-        # f.close()
-        #
-        # sbml_dir = 'models/' + group_name + '/sbml/' + str(i) + '.sbml'
-        # r = te.loada(antStr)
-        # r.exportToSBML(sbml_dir)
-        #
-        # i += 1

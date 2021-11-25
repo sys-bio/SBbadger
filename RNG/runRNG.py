@@ -23,8 +23,8 @@ if __name__ == "__main__":
        runRNG(
               group_name='LargeHanekomNetworks',
               overwrite=True,
-              n_models=30,
-              n_species=100,
+              n_models=2,
+              n_species=10,
               # kinetics=['hanekom', 'trivial', ['V', 'khs', 'keq']],
               kinetics=['hanekom', 'loguniform', ['V', 'khs', 'keq'], [[0.01, 100], [0.01, 100], [0.01, 100]]],
               # kinetics=['hanekom', 'uniform', ['V', 'khs', 'keq'], [[0.0, 100], [0.0, 100], [0.0, 100]]],

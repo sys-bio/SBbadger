@@ -1579,6 +1579,7 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 break
 
     reactionList.insert(0, nSpecies)
+
     return reactionList, [outSamples, inSamples, jointSamples]
 
 # Includes boundary and floating species
@@ -1675,7 +1676,6 @@ def _removeBoundaryNodes(st):
 
 
 def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, kinetics='mass_action'):
-
     # Remove the first element which is the nSpecies
     reactionListCopy = deepcopy(reactionList)
     reactionListCopy.pop(0)
@@ -1693,8 +1693,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
             antStr = antStr + ', ' + 'S' + str(index)
         antStr = antStr + ';\n\n'
 
-    if kinetics is 'hanekom' or kinetics[0] is 'hanekom':
-
+    if kinetics == 'hanekom' or kinetics[0] == 'hanekom':
         case = None
         if isinstance(kinetics[2], str):
             case = 1
