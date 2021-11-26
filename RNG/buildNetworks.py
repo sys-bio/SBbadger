@@ -85,12 +85,21 @@ def _pickReactionType(prob=None):
         return TReactionType.BIBI
 
 
-def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_prob=False, constDist=None,
+def _generateReactionList(nSpecies, kinetics=None, rxn_prob=None, rev_prob=False, constDist=None,
                           constParams=None, inDist='random', outDist='random', jointDist=None, inRange=None,
                           outRange=None, jointRange=None, cutOff=1.0):
 
     # todo: expand kinetics?
     # todo: mass balance
+
+    paramDists = defaultdict(list)
+    if kinetics[1] is not 'trivial':
+        for i, each in enumerate(kinetics[2]):
+            paramDists[each] = kinetics[3][i]
+    else:
+        for i, each in enumerate(kinetics[2]):
+            paramDists[each] = [1]
+
 
     # if jointDist and (inDist is not 'random' or outDist is not 'random'):
     #     print("You have provided both a joint distribution and onr or both of the input and output distributions")
@@ -496,8 +505,6 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
         if all(isinstance(x[2], int) for x in jointDist):
             inputCase = 20
 
-    # print(inputCase)
-
     # ---------------------------------------------------------------------------
 
     if inputCase == 1:
@@ -709,341 +716,290 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
 
         return rev
 
-    def getMassActionRateConstants(rxnType, rev):
+    def getMassAction3RateConstants(rxnType, rev):
 
-        constants = []
-        if constDist == 'uniform':
-            constants.append(uniform.rvs(loc=constParams[0], scale=constParams[1]-constParams[0]))
+        constants = defaultdict(list)
+
+        # todo: make the trivial case a stand-alone function
+        if kinetics[1] == 'trivial':
+            
             if rev:
-                constants.append(uniform.rvs(loc=constParams[0], scale=constParams[1]-constParams[0]))
-        if constDist == 'loguniform':
-            constants.append(loguniform.rvs(constParams[0], constParams[1]))
+                constants['kf'].append(1)
+                constants['kr'].append(1)
+            else:
+                constants['kc'].append(1)
+
+        if kinetics[1] == 'uniform':
+            
             if rev:
-                constants.append(loguniform.rvs(constParams[0], constParams[1]))
-        if constDist == 'normal':
-            while True:
-                constant = norm.rvs(loc=constParams[0], scale=constParams[1])
-                if constant > 0:
-                    break
-            constants.append(constant)
+                constants['kf'].append(uniform.rvs(loc=paramDists['kf'][0], scale=paramDists['kf'][1]-paramDists['kf'][0]))
+                constants['kr'].append(uniform.rvs(loc=paramDists['kr'][0], scale=paramDists['kr'][1]-paramDists['kr'][0]))
+            else:
+                constants['kc'].append(uniform.rvs(loc=paramDists['kc'][0], scale=paramDists['kc'][1]-paramDists['kc'][0]))
+                
+        if kinetics[1] == 'loguniform':
+            
+            if rev:
+                constants['kf'].append(loguniform.rvs(paramDists['kf'][0], paramDists['kf'][1]))
+                constants['kr'].append(loguniform.rvs(paramDists['kr'][0], paramDists['kr'][1]))
+            else:
+                constants['kc'].append(loguniform.rvs(paramDists['kc'][0], paramDists['kc'][1]))
+
+        if kinetics[1] == 'norm':
+
             if rev:
                 while True:
-                    constant = norm.rvs(loc=constParams[0], scale=constParams[1])
+                    constant = norm.rvs(loc=paramDists['kf'][0], scale=paramDists['kf'][1])
                     if constant > 0:
+                        constants['kf'].append(constant)
                         break
-                constants.append(constant)
-        if constDist == 'lognormal':
-            constants.append(lognorm.rvs(scale=constParams[0], s=constParams[1]))
+                while True:
+                    constant = norm.rvs(loc=paramDists['kr'][0], scale=paramDists['kr'][1])
+                    if constant > 0:
+                        constants['kr'].append(constant)
+                        break
+            else:
+                while True:
+                    constant = norm.rvs(loc=paramDists['kc'][0], scale=paramDists['kc'][1])
+                    if constant > 0:
+                        constants['kc'].append(constant)
+                        break
+
+        if kinetics[1] == 'lognorm':
+
             if rev:
-                constants.append(lognorm.rvs(scale=constParams[0], s=constParams[1]))
-        if constDist is None:
-            constants.append(loguniform.rvs(0.01, 100))
-            if rev:
-                constants.append(loguniform.rvs(0.01, 100))
+                constants['kf'].append(lognorm.rvs(scale=paramDists['kf'][0], s=paramDists['kf'][1]))
+                constants['kr'].append(lognorm.rvs(scale=paramDists['kr'][0], s=paramDists['kr'][1]))
+            else:
+                constants['kc'].append(lognorm.rvs(scale=paramDists['kc'][0], s=paramDists['kc'][1]))
 
         return constants
 
-    def getHanekomRateConstants(rxnType):
+    def getMassAction12RateConstants(rxnType, rev):
+
+        constants = defaultdict(list)
+
+        if kinetics[1] == 'uniform':
+
+            if rev:
+                constants['kf'].append(uniform.rvs(loc=paramDists['kf' + str(rxnType)][0], scale=paramDists['kf' + str(rxnType)][1] - paramDists['kf' + str(rxnType)][0]))
+                constants['kr'].append(uniform.rvs(loc=paramDists['kr' + str(rxnType)][0], scale=paramDists['kr' + str(rxnType)][1] - paramDists['kr' + str(rxnType)][0]))
+            else:
+                constants['kc'].append(uniform.rvs(loc=paramDists['kc' + str(rxnType)][0], scale=paramDists['kc' + str(rxnType)][1] - paramDists['kc' + str(rxnType)][0]))
+
+        if kinetics[1] == 'loguniform':
+
+            if rev:
+                constants['kf'].append(loguniform.rvs(paramDists['kf' + str(rxnType)][0], paramDists['kf' + str(rxnType)][1]))
+                constants['kr'].append(loguniform.rvs(paramDists['kr' + str(rxnType)][0], paramDists['kr' + str(rxnType)][1]))
+            else:
+                constants['kc'].append(loguniform.rvs(paramDists['kc' + str(rxnType)][0], paramDists['kc' + str(rxnType)][1]))
+
+        if kinetics[1] == 'norm':
+
+            if rev:
+                while True:
+                    constant = norm.rvs(loc=paramDists['kf' + str(rxnType)][0], scale=paramDists['kf' + str(rxnType)][1])
+                    if constant > 0:
+                        constants['kf'].append(constant)
+                        break
+                while True:
+                    constant = norm.rvs(loc=paramDists['kr' + str(rxnType)][0], scale=paramDists['kr' + str(rxnType)][1])
+                    if constant > 0:
+                        constants['kr'].append(constant)
+                        break
+            else:
+                while True:
+                    constant = norm.rvs(loc=paramDists['kc' + str(rxnType)][0], scale=paramDists['kc' + str(rxnType)][1])
+                    if constant > 0:
+                        constants['kc'].append(constant)
+                        break
+
+        if kinetics[1] == 'lognorm':
+
+            if rev:
+                constants['kf'].append(lognorm.rvs(scale=paramDists['kf' + str(rxnType)][0], s=paramDists['kf' + str(rxnType)][1]))
+                constants['kr'].append(lognorm.rvs(scale=paramDists['kr' + str(rxnType)][0], s=paramDists['kr' + str(rxnType)][1]))
+            else:
+                constants['kc'].append(lognorm.rvs(scale=paramDists['kc' + str(rxnType)][0], s=paramDists['kc' + str(rxnType)][1]))
+
+        return constants
+
+    def getHanekom3RateConstants(rxnType):
 
         constants = defaultdict(list)
 
         if kinetics[1] == 'trivial':
 
-            for j, item in enumerate(kinetics[2]):
-
-                if kinetics[2][j] == 'V':
-                    constants[kinetics[2][j]].append(1)
-                if kinetics[2][j] == 'keq':
-                    constants[kinetics[2][j]].append(1)
-                if kinetics[2][j] == 'ks':
-                    constants[kinetics[2][j]].append(1)
-                    if rxnType == 1 or rxnType == 3:
-                        constants[kinetics[2][j]].append(1)
-                if kinetics[2][j] == 'kp':
-                    constants[kinetics[2][j]].append(1)
-                    if rxnType == 2 or rxnType == 3:
-                        constants[kinetics[2][j]].append(1)
-                if kinetics[2][j] == 'khs':
-                    constants[kinetics[2][j]].append(1)
-                    constants[kinetics[2][j]].append(1)
-                    if rxnType == 1 or rxnType == 2:
-                        constants[kinetics[2][j]].append(1)
-                    if rxnType == 3:
-                        constants[kinetics[2][j]].append(1)
-                        constants[kinetics[2][j]].append(1)
+            constants['V'].append(1)
+            constants['keq'].append(1)
+            constants['khs'].extend([1, 1])
+            if rxnType == 1 or rxnType == 2:
+                constants['khs'].append(1)
+            if rxnType == 3:
+                constants['khs'].append(1)
+                constants['khs'].append(1)
 
         if kinetics[1] == 'uniform':
 
-            for j, item in enumerate(kinetics[2]):
-
-                if kinetics[2][j] == 'V':
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                if kinetics[2][j] == 'keq':
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                if kinetics[2][j] == 'ks':
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if rxnType == 1 or rxnType == 3:
-                        constants[kinetics[2][j]].append(
-                            uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                if kinetics[2][j] == 'kp':
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if rxnType == 2 or rxnType == 3:
-                        constants[kinetics[2][j]].append(
-                            uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                if kinetics[2][j] == 'khs':
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if rxnType == 1 or rxnType == 2:
-                        constants[kinetics[2][j]].append(
-                            uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if rxnType == 3:
-                        constants[kinetics[2][j]].append(
-                            uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        constants[kinetics[2][j]].append(
-                            uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
+            constants['V'].append(uniform.rvs(loc=paramDists['V'][0], scale=paramDists['V'][1]-paramDists['V'][0]))
+            constants['keq'].append(uniform.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1]-paramDists['keq'][0]))
+            constants['khs'].append(uniform.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1]-paramDists['khs'][0]))
+            constants['khs'].append(uniform.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1]-paramDists['khs'][0]))
+            if rxnType == 1 or rxnType == 2:
+                constants['khs'].append(uniform.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1]-paramDists['khs'][0]))
+            if rxnType == 3:
+                constants['khs'].append(uniform.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1]-paramDists['khs'][0]))
+                constants['khs'].append(uniform.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1]-paramDists['khs'][0]))
 
         if kinetics[1] == 'loguniform':
 
-            for j, item in enumerate(kinetics[2]):
-
-                if kinetics[2][j] == 'V':
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                if kinetics[2][j] == 'keq':
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                if kinetics[2][j] == 'ks':
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if rxnType == 1 or rxnType == 3:
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                if kinetics[2][j] == 'kp':
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if rxnType == 2 or rxnType == 3:
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                if kinetics[2][j] == 'khs':
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if rxnType == 1 or rxnType == 2:
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if rxnType == 3:
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
+            constants['V'].append(loguniform.rvs(paramDists['V'][0], paramDists['V'][1]))
+            constants['keq'].append(loguniform.rvs(paramDists['keq'][0], paramDists['keq'][1]))
+            constants['khs'].append(loguniform.rvs(paramDists['khs'][0], paramDists['khs'][1]))
+            constants['khs'].append(loguniform.rvs(paramDists['khs'][0], paramDists['khs'][1]))
+            if rxnType == 1 or rxnType == 2:
+                constants['khs'].append(loguniform.rvs(paramDists['khs'][0], paramDists['khs'][1]))
+            if rxnType == 3:
+                constants['khs'].append(loguniform.rvs(paramDists['khs'][0], paramDists['khs'][1]))
+                constants['khs'].append(loguniform.rvs(paramDists['khs'][0], paramDists['khs'][1]))
 
         if kinetics[1] == 'normal':
 
-            for j, item in enumerate(kinetics[2]):
+            while True:
+                constant = norm.rvs(loc=paramDists['V'][0], scale=paramDists['V'][1])
+                if constant > 0:
+                    constants['V'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1])
+                if constant > 0:
+                    constants['keq'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1])
+                if constant > 0:
+                    constants['khs'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1])
+                if constant > 0:
+                    constants['khs'].append(constant)
+                    break
+            if rxnType == 1 or rxnType == 2:
+                while True:
+                    constant = norm.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1])
+                    if constant > 0:
+                        constants['khs'].append(constant)
+                        break
+            if rxnType == 3:
+                while True:
+                    constant = norm.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1])
+                    if constant > 0:
+                        constants['khs'].append(constant)
+                        break
+                while True:
+                    constant = norm.rvs(loc=paramDists['khs'][0], scale=paramDists['khs'][1])
+                    if constant > 0:
+                        constants['khs'].append(constant)
+                        break
 
-                if kinetics[2][j] == 'V':
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                if kinetics[2][j] == 'keq':
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                if kinetics[2][j] == 'ks':
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                    if rxnType == 1 or rxnType == 3:
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                if kinetics[2][j] == 'kp':
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                    if rxnType == 2 or rxnType == 3:
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                if kinetics[2][j] == 'khs':
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                    while True:
-                        constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                        if constant > 0:
-                            constants[kinetics[2][j]].append(constant)
-                            break
-                    if rxnType == 1 or rxnType == 2:
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                    if rxnType == 3:
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
+        if kinetics[1] == 'lognormal':
 
-        else:
+            constants['V'].append(lognorm.rvs(scale=paramDists['V'][0], s=paramDists['V'][1]))
+            constants['keq'].append(lognorm.rvs(scale=paramDists['keq'][0], s=paramDists['keq'][1]))
+            constants['khs'].append(lognorm.rvs(scale=paramDists['khs'][0], s=paramDists['khs'][1]))
+            constants['khs'].append(lognorm.rvs(scale=paramDists['khs'][0], s=paramDists['khs'][1]))
+            if rxnType == 1 or rxnType == 2:
+                constants['khs'].append(lognorm.rvs(scale=paramDists['khs'][0], s=paramDists['khs'][1]))
+            if rxnType == 3:
+                constants['khs'].append(lognorm.rvs(scale=paramDists['khs'][0], s=paramDists['khs'][1]))
+                constants['khs'].append(lognorm.rvs(scale=paramDists['khs'][0], s=paramDists['khs'][1]))
 
-            if kinetics[1] == 'uniform':
+        return constants
 
-                for j, item in enumerate(kinetics[2]):
+    def getHanekom4RateConstants(rxnType):
 
-                    if kinetics[2][j] == 'V':
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'keq':
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'ks':
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 3:
-                            constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'kp':
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        if rxnType == 2 or rxnType == 3:
-                            constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'khs':
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 2:
-                            constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                        if rxnType == 3:
-                            constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
-                            constants[kinetics[2][j]].append(uniform.rvs(loc=kinetics[3][j][0], scale=kinetics[3][j][1]))
+        constants = defaultdict(list)
 
+        if kinetics[1] == 'trivial':
 
-            if kinetics[1] == 'loguniform':
+            constants['V'].append(1)
+            constants['keq'].append(1)
+            constants['ks'].append(1)
+            constants['kp'].append(1)
+            if rxnType == 1 or rxnType == 3:
+                constants['ks'].append(1)
+            if rxnType == 2 or rxnType == 3:
+                constants['kp'].append(1)
 
-                for j, item in enumerate(kinetics[2]):
+        if kinetics[1] == 'uniform':
 
-                    if kinetics[2][j] == 'V':
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if kinetics[2][j] == 'keq':
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if kinetics[2][j] == 'ks':
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 3:
-                            constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if kinetics[2][j] == 'kp':
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        if rxnType == 2 or rxnType == 3:
-                            constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                    if kinetics[2][j] == 'khs':
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 2:
-                            constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                        if rxnType == 3:
-                            constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
-                            constants[kinetics[2][j]].append(loguniform.rvs(kinetics[3][j][0], kinetics[3][j][1]))
+            constants['V'].append(uniform.rvs(loc=paramDists['V'][0], scale=paramDists['V'][1]-paramDists['V'][0]))
+            constants['keq'].append(uniform.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1]-paramDists['keq'][0]))
+            constants['ks'].append(uniform.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1]-paramDists['ks'][0]))
+            constants['kp'].append(uniform.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1]-paramDists['kp'][0]))
+            if rxnType == 1 or rxnType == 3:
+                constants['ks'].append(uniform.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1]-paramDists['ks'][0]))
+            if rxnType == 2 or rxnType == 3:
+                constants['kp'].append(uniform.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1]-paramDists['kp'][0]))
 
+        if kinetics[1] == 'loguniform':
 
+            constants['V'].append(loguniform.rvs(paramDists['V'][0], paramDists['V'][1]))
+            constants['keq'].append(loguniform.rvs(paramDists['keq'][0], paramDists['keq'][1]))
+            constants['ks'].append(loguniform.rvs(paramDists['ks'][0], paramDists['ks'][1]))
+            constants['kp'].append(loguniform.rvs(paramDists['kp'][0], paramDists['kp'][1]))
+            if rxnType == 1 or rxnType == 3:
+                constants['ks'].append(loguniform.rvs(paramDists['ks'][0], paramDists['ks'][1]))
+            if rxnType == 2 or rxnType == 3:
+                constants['kp'].append(loguniform.rvs(paramDists['kp'][0], paramDists['kp'][1]))
 
-            if kinetics[1] == 'normal':
+        if kinetics[1] == 'normal':
 
-                for j, item in enumerate(kinetics[2]):
+            while True:
+                constant = norm.rvs(loc=paramDists['V'][0], scale=paramDists['V'][1])
+                if constant > 0:
+                    constants['V'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1])
+                if constant > 0:
+                    constants['keq'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1])
+                if constant > 0:
+                    constants['ks'].append(constant)
+                    break
+            while True:
+                constant = norm.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1])
+                if constant > 0:
+                    constants['kp'].append(constant)
+                    break
+            if rxnType == 1 or rxnType == 3:
+                while True:
+                    constant = norm.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1])
+                    if constant > 0:
+                        constants['ks'].append(constant)
+                        break
+            if rxnType == 2 or rxnType == 3:
+                while True:
+                    constant = norm.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1])
+                    if constant > 0:
+                        constants['kp'].append(constant)
+                        break
 
-                    if kinetics[2][j] == 'V':
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                    if kinetics[2][j] == 'keq':
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                    if kinetics[2][j] == 'ks':
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                        if rxnType == 1 or rxnType == 3:
-                            while True:
-                                constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                                if constant > 0:
-                                    constants[kinetics[2][j]].append(constant)
-                                    break
-                    if kinetics[2][j] == 'kp':
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                        if rxnType == 2 or rxnType == 3:
-                            while True:
-                                constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                                if constant > 0:
-                                    constants[kinetics[2][j]].append(constant)
-                                    break
-                    if kinetics[2][j] == 'khs':
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                        while True:
-                            constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                            if constant > 0:
-                                constants[kinetics[2][j]].append(constant)
-                                break
-                        if rxnType == 1 or rxnType == 2:
-                            while True:
-                                constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                                if constant > 0:
-                                    constants[kinetics[2][j]].append(constant)
-                                    break
-                        if rxnType == 3:
-                            while True:
-                                constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                                if constant > 0:
-                                    constants[kinetics[2][j]].append(constant)
-                                    break
-                            while True:
-                                constant = norm.rvs(loc=kinetics[3][j][1], scale=kinetics[3][j][0])
-                                if constant > 0:
-                                    constants[kinetics[2][j]].append(constant)
-                                    break
+        if kinetics[1] == 'lognormal':
 
-            if kinetics[1] == 'lognormal':
-
-                for j, item in enumerate(kinetics[2]):
-
-                    if kinetics[2][j] == 'V':
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'keq':
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'ks':
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 3:
-                            constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'kp':
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                        if rxnType == 2 or rxnType == 3:
-                            constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                    if kinetics[2][j] == 'khs':
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                        constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                        if rxnType == 1 or rxnType == 2:
-                            constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                        if rxnType == 3:
-                            constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
-                            constants[kinetics[2][j]].append(lognorm.rvs(scale=kinetics[3][j][0], s=kinetics[3][j][1]))
+            constants['V'].append(lognorm.rvs(scale=paramDists['V'][0], s=paramDists['V'][1]))
+            constants['keq'].append(lognorm.rvs(scale=paramDists['keq'][0], s=paramDists['keq'][1]))
+            constants['ks'].append(lognorm.rvs(scale=paramDists['ks'][0], s=paramDists['ks'][1]))
+            constants['kp'].append(lognorm.rvs(scale=paramDists['kp'][0], s=paramDists['kp'][1]))
+            if rxnType == 1 or rxnType == 3:
+                constants['ks'].append(lognorm.rvs(scale=paramDists['ks'][0], s=paramDists['ks'][1]))
+            if rxnType == 2 or rxnType == 3:
+                constants['kp'].append(lognorm.rvs(scale=paramDists['kp'][0], s=paramDists['kp'][1]))
 
         return constants
 
@@ -1061,6 +1017,8 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
             else:
                 rt = _pickReactionType()
 
+            # -------------------------------------------------------------------
+
             if rt == TReactionType.UNIUNI:
 
                 product = random.choice(nodesList)
@@ -1072,10 +1030,16 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(0)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(0, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(0)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(0, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(0, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(0)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(0)
+
+
 
                 reactionList.append([rt, [reactant], [product], rateConstants])
                 reactionList2.append([[reactant], [product]])
@@ -1095,10 +1059,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(1)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(1, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(1)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(1, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(1, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(1)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(1)
 
                 reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
                 reactionList2.append([[reactant1, reactant2], [product]])
@@ -1119,10 +1087,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(2)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(2, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(2)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(2, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(2, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(2)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(2)
 
                 reactionList.append([rt, [reactant], [product1, product2], rateConstants])
                 reactionList2.append([[reactant], [product1, product2]])
@@ -1144,10 +1116,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(3)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(3, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(3)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(3, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(3, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(3)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(3)
 
                 reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
@@ -1185,10 +1161,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(0)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(0, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(0)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(0, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(0, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(0)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(0)
 
                 inNodesCount[product] -= 1
                 reactionList.append([rt, [reactant], [product], rateConstants])
@@ -1214,10 +1194,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(1)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(1, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(1)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(1, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(1, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(1)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(1)
 
                 inNodesCount[product] -= 2
                 reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
@@ -1244,10 +1228,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(2)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(2, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(2)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(2, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(2, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(2)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(2)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1276,10 +1264,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(3)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(3, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(3)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(3, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(3, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(3)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(3)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1314,10 +1306,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(0)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(0, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(0)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(0, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(0, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(0)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(0)
 
                 outNodesCount[reactant] -= 1
                 reactionList.append([rt, [reactant], [product], rateConstants])
@@ -1344,10 +1340,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(1)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(1, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(1)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(1, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(1, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(1)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(1)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
@@ -1374,10 +1374,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(2)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(2, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(2)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(2, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(2, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(2)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(2)
 
                 outNodesCount[reactant] -= 2
                 reactionList.append([rt, [reactant], [product1, product2], rateConstants])
@@ -1405,10 +1409,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(3)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(3, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(3)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(3, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(3, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(3)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(3)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
@@ -1445,10 +1453,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(0)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(0, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(0)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(0, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(0, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(0)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(0)
 
                 inNodesCount[product] -= 1
                 outNodesCount[reactant] -= 1
@@ -1483,10 +1495,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(1)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(1, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(1)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(1, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(1, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(1)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(1)
 
                 inNodesCount[product] -= 2
                 outNodesCount[reactant1] -= 1
@@ -1522,10 +1538,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(2)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(2, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(2)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(2, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(2, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(2)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(2)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1563,10 +1583,14 @@ def _generateReactionList(nSpecies, kinetics='mass_action', rxn_prob=None, rev_p
                 reversible = reversibility(3)
 
                 rateConstants = None
-                if kinetics[0] == 'mass_action':
-                    rateConstants = getMassActionRateConstants(3, reversible)
-                if kinetics[0] == 'hanekom':
-                    rateConstants = getHanekomRateConstants(3)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
+                    rateConstants = getMassAction3RateConstants(3, reversible)
+                if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
+                    rateConstants = getMassAction12RateConstants(3, reversible)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
+                    rateConstants = getHanekom3RateConstants(3)
+                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
+                    rateConstants = getHanekom4RateConstants(3)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
@@ -1693,15 +1717,84 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
             antStr = antStr + ', ' + 'S' + str(index)
         antStr = antStr + ';\n\n'
 
-    if kinetics is 'hanekom' or kinetics[0] is 'hanekom':
+    if kinetics[0] is 'mass_action':
 
-        case = None
-        if isinstance(kinetics[2], str):
-            case = 1
-        if isinstance(kinetics[2], list):
-            case = 2
+        for reactionIndex, r in enumerate(reactionListCopy):
+            antStr = antStr + 'J' + str(reactionIndex) + ': '
+            if r[0] == TReactionType.UNIUNI:
+                # UniUni
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
 
-        # quit()
+                if len(r[3]) == 1:
+                    antStr = antStr + '; ' + 'kc' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
+                if len(r[3]) == 2:
+                    antStr = antStr + '; ' + 'kf' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + ' - kr' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][2][0])
+
+            if r[0] == TReactionType.BIUNI:
+                # BiUni
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+
+                if len(r[3]) == 1:
+                    antStr = antStr + '; ' + 'kc' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + '*S' + str(reactionListCopy[reactionIndex][1][1])
+                if len(r[3]) == 2:
+                    antStr = antStr + '; ' + 'kf' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + '*S' + str(reactionListCopy[reactionIndex][1][1]) + ' - kr' + str(reactionIndex) + '*S' \
+                             + str(reactionListCopy[reactionIndex][2][0])
+
+            if r[0] == TReactionType.UNIBI:
+                # UniBi
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
+
+                if len(r[3]) == 1:
+                    antStr = antStr + '; ' + 'kc' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
+                if len(r[3]) == 2:
+                    antStr = antStr + '; ' + 'kf' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + ' - kr' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][2][0]) \
+                             + '*S' + str(reactionListCopy[reactionIndex][2][1])
+
+            if r[0] == TReactionType.BIBI:
+                # BiBi
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
+
+                if len(r[3]) == 1:
+                    antStr = antStr + '; ' + 'kc' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + '*S' + str(reactionListCopy[reactionIndex][1][1])
+                if len(r[3]) == 2:
+                    antStr = antStr + '; ' + 'kf' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0]) \
+                             + '*S' + str(reactionListCopy[reactionIndex][1][1]) + ' - kr' + str(reactionIndex) + '*S' \
+                             + str(reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
+
+            antStr = antStr + ';\n'
+
+        antStr = antStr + '\n'
+
+        for index, r in enumerate(reactionListCopy):
+
+            for param in r[3]:
+                antStr = antStr + param + str(index) + ' = ' + str(r[3][param][0]) + '\n'
+
+        antStr = antStr + '\n'
+
+    if kinetics[0] is 'hanekom':
+
         for reactionIndex, r in enumerate(reactionListCopy):
 
             antStr = antStr + 'J' + str(reactionIndex) + ': '
@@ -1835,56 +1928,159 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
 
             antStr = antStr + ';\n'
 
-    if kinetics[0] == 'mass_action':
+        antStr = antStr + '\n'
 
-        for reactionIndex, r in enumerate(reactionListCopy):
-            antStr = antStr + 'J' + str(reactionIndex) + ': '
+        ks = []
+        kp = []
+        khs = []
+
+        V = []
+        ksStr = []
+        kpStr = []
+        khsStr = []
+        keq = []
+
+        for index, r in enumerate(reactionListCopy):
+
             if r[0] == TReactionType.UNIUNI:
-                # UniUni
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-                antStr = antStr + ' -> '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
-                if len(r[3]) == 2:
-                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(
-                        reactionListCopy[reactionIndex][2][0])
+
+                V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
+
+                if str(r[1][0]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
+                    ks.append(str(r[1][0]))
+
+                if str(r[2][0]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
+                    kp.append(str(r[2][0]))
+
+                if str(r[1][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
+                    khs.append(str(r[1][0]))
+
+                if str(r[2][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][1]) + '\n')
+                    khs.append(str(r[2][0]))
+
+                keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
+
             if r[0] == TReactionType.BIUNI:
-                # BiUni
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-                antStr = antStr + ' + '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
-                antStr = antStr + ' -> '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(
-                    reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
-                if len(r[3]) == 2:
-                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(
-                        reactionListCopy[reactionIndex][2][0])
+
+                V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
+
+                if str(r[1][0]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
+                    ks.append(str(r[1][0]))
+
+                if str(r[1][1]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][1]) + ' = ' + str(r[3]['ks'][1]) + '\n')
+                    ks.append(str(r[1][1]))
+
+                if str(r[2][0]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
+                    kp.append(str(r[2][0]))
+
+                if str(r[1][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
+                    khs.append(str(r[1][0]))
+
+                if str(r[1][1]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
+                    khs.append(str(r[1][1]))
+
+                if str(r[2][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][2]) + '\n')
+                    khs.append(str(r[2][0]))
+
+                keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
+
             if r[0] == TReactionType.UNIBI:
-                # UniBi
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-                antStr = antStr + ' -> '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-                antStr = antStr + ' + '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
-                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(reactionListCopy[reactionIndex][1][0])
-                if len(r[3]) == 2:
-                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(
-                        reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
+
+                V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
+
+                if str(r[1][0]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
+                    ks.append(str(r[1][0]))
+
+                if str(r[2][0]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
+                    kp.append(str(r[2][0]))
+
+                if str(r[2][1]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][1]) + ' = ' + str(r[3]['kp'][1]) + '\n')
+                    kp.append(str(r[2][1]))
+
+                if str(r[1][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
+                    khs.append(str(r[1][0]))
+
+                if str(r[2][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][1]) + '\n')
+                    khs.append(str(r[2][0]))
+
+                if str(r[2][1]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][1]) + ' = ' + str(r[3]['khs'][2]) + '\n')
+                    khs.append(str(r[2][1]))
+
+                keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
+
             if r[0] == TReactionType.BIBI:
-                # BiBi
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][0])
-                antStr = antStr + ' + '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][1][1])
-                antStr = antStr + ' -> '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][0])
-                antStr = antStr + ' + '
-                antStr = antStr + 'S' + str(reactionListCopy[reactionIndex][2][1])
-                antStr = antStr + '; ' + 'k' + str(reactionIndex) + '*S' + str(
-                    reactionListCopy[reactionIndex][1][0]) + '*S' + str(reactionListCopy[reactionIndex][1][1])
-                if len(r[3]) == 2:
-                    antStr = antStr + ' - k' + str(reactionIndex) + 'r' + '*S' + str(
-                        reactionListCopy[reactionIndex][2][0]) + '*S' + str(reactionListCopy[reactionIndex][2][1])
+
+                V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
+
+                if str(r[1][0]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
+                    ks.append(str(r[1][0]))
+
+                if str(r[1][1]) not in ks and 'ks' in r[3]:
+                    ksStr.append('ks' + str(r[1][1]) + ' = ' + str(r[3]['ks'][1]) + '\n')
+                    ks.append(str(r[1][1]))
+
+                if str(r[2][0]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
+                    kp.append(str(r[2][0]))
+
+                if str(r[2][1]) not in kp and 'kp' in r[3]:
+                    kpStr.append('kp' + str(r[2][1]) + ' = ' + str(r[3]['kp'][1]) + '\n')
+                    kp.append(str(r[2][1]))
+
+                if str(r[1][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
+                    khs.append(str(r[1][0]))
+
+                if str(r[1][1]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[1][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
+                    khs.append(str(r[1][1]))
+
+                if str(r[2][0]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][2]) + '\n')
+                    khs.append(str(r[2][0]))
+
+                if str(r[2][1]) not in khs and 'khs' in r[3]:
+                    khsStr.append('khs' + str(r[2][1]) + ' = ' + str(r[3]['khs'][3]) + '\n')
+                    khs.append(str(r[2][1]))
+
+                keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
+
+        for each in V:
+            antStr = antStr + each
+        antStr = antStr + '\n'
+        if ksStr:
+            for each in ksStr:
+                antStr = antStr + each
+            antStr = antStr + '\n'
+        if kpStr:
+            for each in kpStr:
+                antStr = antStr + each
+            antStr = antStr + '\n'
+        if khsStr:
+            for each in khsStr:
+                antStr = antStr + each
+            antStr = antStr + '\n'
+        for each in keq:
+            antStr = antStr + each
+        antStr = antStr + '\n'
+
 
     # if Settings.addDegradationSteps:
     #     reactionIndex += 1
@@ -1892,159 +2088,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
     #     for sp in floatingIds:
     #         antStr = antStr + 'S' + str(sp) + ' ->; ' + 'k' + str(reactionIndex) + '*' + 'S' + str(sp) + '\n'
     #         reactionIndex += 1
-
-    antStr = antStr + '\n'
-
-    ks = []
-    kp = []
-    khs = []
-
-    V = []
-    ksStr = []
-    kpStr = []
-    khsStr = []
-    keq = []
-
-    for index, r in enumerate(reactionListCopy):
-
-        if r[0] == TReactionType.UNIUNI:
-
-            V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
-
-            if str(r[1][0]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
-                ks.append(str(r[1][0]))
-
-            if str(r[2][0]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
-                kp.append(str(r[2][0]))
-
-            if str(r[1][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[1][0]))
-
-            if str(r[2][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[2][0]))
-
-            keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
-
-        if r[0] == TReactionType.BIUNI:
-
-            V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
-
-            if str(r[1][0]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
-                ks.append(str(r[1][0]))
-
-            if str(r[1][1]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][1]) + ' = ' + str(r[3]['ks'][1]) + '\n')
-                ks.append(str(r[1][1]))
-
-            if str(r[2][0]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
-                kp.append(str(r[2][0]))
-
-            if str(r[1][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[1][0]))
-
-            if str(r[1][1]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
-                khs.append(str(r[1][1]))
-
-            if str(r[2][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[2][0]))
-
-            keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
-
-        if r[0] == TReactionType.UNIBI:
-
-            V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
-
-            if str(r[1][0]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
-                ks.append(str(r[1][0]))
-
-            if str(r[2][0]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
-                kp.append(str(r[2][0]))
-
-            if str(r[2][1]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][1]) + ' = ' + str(r[3]['kp'][1]) + '\n')
-                kp.append(str(r[2][1]))
-
-            if str(r[1][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[1][0]))
-
-            if str(r[2][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[2][0]))
-
-            if str(r[2][1]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
-                khs.append(str(r[2][1]))
-
-            keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
-
-        if r[0] == TReactionType.BIBI:
-
-            V.append('V' + str(index) + ' = ' + str(r[3]['V'][0]) + '\n')
-
-            if str(r[1][0]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][0]) + ' = ' + str(r[3]['ks'][0]) + '\n')
-                ks.append(str(r[1][0]))
-
-            if str(r[1][1]) not in ks and 'ks' in r[3]:
-                ksStr.append('ks' + str(r[1][1]) + ' = ' + str(r[3]['ks'][1]) + '\n')
-                ks.append(str(r[1][1]))
-
-            if str(r[2][0]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][0]) + ' = ' + str(r[3]['kp'][0]) + '\n')
-                kp.append(str(r[2][0]))
-
-            if str(r[2][1]) not in kp and 'kp' in r[3]:
-                kpStr.append('kp' + str(r[2][1]) + ' = ' + str(r[3]['kp'][1]) + '\n')
-                kp.append(str(r[2][1]))
-
-            if str(r[1][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[1][0]))
-
-            if str(r[1][1]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[1][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
-                khs.append(str(r[1][1]))
-
-            if str(r[2][0]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][0]) + ' = ' + str(r[3]['khs'][0]) + '\n')
-                khs.append(str(r[2][0]))
-
-            if str(r[2][1]) not in khs and 'khs' in r[3]:
-                khsStr.append('khs' + str(r[2][1]) + ' = ' + str(r[3]['khs'][1]) + '\n')
-                khs.append(str(r[2][1]))
-
-            keq.append('keq' + str(index) + ' = ' + str(r[3]['keq'][0]) + '\n')
-
-    for each in V:
-        antStr = antStr + each
-    antStr = antStr + '\n'
-    if ksStr:
-        for each in ksStr:
-            antStr = antStr + each
-        antStr = antStr + '\n'
-    if kpStr:
-        for each in kpStr:
-            antStr = antStr + each
-        antStr = antStr + '\n'
-    if khsStr:
-        for each in khsStr:
-            antStr = antStr + each
-        antStr = antStr + '\n'
-    for each in keq:
-        antStr = antStr + each
-    antStr = antStr + '\n'
 
     # if Settings.addDegradationSteps:
     #     # Next the degradation rate constants
@@ -2057,29 +2100,33 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ICparams=None, ki
     # for index, r in enumerate(reactionListCopy):
     #     antStr = antStr + 'E' + str(index) + ' = 1\n'
 
-    def getICvalue():
+    def getICvalue(ICind):
 
         # todo: add additional distributions
 
+        IC = None
         if ICparams == 'trivial':
             IC = 1
-        elif ICparams is None:
+        if isinstance(ICparams, list) and ICparams[0] is 'dist':
+            IC = uniform.rvs(loc=ICparams[1], scale=ICparams[2]-ICparams[1])
+        if isinstance(ICparams, list) and ICparams[0] is 'list':
+            IC = ICparams[1][ICind]
+        if ICparams is None:
             IC = uniform.rvs(loc=0, scale=10)
-        else:
-            IC = uniform.rvs(loc=ICparams[0], scale=ICparams[1]-ICparams[0])
+
 
         return IC
 
-    antStr = antStr + '\n'
+    # antStr = antStr + '\n'
     for index, b in enumerate(boundaryIds):
         # antStr = antStr + 'S' + str(b) + ' = ' + str(random.randint(1, 6)) + '\n'
-        ICvalue = getICvalue()
+        ICvalue = getICvalue(b)
         antStr = antStr + 'S' + str(b) + ' = ' + str(ICvalue) + '\n'
 
     antStr = antStr + '\n'
     for index, b in enumerate(floatingIds):
         # antStr = antStr + 'S' + str(b) + ' = ' + str(random.randint(1, 6)) + '\n'
-        ICvalue = getICvalue()
+        ICvalue = getICvalue(b)
         antStr = antStr + 'S' + str(b) + ' = ' + str(ICvalue) + '\n'
 
     return antStr
