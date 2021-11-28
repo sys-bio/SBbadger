@@ -5,7 +5,7 @@ from RNG.processRNG import runRNG
 
 runRNG(
        group_name='test_group',
-       output_dir='C:/Users/kochen/',
+       output_dir=None,
        overwrite=True,
        n_models=10,
        n_species=10,
