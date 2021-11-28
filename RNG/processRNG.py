@@ -7,7 +7,7 @@ import shutil
 import glob
 
 
-def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kinetics='mass_action', rxn_prob=False,
+def runRNG(group_name=None, output_dir=None, overwrite=False, n_models=None, n_species=None, kinetics='mass_action', rxn_prob=False,
            rev_prob=False, constDist=None, constParams=None, inDist='random', outDist='random', jointDist=None,
            inRange=None, outRange=None, jointRange=None, cutOff=1.0, ICparams=None):
 
@@ -61,24 +61,45 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
 
     num_existing_models = 0
 
-    if overwrite:
-        if os.path.exists('models/' + group_name + '/'):
-            shutil.rmtree('models/' + group_name + '/')
-            os.makedirs('models/' + group_name + '/' + 'antimony')
-            os.makedirs('models/' + group_name + '/' + 'distributions')
-            os.makedirs('models/' + group_name + '/' + 'sbml')
+    if output_dir:
+        if overwrite:
+            if os.path.exists(output_dir + '/models/' + group_name + '/'):
+                shutil.rmtree(output_dir + '/models/' + group_name + '/')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'antimony')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'distributions')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'sbml')
+            else:
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'antimony')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'distributions')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'sbml')
         else:
-            os.makedirs('models/' + group_name + '/' + 'antimony')
-            os.makedirs('models/' + group_name + '/' + 'distributions')
-            os.makedirs('models/' + group_name + '/' + 'sbml')
+            if os.path.exists(output_dir + '/models/' + group_name + '/'):
+                gd = glob.glob(output_dir + '/models/' + group_name + '/antimony/*')
+                num_existing_models = len(gd)
+            else:
+                os.makedirs(output_dir + '/models/' + group_name + '/' + '/' + 'antimony')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'distributions')
+                os.makedirs(output_dir + '/models/' + group_name + '/' + 'sbml')
+
     else:
-        if os.path.exists('models/' + group_name + '/'):
-            gd = glob.glob('models/' + group_name + '/antimony/*')
-            num_existing_models = len(gd)
+        if overwrite:
+            if os.path.exists('models/' + group_name + '/'):
+                shutil.rmtree('models/' + group_name + '/')
+                os.makedirs('models/' + group_name + '/' + 'antimony')
+                os.makedirs('models/' + group_name + '/' + 'distributions')
+                os.makedirs('models/' + group_name + '/' + 'sbml')
+            else:
+                os.makedirs('models/' + group_name + '/' + 'antimony')
+                os.makedirs('models/' + group_name + '/' + 'distributions')
+                os.makedirs('models/' + group_name + '/' + 'sbml')
         else:
-            os.makedirs('models/' + group_name + '/' + '/' + 'antimony')
-            os.makedirs('models/' + group_name + '/' + 'distributions')
-            os.makedirs('models/' + group_name + '/' + 'sbml')
+            if os.path.exists('models/' + group_name + '/'):
+                gd = glob.glob('models/' + group_name + '/antimony/*')
+                num_existing_models = len(gd)
+            else:
+                os.makedirs('models/' + group_name + '/' + '/' + 'antimony')
+                os.makedirs('models/' + group_name + '/' + 'distributions')
+                os.makedirs('models/' + group_name + '/' + 'sbml')
 
     i = num_existing_models
     while i < n_models:
@@ -90,12 +111,12 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
         antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics, rev_prob=rev_prob)
-        anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
+        anti_dir = output_dir + '/models/' + group_name + '/antimony/' + str(i) + '.txt'
         f = open(anti_dir, 'w')
         f.write(antStr)
         f.close()
 
-        dist_dir = 'models/' + group_name + '/distributions/' + str(i) + '.cvs'
+        dist_dir = output_dir + '/models/' + group_name + '/distributions/' + str(i) + '.cvs'
         f = open(dist_dir, 'w')
         f.write('out distribution\n')
         for each in dists[0]:
@@ -111,7 +132,7 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
         f.write('\n')
         f.close()
 
-        sbml_dir = 'models/' + group_name + '/sbml/' + str(i) + '.sbml'
+        sbml_dir = output_dir + '/models/' + group_name + '/sbml/' + str(i) + '.sbml'
         r = te.loada(antStr)
         r.exportToSBML(sbml_dir)
 
