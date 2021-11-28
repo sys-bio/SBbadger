@@ -89,7 +89,7 @@ def runRNG(group_name=None, overwrite=False, n_models=None, n_species=None, kine
 
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
-        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics)
+        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics, rev_prob=rev_prob)
         anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
         f = open(anti_dir, 'w')
         f.write(antStr)
