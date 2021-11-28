@@ -1,14 +1,24 @@
 
 from math import exp
+from scipy.special import zeta
 
 from RNG.processRNG import runRNG
+
+def inDist(k):
+    return k**(-2) / zeta(2)
+
+def outDist(k):
+    return k**(-2) / zeta(2)
 
 runRNG(
        group_name='test_group',
        output_dir=None,
        overwrite=True,
        n_models=10,
-       n_species=10,
+       n_species=100,
+
+       inDist=inDist,
+       outDist=outDist,
 
        # kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
        # kinetics=['mass_action', 'uniform', ['kf', 'kr', 'kc'], [[0.0, 100], [0.0, 100], [0.0, 100]]],

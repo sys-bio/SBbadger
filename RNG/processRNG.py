@@ -104,9 +104,10 @@ def runRNG(group_name=None, output_dir=None, overwrite=False, n_models=None, n_s
     i = num_existing_models
     while i < n_models:
 
-        rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics,
-                                                        rxn_prob=rxn_prob, rev_prob=rev_prob, constDist=constDist,
-                                                        constParams=constParams)
+        rl, dists = buildNetworks._generateReactionList(n_species, kinetics=kinetics, constDist=None, constParams=None,
+                                                        inDist=inDist, outDist=inDist, jointDist=None, inRange=None,
+                                                        outRange=None, jointRange=None, cutOff=1.0, rxn_prob=rxn_prob,
+                                                        rev_prob=rev_prob)
 
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
