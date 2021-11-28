@@ -111,12 +111,18 @@ def runRNG(group_name=None, output_dir=None, overwrite=False, n_models=None, n_s
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
         antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics, rev_prob=rev_prob)
-        anti_dir = output_dir + '/models/' + group_name + '/antimony/' + str(i) + '.txt'
+        if output_dir:
+            anti_dir = output_dir + '/models/' + group_name + '/antimony/' + str(i) + '.txt'
+        else:
+            anti_dir = 'models/' + group_name + '/antimony/' + str(i) + '.txt'
         f = open(anti_dir, 'w')
         f.write(antStr)
         f.close()
 
-        dist_dir = output_dir + '/models/' + group_name + '/distributions/' + str(i) + '.cvs'
+        if output_dir:
+            dist_dir = output_dir + '/models/' + group_name + '/distributions/' + str(i) + '.cvs'
+        else:
+            dist_dir = 'models/' + group_name + '/distributions/' + str(i) + '.cvs'
         f = open(dist_dir, 'w')
         f.write('out distribution\n')
         for each in dists[0]:
@@ -132,7 +138,10 @@ def runRNG(group_name=None, output_dir=None, overwrite=False, n_models=None, n_s
         f.write('\n')
         f.close()
 
-        sbml_dir = output_dir + '/models/' + group_name + '/sbml/' + str(i) + '.sbml'
+        if output_dir:
+            sbml_dir = output_dir + '/models/' + group_name + '/sbml/' + str(i) + '.sbml'
+        else:
+            sbml_dir = 'models/' + group_name + '/sbml/' + str(i) + '.sbml'
         r = te.loada(antStr)
         r.exportToSBML(sbml_dir)
 
