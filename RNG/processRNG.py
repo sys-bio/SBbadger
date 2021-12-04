@@ -1,22 +1,15 @@
 
 import sys
-import tellurium as te
 import buildNetworks
 import os
 import shutil
 import glob
-from multiprocessing import Pool, cpu_count, Queue, SimpleQueue, JoinableQueue, Process, Lock
-import multiprocessing as mp
-import gc
 import antimony
 
 
-def runRNG(verbose_exceptions=False, add_deg=False, add_E=False, group_name=None, n_models=None, 
-           n_species=None, kinetics=None, inDist='random', outDist='random', output_dir=None, overwrite=False, 
-           rxn_prob=False, rev_prob=False, jointDist=None, inRange=None, outRange=None, jointRange=None, cutOff=1.0, 
-           ICparams=None):
-
-    # print('kinetics', kinetics)
+def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, kinetics=None,
+           in_dist='random', out_dist='random', output_dir=None, overwrite=False, rxn_prob=False, rev_prob=False,
+           joint_dist=None, in_range=None, out_range=None, joint_range=None, cut_off=1.0, ic_params=None):
 
     if not verbose_exceptions:
         sys.tracebacklimit = 0
@@ -30,7 +23,7 @@ def runRNG(verbose_exceptions=False, add_deg=False, add_E=False, group_name=None
     if kinetics is None:
         raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
-    if jointDist and (inDist is not 'random' or outDist is not 'random'):
+    if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
         raise Exception("You have provided both a joint distribution and onr or both of the input and output distributions")
 
     if rxn_prob:
@@ -45,13 +38,13 @@ def runRNG(verbose_exceptions=False, add_deg=False, add_E=False, group_name=None
         if rev_prob < 0.0 or rev_prob > 1.0:
             raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if isinstance(jointRange, list) and jointRange[0] < 1:
+    if isinstance(joint_range, list) and joint_range[0] < 1:
         raise Exception("Node degree cannot be less than 1.")
 
-    if isinstance(inRange, list) and inRange[0] < 1:
+    if isinstance(in_range, list) and in_range[0] < 1:
         raise Exception("Node degree cannot be less than 1.")
 
-    if isinstance(outRange, list) and outRange[0] < 1:
+    if isinstance(out_range, list) and out_range[0] < 1:
         raise Exception("Node degree cannot be less than 1.")
 
     sys.tracebacklimit = 1000
@@ -99,37 +92,29 @@ def runRNG(verbose_exceptions=False, add_deg=False, add_E=False, group_name=None
                 os.makedirs('models/' + group_name + '/' + 'distributions')
                 os.makedirs('models/' + group_name + '/' + 'sbml')
 
-    # processes = []
-
-    # mp.set_start_method("spawn", force=True)
-    # manager = mp.Manager()
-
     i = num_existing_models
 
-    while i < n_models:
+    while i < num_existing_models + n_models:
 
         print(i)
-        # print('kinetics', kinetics)
-        rl, dists = buildNetworks._generateReactionList(n_species, kinetics, inDist, outDist, jointDist=jointDist,
-                                                        inRange=inRange, outRange=outRange, jointRange=jointRange,
-                                                        cutOff=cutOff, rxn_prob=rxn_prob, rev_prob=rev_prob)
+        rl, dists = buildNetworks._generateReactionList(n_species, kinetics, in_dist, out_dist, cut_off, joint_dist,
+                                                        in_range, out_range, joint_range, rxn_prob, rev_prob)
 
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
-        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ICparams=ICparams, kinetics=kinetics,
-                                                  rev_prob=rev_prob, add_deg=add_deg, add_E=add_E)
+        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E)
 
         if output_dir:
-            anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         else:
-            anti_dir = os.path.join('models', group_name, 'antimony', str(i) + '.txt')
+            anti_dir = os.path.join('models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(antStr)
 
         if output_dir:
-            dist_dir = os.path.join(output_dir, 'models', group_name, 'distributions', str(i) + '.cvs')
+            dist_dir = os.path.join(output_dir, 'models', group_name, 'distributions', group_name + '_' + str(i) + '.cvs')
         else:
-            dist_dir = os.path.join('models', group_name, 'distributions', str(i) + '.cvs')
+            dist_dir = os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '.cvs')
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
             for each in dists[0]:
@@ -144,24 +129,17 @@ def runRNG(verbose_exceptions=False, add_deg=False, add_E=False, group_name=None
                 f.write(str(each[0]) + ',' + str(each[1]) + ',' + str(each[2]) + '\n')
             f.write('\n')
 
-        # --------------------------------------------------------------------------------------------------------
-
         if output_dir:
-            sbml_dir = os.path.join(output_dir, 'models', group_name, 'sbml', str(i) + '.sbml')
+            sbml_dir = os.path.join(output_dir, 'models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
         else:
-            sbml_dir = os.path.join('models', group_name, 'sbml', str(i) + '.sbml')
+            sbml_dir = os.path.join('models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
 
-        # astr = "a=3"  # Replace with your own string
         antimony.loadAntimonyString(antStr)
         sbml = antimony.getSBMLString()
-        # print(sbml)
 
         with open(sbml_dir, 'w') as f:
             f.write(sbml)
 
         antimony.clearPreviousLoads()
-
-        # r = te.loada(antStr)
-        # r.exportToSBML(sbml_dir)
 
         i += 1
