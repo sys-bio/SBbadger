@@ -4,8 +4,6 @@ import os
 from processRNG import runRNG
 from math import exp
 from scipy.special import zeta
-from buildNetworks import Settings
-Settings.addDegradationSteps = True
 
 
 def in_dist(k):

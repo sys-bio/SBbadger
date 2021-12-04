@@ -8,7 +8,7 @@ import sys
 from copy import deepcopy
 from scipy.stats import norm, lognorm, uniform, loguniform
 from collections import defaultdict
-
+from SBMLLint.tools import lp_analysis
 
 # General settings for the package
 @dataclass

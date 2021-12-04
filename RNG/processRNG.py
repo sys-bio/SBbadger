@@ -5,6 +5,7 @@ import os
 import shutil
 import glob
 import antimony
+from SBMLLint.tools import lp_analysis
 
 
 def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, kinetics=None,
@@ -103,6 +104,8 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
         antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E)
+
+        # print(lp_analysis.LPAnalysis(antStr))
 
         if output_dir:
             anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
