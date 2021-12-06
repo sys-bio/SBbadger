@@ -86,8 +86,8 @@ def _pickReactionType(prob=None):
         return TReactionType.BIBI
 
 
-def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_prob, rev_prob, joint_dist, in_range,
-                          out_range, joint_range):
+def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
+                          in_range, out_range, joint_range, rxn_prob, rev_prob):
 
     # todo: expand kinetics?
     # todo: mass balance
@@ -113,9 +113,9 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
             for j in range(deg):
                 dist.append(sdist(j + 1))
             distsum = sum(dist)
-            distN = [x * nSpecies / distsum for x in dist]
+            distN = [x * n_species / distsum for x in dist]
 
-            if distN[-1] < cut_off:
+            if distN[-1] < min_node_deg:
                 pmf0 = dist[:-1]
                 sumDistF = sum(pmf0)
                 pmf0 = [x / sumDistF for x in pmf0]
@@ -125,6 +125,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
         return pmf0
 
+    # todo: generalize out the endpoint tests
     def single_bounded_pmf(sdist, drange):
         """Start with given degree range and trim until cutoffs found"""
 
@@ -132,7 +133,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         pmf0 = [sdist(j) for j in range(drange[0], drange[1] + 1)]
         distSum = min(sum(pmf0), 1)
         pmf0 = [x / distSum for x in pmf0]
-        dist = [x * nSpecies / distSum for x in pmf0]
+        dist = [x * n_species / distSum for x in pmf0]
 
         while dist[0] < 1 or dist[-1] < 1:
             if dist[0] < dist[-1]:
@@ -142,7 +143,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 distInd.pop(-1)
                 pmf0.pop(-1)
             distSum = sum(pmf0)
-            dist = [x * nSpecies / distSum for x in pmf0]
+            dist = [x * n_species / distSum for x in pmf0]
             pmf0 = [x / distSum for x in pmf0]
         startdeg = distInd[0]
 
@@ -154,7 +155,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         outind = [j for j in range(len(pmf0))]
 
         j = 0
-        while j < nSpecies:
+        while j < n_species:
             ind = random.choices(outind, pmf0)[0]
             samplest[ind] += 1
             j += 1
@@ -175,7 +176,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         ind2 = [j for j in range(len(pmf02))]
 
         j = 0
-        while j < nSpecies:
+        while j < n_species:
             ind = random.choices(ind1, pmf01)[0]
             samples1t[ind] += 1
             j += 1
@@ -190,14 +191,13 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         for item in samples1:
             edges1 += item[0] * item[1]
         numTrys = 0
+
         while True:
             numTrys += 1
-
             edges2 = 0
             nodes = 0
             samples2t = [0 for _ in pmf02]
-
-            while edges2 < edges1 and nodes < nSpecies:
+            while edges2 < edges1 and nodes < n_species:
                 ind = random.choices(ind2, pmf02)[0]
                 samples2t[ind] += 1
                 edges2 += ind + startDeg02
@@ -229,11 +229,11 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         edgeEV = 0
         for j, item in enumerate(xDist):
             if isinstance(xRange, list):
-                edgeEV += item * xRange[j] * nSpecies
+                edgeEV += item * xRange[j] * n_species
             elif isinstance(xRange, int):
-                edgeEV += item * (j+xRange) * nSpecies
+                edgeEV += item * (j+xRange) * n_species
             else:
-                edgeEV += item * (j+1) * nSpecies
+                edgeEV += item * (j+1) * n_species
 
         return edgeEV
 
@@ -264,7 +264,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
         edges = 0
         for j, item in enumerate(pmf0):
-            edges += item * nSpecies * degRange[j]
+            edges += item * n_species * degRange[j]
 
         while edges > edgesTarget:
 
@@ -273,7 +273,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
             pmf0 = [x/sumPmf for x in pmf0]
             edges = 0
             for j, item in enumerate(pmf0):
-                edges += item * nSpecies * degRange[j]
+                edges += item * n_species * degRange[j]
 
         return pmf0
 
@@ -320,9 +320,9 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
             scaledDscores = []
             for item in newDscores:
-                scaledDscores.append(nSpecies * item / dsum)
+                scaledDscores.append(n_species * item / dsum)
 
-            if any(x < cut_off for x in scaledDscores):
+            if any(x < min_node_deg for x in scaledDscores):
                 break
 
             dist = newDist
@@ -357,7 +357,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
             count += 1
             samplest = [0 for _ in joint_pmf]
             j = 0
-            while j < nSpecies:
+            while j < n_species:
                 sample = random.choices(ind, joint_pmf)[0]
                 samplest[sample] += 1
                 j += 1
@@ -387,13 +387,13 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
             for k in range(joint_range1[0], joint_range1[1]+1):
                 joint_pmf.append([joint_dist1(j, k), 0., (j, k)])
         pmfSum = sum(joint_pmf[j][0] for j in range(len(joint_pmf)))
-        joint_pmf = [[joint_pmf[j][0]/pmfSum, joint_pmf[j][0]*nSpecies/pmfSum, joint_pmf[j][2]] for j in range(len(joint_pmf))]
+        joint_pmf = [[joint_pmf[j][0]/pmfSum, joint_pmf[j][0]*n_species/pmfSum, joint_pmf[j][2]] for j in range(len(joint_pmf))]
         joint_pmf.sort(key=lambda x: x[1])
-        while joint_pmf[0][1] < cut_off:
+        while joint_pmf[0][1] < min_node_deg:
             value = joint_pmf[0][1]
             joint_pmf = [x for x in joint_pmf if x[1] != value]
             pmfSum = sum(joint_pmf[j][0] for j in range(len(joint_pmf)))
-            joint_pmf = [[joint_pmf[j][0]/pmfSum, joint_pmf[j][0]*nSpecies/pmfSum, joint_pmf[j][2]] for j in range(len(joint_pmf))]
+            joint_pmf = [[joint_pmf[j][0]/pmfSum, joint_pmf[j][0]*n_species/pmfSum, joint_pmf[j][2]] for j in range(len(joint_pmf))]
 
         joint_pmf_temp = []
         for item in joint_pmf:
@@ -432,6 +432,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         inputCase = 8
 
     if callable(out_dist) and callable(in_dist):
+
         if in_dist == out_dist and in_range is None and out_range is None:
             inputCase = 9
         if in_dist == out_dist and in_range and in_range == out_range:
@@ -473,6 +474,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
         pmf = single_unbounded_pmf(out_dist)
         outSamples = sample_single_distribution(pmf, 1)
 
+    # todo: generalize the ranges
     if inputCase == 2:
 
         pmf, startDeg = single_bounded_pmf(out_dist, out_range)
@@ -517,7 +519,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
         pmf1 = single_unbounded_pmf(out_dist)
         pmf2 = single_unbounded_pmf(in_dist)
-        inOrOut = random.randint(0, 1)  # choose which distribution is guaranteed nSpecies
+        inOrOut = random.randint(0, 1)  # choose which distribution is guaranteed n_species
         if inOrOut:
             inSamples, outSamples = sample_both_pmfs(pmf2, 1, pmf1, 1)
         else:
@@ -527,7 +529,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
         pmf1, startDeg1 = single_bounded_pmf(out_dist, out_range)
         pmf2, startDeg2 = single_bounded_pmf(in_dist, in_range)
-        inOrOut = random.randint(0, 1)  # choose which distribution is guaranteed nSpecies
+        inOrOut = random.randint(0, 1)  # choose which distribution is guaranteed n_species
         if inOrOut:
             inSamples, outSamples = sample_both_pmfs(pmf2, startDeg2, pmf1, startDeg1)
         else:
@@ -552,6 +554,7 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
             pmfIn = trim_pmf(edgeEVout, in_dist)
             outSamples, inSamples = sample_both_pmfs(pmfOut, 1, pmfIn, 1)
         if edgeEVin == edgeEVout:
+            # print('same')
             outSamples, inSamples = sample_both_pmfs(pmfOut, 1, pmfIn, 1)
 
     if inputCase == 13:
@@ -671,315 +674,19 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
     reactionList = []
     reactionList2 = []
 
-    def reversibility(rxnType):
-
-        rev = False
-        if rev_prob and isinstance(rev_prob, list):
-            rev = random.choices([True, False], [rev_prob[rxnType], 1.0 - rev_prob[rxnType]])[0]
-        if isinstance(rev_prob, float) or isinstance(rev_prob, int):
-            rev = random.choices([True, False], [rev_prob, 1 - rev_prob])[0]
-
-        # todo: add straight Boolean case
-
-        return rev
-
-    def getMassAction3RateConstants(rev):
-
-        constants = defaultdict(list)
-
-        # todo: make the trivial case a stand-alone function?
-        if kinetics[1] == 'trivial':
-
-            if rev:
-                constants['kf'].append(1)
-                constants['kr'].append(1)
-            else:
-                constants['kc'].append(1)
-
-        if kinetics[1] == 'uniform':
-
-            if rev:
-                constants['kf'].append(uniform.rvs(loc=paramDists['kf'][0], scale=paramDists['kf'][1]-paramDists['kf'][0]))
-                constants['kr'].append(uniform.rvs(loc=paramDists['kr'][0], scale=paramDists['kr'][1]-paramDists['kr'][0]))
-            else:
-                constants['kc'].append(uniform.rvs(loc=paramDists['kc'][0], scale=paramDists['kc'][1]-paramDists['kc'][0]))
-
-        if kinetics[1] == 'loguniform':
-
-            if rev:
-                constants['kf'].append(loguniform.rvs(paramDists['kf'][0], paramDists['kf'][1]))
-                constants['kr'].append(loguniform.rvs(paramDists['kr'][0], paramDists['kr'][1]))
-            else:
-                constants['kc'].append(loguniform.rvs(paramDists['kc'][0], paramDists['kc'][1]))
-
-        if kinetics[1] == 'norm':
-
-            if rev:
-                while True:
-                    constant = norm.rvs(loc=paramDists['kf'][0], scale=paramDists['kf'][1])
-                    if constant > 0:
-                        constants['kf'].append(constant)
-                        break
-                while True:
-                    constant = norm.rvs(loc=paramDists['kr'][0], scale=paramDists['kr'][1])
-                    if constant > 0:
-                        constants['kr'].append(constant)
-                        break
-            else:
-                while True:
-                    constant = norm.rvs(loc=paramDists['kc'][0], scale=paramDists['kc'][1])
-                    if constant > 0:
-                        constants['kc'].append(constant)
-                        break
-
-        if kinetics[1] == 'lognorm':
-
-            if rev:
-                constants['kf'].append(lognorm.rvs(scale=paramDists['kf'][0], s=paramDists['kf'][1]))
-                constants['kr'].append(lognorm.rvs(scale=paramDists['kr'][0], s=paramDists['kr'][1]))
-            else:
-                constants['kc'].append(lognorm.rvs(scale=paramDists['kc'][0], s=paramDists['kc'][1]))
-
-        return constants
-
-    def getMassAction12RateConstants(rxnType, rev):
-
-        constants = defaultdict(list)
-
-        if kinetics[1] == 'uniform':
-
-            if rev:
-                constants['kf'].append(uniform.rvs(loc=paramDists['kf' + str(rxnType)][0], scale=paramDists['kf' + str(rxnType)][1] - paramDists['kf' + str(rxnType)][0]))
-                constants['kr'].append(uniform.rvs(loc=paramDists['kr' + str(rxnType)][0], scale=paramDists['kr' + str(rxnType)][1] - paramDists['kr' + str(rxnType)][0]))
-            else:
-                constants['kc'].append(uniform.rvs(loc=paramDists['kc' + str(rxnType)][0], scale=paramDists['kc' + str(rxnType)][1] - paramDists['kc' + str(rxnType)][0]))
-
-        if kinetics[1] == 'loguniform':
-
-            if rev:
-                constants['kf'].append(loguniform.rvs(paramDists['kf' + str(rxnType)][0], paramDists['kf' + str(rxnType)][1]))
-                constants['kr'].append(loguniform.rvs(paramDists['kr' + str(rxnType)][0], paramDists['kr' + str(rxnType)][1]))
-            else:
-                constants['kc'].append(loguniform.rvs(paramDists['kc' + str(rxnType)][0], paramDists['kc' + str(rxnType)][1]))
-
-        if kinetics[1] == 'norm':
-
-            if rev:
-                while True:
-                    constant = norm.rvs(loc=paramDists['kf' + str(rxnType)][0], scale=paramDists['kf' + str(rxnType)][1])
-                    if constant > 0:
-                        constants['kf'].append(constant)
-                        break
-                while True:
-                    constant = norm.rvs(loc=paramDists['kr' + str(rxnType)][0], scale=paramDists['kr' + str(rxnType)][1])
-                    if constant > 0:
-                        constants['kr'].append(constant)
-                        break
-            else:
-                while True:
-                    constant = norm.rvs(loc=paramDists['kc' + str(rxnType)][0], scale=paramDists['kc' + str(rxnType)][1])
-                    if constant > 0:
-                        constants['kc'].append(constant)
-                        break
-
-        if kinetics[1] == 'lognorm':
-
-            if rev:
-                constants['kf'].append(lognorm.rvs(scale=paramDists['kf' + str(rxnType)][0], s=paramDists['kf' + str(rxnType)][1]))
-                constants['kr'].append(lognorm.rvs(scale=paramDists['kr' + str(rxnType)][0], s=paramDists['kr' + str(rxnType)][1]))
-            else:
-                constants['kc'].append(lognorm.rvs(scale=paramDists['kc' + str(rxnType)][0], s=paramDists['kc' + str(rxnType)][1]))
-
-        return constants
-
-    def getHanekom3RateConstants(rxnType):
-
-        constants = defaultdict(list)
-
-        if kinetics[1] == 'trivial':
-
-            constants['v'].append(1)
-            constants['keq'].append(1)
-            constants['k'].extend([1, 1])
-            if rxnType == 1 or rxnType == 2:
-                constants['k'].append(1)
-            if rxnType == 3:
-                constants['k'].append(1)
-                constants['k'].append(1)
-
-        if kinetics[1] == 'uniform':
-
-            constants['v'].append(uniform.rvs(loc=paramDists['v'][0], scale=paramDists['v'][1]-paramDists['v'][0]))
-            constants['keq'].append(uniform.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1]-paramDists['keq'][0]))
-            constants['k'].append(uniform.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1]-paramDists['k'][0]))
-            constants['k'].append(uniform.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1]-paramDists['k'][0]))
-            if rxnType == 1 or rxnType == 2:
-                constants['k'].append(uniform.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1]-paramDists['k'][0]))
-            if rxnType == 3:
-                constants['k'].append(uniform.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1]-paramDists['k'][0]))
-                constants['k'].append(uniform.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1]-paramDists['k'][0]))
-
-        if kinetics[1] == 'loguniform':
-
-            constants['v'].append(loguniform.rvs(paramDists['v'][0], paramDists['v'][1]))
-            constants['keq'].append(loguniform.rvs(paramDists['keq'][0], paramDists['keq'][1]))
-            constants['k'].append(loguniform.rvs(paramDists['k'][0], paramDists['k'][1]))
-            constants['k'].append(loguniform.rvs(paramDists['k'][0], paramDists['k'][1]))
-            if rxnType == 1 or rxnType == 2:
-                constants['k'].append(loguniform.rvs(paramDists['k'][0], paramDists['k'][1]))
-            if rxnType == 3:
-                constants['k'].append(loguniform.rvs(paramDists['k'][0], paramDists['k'][1]))
-                constants['k'].append(loguniform.rvs(paramDists['k'][0], paramDists['k'][1]))
-
-        if kinetics[1] == 'normal':
-
-            while True:
-                constant = norm.rvs(loc=paramDists['v'][0], scale=paramDists['v'][1])
-                if constant > 0:
-                    constants['v'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1])
-                if constant > 0:
-                    constants['keq'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1])
-                if constant > 0:
-                    constants['k'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1])
-                if constant > 0:
-                    constants['k'].append(constant)
-                    break
-            if rxnType == 1 or rxnType == 2:
-                while True:
-                    constant = norm.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1])
-                    if constant > 0:
-                        constants['k'].append(constant)
-                        break
-            if rxnType == 3:
-                while True:
-                    constant = norm.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1])
-                    if constant > 0:
-                        constants['k'].append(constant)
-                        break
-                while True:
-                    constant = norm.rvs(loc=paramDists['k'][0], scale=paramDists['k'][1])
-                    if constant > 0:
-                        constants['k'].append(constant)
-                        break
-
-        if kinetics[1] == 'lognormal':
-
-            constants['v'].append(lognorm.rvs(scale=paramDists['v'][0], s=paramDists['v'][1]))
-            constants['keq'].append(lognorm.rvs(scale=paramDists['keq'][0], s=paramDists['keq'][1]))
-            constants['k'].append(lognorm.rvs(scale=paramDists['k'][0], s=paramDists['k'][1]))
-            constants['k'].append(lognorm.rvs(scale=paramDists['k'][0], s=paramDists['k'][1]))
-            if rxnType == 1 or rxnType == 2:
-                constants['k'].append(lognorm.rvs(scale=paramDists['k'][0], s=paramDists['k'][1]))
-            if rxnType == 3:
-                constants['k'].append(lognorm.rvs(scale=paramDists['k'][0], s=paramDists['k'][1]))
-                constants['k'].append(lognorm.rvs(scale=paramDists['k'][0], s=paramDists['k'][1]))
-
-        return constants
-
-    def getHanekom4RateConstants(rxnType):
-
-        constants = defaultdict(list)
-
-        if kinetics[1] == 'trivial':
-
-            constants['v'].append(1)
-            constants['keq'].append(1)
-            constants['ks'].append(1)
-            constants['kp'].append(1)
-            if rxnType == 1 or rxnType == 3:
-                constants['ks'].append(1)
-            if rxnType == 2 or rxnType == 3:
-                constants['kp'].append(1)
-
-        if kinetics[1] == 'uniform':
-
-            constants['v'].append(uniform.rvs(loc=paramDists['v'][0], scale=paramDists['v'][1]-paramDists['v'][0]))
-            constants['keq'].append(uniform.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1]-paramDists['keq'][0]))
-            constants['ks'].append(uniform.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1]-paramDists['ks'][0]))
-            constants['kp'].append(uniform.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1]-paramDists['kp'][0]))
-            if rxnType == 1 or rxnType == 3:
-                constants['ks'].append(uniform.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1]-paramDists['ks'][0]))
-            if rxnType == 2 or rxnType == 3:
-                constants['kp'].append(uniform.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1]-paramDists['kp'][0]))
-
-        if kinetics[1] == 'loguniform':
-
-            constants['v'].append(loguniform.rvs(paramDists['v'][0], paramDists['v'][1]))
-            constants['keq'].append(loguniform.rvs(paramDists['keq'][0], paramDists['keq'][1]))
-            constants['ks'].append(loguniform.rvs(paramDists['ks'][0], paramDists['ks'][1]))
-            constants['kp'].append(loguniform.rvs(paramDists['kp'][0], paramDists['kp'][1]))
-            if rxnType == 1 or rxnType == 3:
-                constants['ks'].append(loguniform.rvs(paramDists['ks'][0], paramDists['ks'][1]))
-            if rxnType == 2 or rxnType == 3:
-                constants['kp'].append(loguniform.rvs(paramDists['kp'][0], paramDists['kp'][1]))
-
-        if kinetics[1] == 'normal':
-
-            while True:
-                constant = norm.rvs(loc=paramDists['v'][0], scale=paramDists['v'][1])
-                if constant > 0:
-                    constants['v'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['keq'][0], scale=paramDists['keq'][1])
-                if constant > 0:
-                    constants['keq'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1])
-                if constant > 0:
-                    constants['ks'].append(constant)
-                    break
-            while True:
-                constant = norm.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1])
-                if constant > 0:
-                    constants['kp'].append(constant)
-                    break
-            if rxnType == 1 or rxnType == 3:
-                while True:
-                    constant = norm.rvs(loc=paramDists['ks'][0], scale=paramDists['ks'][1])
-                    if constant > 0:
-                        constants['ks'].append(constant)
-                        break
-            if rxnType == 2 or rxnType == 3:
-                while True:
-                    constant = norm.rvs(loc=paramDists['kp'][0], scale=paramDists['kp'][1])
-                    if constant > 0:
-                        constants['kp'].append(constant)
-                        break
-
-        if kinetics[1] == 'lognormal':
-
-            constants['v'].append(lognorm.rvs(scale=paramDists['v'][0], s=paramDists['v'][1]))
-            constants['keq'].append(lognorm.rvs(scale=paramDists['keq'][0], s=paramDists['keq'][1]))
-            constants['ks'].append(lognorm.rvs(scale=paramDists['ks'][0], s=paramDists['ks'][1]))
-            constants['kp'].append(lognorm.rvs(scale=paramDists['kp'][0], s=paramDists['kp'][1]))
-            if rxnType == 1 or rxnType == 3:
-                constants['ks'].append(lognorm.rvs(scale=paramDists['ks'][0], s=paramDists['ks'][1]))
-            if rxnType == 2 or rxnType == 3:
-                constants['kp'].append(lognorm.rvs(scale=paramDists['kp'][0], s=paramDists['kp'][1]))
-
-        return constants
-
+    # todo: finish pick_continued
     # ---------------------------------------------------------------------------------------------------
 
     if not bool(outSamples) and not bool(inSamples):
 
-        nodesList = [i for i in range(nSpecies)]
+        nodesList = [i for i in range(n_species)]
         nodeSet = set()
-
+        pick_continued = 0
         while True:
 
-            # todo: make parameter selection a function
+            if pick_continued == 1000:
+                quit()
+                return None, [outSamples, inSamples, jointSamples]
 
             if rxn_prob:
                 rt = _pickReactionType(rxn_prob)
@@ -994,22 +701,10 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant = random.choice(nodesList)
 
                 if [[reactant], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(0)
-
-                rateConstants = None
-
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(0, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(0)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(0)
-
-                reactionList.append([rt, [reactant], [product], rateConstants])
+                reactionList.append([rt, [reactant], [product]])
                 reactionList2.append([[reactant], [product]])
 
                 nodeSet.add(reactant)
@@ -1022,21 +717,10 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant2 = random.choice(nodesList)
 
                 if [[reactant1, reactant2], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(1)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(1, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(1)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(1)
-
-                reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product]])
                 reactionList2.append([[reactant1, reactant2], [product]])
 
                 nodeSet.add(reactant1)
@@ -1050,21 +734,10 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant = random.choice(nodesList)
 
                 if [[reactant], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(2)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(2, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(2)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(2)
-
-                reactionList.append([rt, [reactant], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant], [product1, product2]])
                 reactionList2.append([[reactant], [product1, product2]])
 
                 nodeSet.add(reactant)
@@ -1079,21 +752,10 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant2 = random.choice(nodesList)
 
                 if [[reactant1, reactant2], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(3)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(3, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(3)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(3)
-
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
                 nodeSet.add(reactant1)
@@ -1101,19 +763,26 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 nodeSet.add(product1)
                 nodeSet.add(product2)
 
-            if len(nodeSet) == nSpecies:
+            if len(nodeSet) == n_species:
                 break
 
     # -----------------------------------------------------------------
 
     if not bool(outSamples) and bool(inSamples):
-
+        pick_continued = 0
         while True:
+            # print()
+            # print('onc', outNodesCount)
+            # print('inc', inNodesCount)
+
+            if pick_continued == 1000:
+                return None, [outSamples, inSamples, jointSamples]
 
             if rxn_prob:
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
+            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -1124,27 +793,17 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant = random.choice(inNodesList)
 
                 if [[reactant], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(0)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(0, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(0)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(0)
-
                 inNodesCount[product] -= 1
-                reactionList.append([rt, [reactant], [product], rateConstants])
+                reactionList.append([rt, [reactant], [product]])
                 reactionList2.append([[reactant], [product]])
 
             if rt == TReactionType.BIUNI:
 
                 if max(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
@@ -1157,93 +816,74 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant2 = random.choice(inNodesList)
 
                 if [[reactant1, reactant2], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(1)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(1, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(1)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(1)
-
                 inNodesCount[product] -= 2
-                reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product]])
                 reactionList2.append([[reactant1, reactant2], [product]])
 
             if rt == TReactionType.UNIBI:
 
                 if sum(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
                 probIn = [x/sumIn for x in inNodesCount]
                 product1 = random.choices(inNodesList, probIn)[0]
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product2 = random.choices(inNodesList, probIn)[0]
+                inNodesCountCopy = deepcopy(inNodesCount)
+                inNodesCountCopy[product1] -= 1
+                sumInCopy = sum(inNodesCountCopy)
+                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                product2 = random.choices(inNodesList, probInCopy)[0]
+
+                # sumIn = sum(inNodesCount)
+                # probIn = [x/sumIn for x in inNodesCount]
+                # product2 = random.choices(inNodesList, probIn)[0]
 
                 reactant = random.choice(inNodesList)
 
                 if [[reactant], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(2)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(2, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(2)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(2)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
-                reactionList.append([rt, [reactant], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant], [product1, product2]])
                 reactionList2.append([[reactant], [product1, product2]])
 
             if rt == TReactionType.BIBI:
 
                 if max(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
                 probIn = [x/sumIn for x in inNodesCount]
                 product1 = random.choices(inNodesList, probIn)[0]
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product2 = random.choices(inNodesList, probIn)[0]
+                inNodesCountCopy = deepcopy(inNodesCount)
+                inNodesCountCopy[product1] -= 1
+                sumInCopy = sum(inNodesCountCopy)
+                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                product2 = random.choices(inNodesList, probInCopy)[0]
+
+                # sumIn = sum(inNodesCount)
+                # probIn = [x/sumIn for x in inNodesCount]
+                # product2 = random.choices(inNodesList, probIn)[0]
 
                 reactant1 = random.choice(inNodesList)
                 reactant2 = random.choice(inNodesList)
 
                 if [[reactant1, reactant2], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(3)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(3, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(3)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(3)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
             if sum(inNodesCount) == 0:
@@ -1253,12 +893,20 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
     if bool(outSamples) and not bool(inSamples):
 
+        pick_continued = 0
         while True:
+            # print()
+            # print('onc', outNodesCount)
+            # print('inc', inNodesCount)
+
+            if pick_continued == 1000:
+                return None, [outSamples, inSamples, jointSamples]
 
             if rxn_prob:
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
+            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -1269,62 +917,48 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 product = random.choice(outNodesList)
 
                 if [[reactant], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(0)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(0, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(0)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(0)
-
                 outNodesCount[reactant] -= 1
-                reactionList.append([rt, [reactant], [product], rateConstants])
+                reactionList.append([rt, [reactant], [product]])
                 reactionList2.append([[reactant], [product]])
 
             if rt == TReactionType.BIUNI:
 
                 if sum(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumOut = sum(outNodesCount)
                 probOut = [x/sumOut for x in outNodesCount]
                 reactant1 = random.choices(outNodesList, probOut)[0]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant2 = random.choices(outNodesList, probOut)[0]
+                outNodesCountCopy = deepcopy(outNodesCount)
+                outNodesCountCopy[reactant1] -= 1
+                sumOutCopy = sum(outNodesCountCopy)
+                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                # sumOut = sum(outNodesCount)
+                # probOut = [x/sumOut for x in outNodesCount]
+                # reactant2 = random.choices(outNodesList, probOut)[0]
 
                 product = random.choice(outNodesList)
 
                 if [[reactant1, reactant2], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(1)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(1, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(1)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(1)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product]])
                 reactionList2.append([[reactant1, reactant2], [product]])
 
             if rt == TReactionType.UNIBI:
 
                 if max(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumOut = sum(outNodesCount)
@@ -1337,58 +971,43 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 product2 = random.choice(outNodesList)
 
                 if [[reactant], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
 
-                reversible = reversibility(2)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(2, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(2)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(2)
-
                 outNodesCount[reactant] -= 2
-                reactionList.append([rt, [reactant], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant], [product1, product2]])
                 reactionList2.append([[reactant], [product1, product2]])
 
             if rt == TReactionType.BIBI:
 
                 if max(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumOut = sum(outNodesCount)
                 probOut = [x / sumOut for x in outNodesCount]
                 reactant1 = random.choices(outNodesList, probOut)[0]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant2 = random.choices(outNodesList, probOut)[0]
+                outNodesCountCopy = deepcopy(outNodesCount)
+                outNodesCountCopy[reactant1] -= 1
+                sumOutCopy = sum(outNodesCountCopy)
+                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                # sumOut = sum(outNodesCount)
+                # probOut = [x / sumOut for x in outNodesCount]
+                # reactant2 = random.choices(outNodesList, probOut)[0]
 
                 product1 = random.choice(outNodesList)
                 product2 = random.choice(outNodesList)
 
                 if [[reactant1, reactant2], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(3)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(3, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(3)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(3)
 
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
             if sum(outNodesCount) == 0:
@@ -1397,13 +1016,20 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
     # -----------------------------------------------------------------
 
     if (bool(outSamples) and bool(inSamples)) or bool(jointSamples):
-
+        pick_continued = 0
         while True:
+            # print()
+            # print('onc', outNodesCount)
+            # print('inc', inNodesCount)
+
+            if pick_continued == 1000:
+                return None, [outSamples, inSamples, jointSamples]
 
             if rxn_prob:
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
+            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -1416,31 +1042,22 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 reactant = random.choices(outNodesList, probOut)[0]
 
                 if [[reactant], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(0)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(0, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(0)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(0)
 
                 inNodesCount[product] -= 1
                 outNodesCount[reactant] -= 1
-                reactionList.append([rt, [reactant], [product], rateConstants])
+                reactionList.append([rt, [reactant], [product]])
                 reactionList2.append([[reactant], [product]])
 
             if rt == TReactionType.BIUNI:
 
                 if max(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 if sum(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
@@ -1453,46 +1070,49 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                 probOut = [x/sumOut for x in outNodesCount]
                 reactant1 = random.choices(outNodesList, probOut)[0]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant2 = random.choices(outNodesList, probOut)[0]
+                outNodesCountCopy = deepcopy(outNodesCount)
+                outNodesCountCopy[reactant1] -= 1
+                sumOutCopy = sum(outNodesCountCopy)
+                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                # sumOut = sum(outNodesCount)
+                # probOut = [x/sumOut for x in outNodesCount]
+                # reactant2 = random.choices(outNodesList, probOut)[0]
 
                 if [[reactant1, reactant2], [product]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(1)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(1, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(1)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(1)
 
                 inNodesCount[product] -= 2
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product]])
                 reactionList2.append([[reactant1, reactant2], [product]])
 
             if rt == TReactionType.UNIBI:
 
                 if sum(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 if max(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
                 probIn = [x/sumIn for x in inNodesCount]
                 product1 = random.choices(inNodesList, probIn)[0]
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product2 = random.choices(inNodesList, probIn)[0]
+                inNodesCountCopy = deepcopy(inNodesCount)
+                inNodesCountCopy[product1] -= 1
+                sumInCopy = sum(inNodesCountCopy)
+                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                product2 = random.choices(inNodesList, probInCopy)[0]
+
+                # sumIn = sum(inNodesCount)
+                # probIn = [x/sumIn for x in inNodesCount]
+                # product2 = random.choices(inNodesList, probIn)[0]
 
                 sumOut = sum(outNodesCount)
                 probOut = [x / sumOut for x in outNodesCount]
@@ -1501,76 +1121,68 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
                     reactant = random.choices(outNodesList, probOut)[0]
 
                 if [[reactant], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(2)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(2, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(2)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(2)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
                 outNodesCount[reactant] -= 2
-                reactionList.append([rt, [reactant], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant], [product1, product2]])
                 reactionList2.append([[reactant], [product1, product2]])
 
             if rt == TReactionType.BIBI:
 
                 if max(inNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 if max(outNodesCount) < 2:
+                    pick_continued += 1
                     continue
 
                 sumIn = sum(inNodesCount)
                 probIn = [x/sumIn for x in inNodesCount]
                 product1 = random.choices(inNodesList, probIn)[0]
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product2 = random.choices(inNodesList, probIn)[0]
+                inNodesCountCopy = deepcopy(inNodesCount)
+                inNodesCountCopy[product1] -= 1
+                sumInCopy = sum(inNodesCountCopy)
+                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                product2 = random.choices(inNodesList, probInCopy)[0]
+
+                # sumIn = sum(inNodesCount)
+                # probIn = [x/sumIn for x in inNodesCount]
+                # product2 = random.choices(inNodesList, probIn)[0]
 
                 sumOut = sum(outNodesCount)
                 probOut = [x / sumOut for x in outNodesCount]
                 reactant1 = random.choices(outNodesList, probOut)[0]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant2 = random.choices(outNodesList, probOut)[0]
+                outNodesCountCopy = deepcopy(outNodesCount)
+                outNodesCountCopy[reactant1] -= 1
+                sumOutCopy = sum(outNodesCountCopy)
+                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                # sumOut = sum(outNodesCount)
+                # probOut = [x / sumOut for x in outNodesCount]
+                # reactant2 = random.choices(outNodesList, probOut)[0]
 
                 if [[reactant1, reactant2], [product1, product2]] in reactionList2:
+                    pick_continued += 1
                     continue
-
-                reversible = reversibility(3)
-
-                rateConstants = None
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 3:
-                #     rateConstants = getMassAction3RateConstants(reversible)
-                # if kinetics[0] == 'mass_action' and len(kinetics[2]) == 12:
-                #     rateConstants = getMassAction12RateConstants(3, reversible)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 3:
-                    rateConstants = getHanekom3RateConstants(3)
-                if kinetics[0] == 'hanekom' and len(kinetics[2]) == 4:
-                    rateConstants = getHanekom4RateConstants(3)
 
                 inNodesCount[product1] -= 1
                 inNodesCount[product2] -= 1
                 outNodesCount[reactant1] -= 1
                 outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2], rateConstants])
+                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
                 reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
             if sum(inNodesCount) == 0:
                 break
 
-    reactionList.insert(0, nSpecies)
+    reactionList.insert(0, n_species)
     return reactionList, [outSamples, inSamples, jointSamples]
 
 # Includes boundary and floating species
@@ -1582,12 +1194,12 @@ def _generateReactionList(nSpecies, kinetics, in_dist, out_dist, cut_off, rxn_pr
 
 
 def _getFullStoichiometryMatrix(reactionList):
-    nSpecies = reactionList[0]
+    n_species = reactionList[0]
     reactionListCopy = deepcopy(reactionList)
 
     # Remove the first entry in the list which is the number of species
     reactionListCopy.pop(0)
-    st = np.zeros((nSpecies, len(reactionListCopy)))
+    st = np.zeros((n_species, len(reactionListCopy)))
 
     for index, r in enumerate(reactionListCopy):
         if r[0] == TReactionType.UNIUNI:
@@ -1633,14 +1245,14 @@ def _getFullStoichiometryMatrix(reactionList):
 def _removeBoundaryNodes(st):
     dims = st.shape
 
-    nSpecies = dims[0]
+    n_species = dims[0]
     nReactions = dims[1]
 
-    speciesIds = np.arange(nSpecies)
+    speciesIds = np.arange(n_species)
     indexes = []
-    orphanSpecies = []
+    orphan_species = []
     countBoundarySpecies = 0
-    for r in range(nSpecies):
+    for r in range(n_species):
         # Scan across the columns, count + and - coefficients
         plusCoeff = 0
         minusCoeff = 0
@@ -1651,7 +1263,7 @@ def _removeBoundaryNodes(st):
                 plusCoeff = plusCoeff + 1
         if plusCoeff == 0 and minusCoeff == 0:
             # No reaction attached to this species
-            orphanSpecies.append(r)
+            orphan_species.append(r)
         if plusCoeff == 0 and minusCoeff != 0:
             # Species is a source
             indexes.append(r)
@@ -1661,10 +1273,10 @@ def _removeBoundaryNodes(st):
             indexes.append(r)
             countBoundarySpecies = countBoundarySpecies + 1
 
-    floatingIds = np.delete(speciesIds, indexes + orphanSpecies, axis=0)
+    floatingIds = np.delete(speciesIds, indexes + orphan_species, axis=0)
 
     boundaryIds = indexes
-    return [np.delete(st, indexes + orphanSpecies, axis=0), floatingIds, boundaryIds]
+    return [np.delete(st, indexes + orphan_species, axis=0), floatingIds, boundaryIds]
 
 
 # todo: fix inputs
@@ -1676,9 +1288,10 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         E = 'E*('
         E_end = ')'
 
-    # Remove the first element which is the nSpecies
+    # Remove the first element which is the n_species
     reactionListCopy = deepcopy(reactionList)
     reactionListCopy.pop(0)
+    print(len(reactionListCopy))
 
     antStr = ''
     if len(floatingIds) > 0:
@@ -1707,8 +1320,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         return rev1
 
     if kinetics[0] == 'mass_action':
-
-        # todo: replace reactionListCopy  with r
 
         if len(kinetics[2]) == 3 or len(kinetics[2]) == 4:
 
@@ -1803,6 +1414,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 antStr = antStr + '\n'
             antStr = antStr + '\n'
 
+            parameterIndex = None
             if 'deg' in kinetics[2]:
                 reactionIndex += 1
                 parameterIndex = reactionIndex
@@ -2032,14 +1644,32 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
             antStr = antStr + '\n'
 
             # for index, r in enumerate(reactionListCopy):
-
+            # todo: fix this
             if kinetics[1] == 'trivial':
 
-                for each in kf:
+                for each in kf0:
                     antStr = antStr + each + ' = 1\n'
-                for each in kr:
+                for each in kf1:
                     antStr = antStr + each + ' = 1\n'
-                for each in kc:
+                for each in kf2:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kf3:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kr0:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kr1:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kr2:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kr3:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kc0:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kc1:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kc2:
+                    antStr = antStr + each + ' = 1\n'
+                for each in kc3:
                     antStr = antStr + each + ' = 1\n'
 
             if kinetics[1] == 'uniform':

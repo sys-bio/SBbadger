@@ -6,11 +6,13 @@ import shutil
 import glob
 import antimony
 from SBMLLint.tools import lp_analysis
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, kinetics=None,
            in_dist='random', out_dist='random', output_dir=None, overwrite=False, rxn_prob=False, rev_prob=False,
-           joint_dist=None, in_range=None, out_range=None, joint_range=None, cut_off=1.0, ic_params=None):
+           joint_dist=None, in_range=None, out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None):
 
     if not verbose_exceptions:
         sys.tracebacklimit = 0
@@ -97,15 +99,17 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
 
     while i < num_existing_models + n_models:
 
-        print(i)
-        rl, dists = buildNetworks._generateReactionList(n_species, kinetics, in_dist, out_dist, cut_off, joint_dist,
-                                                        in_range, out_range, joint_range, rxn_prob, rev_prob)
+        # print(i)
 
+        rl, dists = buildNetworks._generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
+                                                        in_range, out_range, joint_range, rxn_prob, rev_prob)
+        if not rl:
+            continue
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
         antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E)
-
-        # print(lp_analysis.LPAnalysis(antStr))
+        # print('antStr')
+        # lp_analysis.LPAnalysis(antStr)
 
         if output_dir:
             anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
@@ -132,17 +136,49 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
                 f.write(str(each[0]) + ',' + str(each[1]) + ',' + str(each[2]) + '\n')
             f.write('\n')
 
-        if output_dir:
-            sbml_dir = os.path.join(output_dir, 'models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
-        else:
-            sbml_dir = os.path.join('models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        # if dists[0]:
+        #     x = [dist_ind[0] for dist_ind in dists[0]]
+        #     y = [dist_ind[1] for dist_ind in dists[0]]
+        #     plt.figure()
+        #     plt.bar(x, y)
+        #     plt.xlabel("Out Degree")
+        #     plt.ylabel("Number of Nodes")
+        #     plt.title(group_name + '_' + str(i) + ' out edges')
+        #     plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_out' + '.png'))
+        #
+        # if dists[1]:
+        #     x = [dist_ind[0] for dist_ind in dists[1]]
+        #     y = [dist_ind[1] for dist_ind in dists[1]]
+        #     plt.figure()
+        #     plt.bar(x, y)
+        #     plt.xlabel("In Degree")
+        #     plt.ylabel("Number of Nodes")
+        #     plt.title(group_name + '_' + str(i) + ' in edges')
+        #     plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_in' + '.png'))
+        #
+        # if dists[2]:
+        #     x = [dist_ind[0] for dist_ind in dists[2]]
+        #     y = [dist_ind[1] for dist_ind in dists[2]]
+        #     z = [0 for _ in dists[2]]
+        #
+        #     dx = np.ones(len(dists[2]))
+        #     dy = np.ones(len(dists[2]))
+        #     dz = [dist_ind[2] for dist_ind in dists[2]]
+        #
+        #     fig = plt.figure()
+        #     ax1 = fig.add_subplot(111, projection='3d')
+        #     ax1.bar3d(x, y, z, dx, dy, dz)
+        #     plt.show()
+        #
+        # if output_dir:
+        #     sbml_dir = os.path.join(output_dir, 'models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        # else:
+        #     sbml_dir = os.path.join('models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
 
-        antimony.loadAntimonyString(antStr)
-        sbml = antimony.getSBMLString()
-
-        with open(sbml_dir, 'w') as f:
-            f.write(sbml)
-
-        antimony.clearPreviousLoads()
+        # antimony.loadAntimonyString(antStr)
+        # sbml = antimony.getSBMLString()
+        # with open(sbml_dir, 'w') as f:
+        #     f.write(sbml)
+        # antimony.clearPreviousLoads()
 
         i += 1

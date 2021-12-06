@@ -4,6 +4,7 @@ import os
 from processRNG import runRNG
 from math import exp
 from scipy.special import zeta
+import numpy as np
 
 
 def in_dist(k):
@@ -14,23 +15,31 @@ def out_dist(k):
     return k**(-2) / zeta(2)
 
 
+def bi_normal(x1, x2):
+    return (1 / (2 * np.pi)) * np.exp(-(1 / 2) * ((((x1 - 10) / 1) ** 2) + (((x2 - 10) / 1) ** 2)))
+
+
 if __name__ == "__main__":
 
     runRNG(
         group_name='test_group',
         # output_dir=<your directory here>),
         overwrite=True,
-        n_models=10,
-        n_species=10,
-        # cut_off=0.5,
+        n_models=1000,
+        n_species=5,
+        # min_node_deg=0.5,
 
-        # in_dist=in_dist,
-        # out_dist=out_dist,
+        in_dist=in_dist,
+        out_dist=out_dist,
+        # joint_dist=bi_normal,
+        # joint_range=[1, 19],
+
         # verbose_exceptions=True,
 
         # add_E=True,
 
-        kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc', 'deg']],
+        kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
+        # kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc', 'deg']],
         # kinetics=['mass_action', 'uniform', ['kf', 'kr', 'kc'], [[0.0, 100], [0.0, 100], [0.0, 100]]],
         # kinetics=['mass_action', 'loguniform', ['kf', 'kr', 'kc', 'deg'], [[0.01, 100], [0.01, 100], [0.01, 100], [0.01, 100]]],
         # kinetics=['mass_action', 'norm', ['kf', 'kr', 'kc'], [[1, 1], [1, 1], [1, 1]]],
@@ -84,8 +93,11 @@ if __name__ == "__main__":
 
         # rxn_prob=[1.0, 0.0, 0.0, 0.0],
         # rxn_prob=[0.0, 1.0, 0.0, 0.0],
+        # rxn_prob=[0.5, 0.5, 0.0, 0.0],
         # rxn_prob=[0.0, 0.0, 1.0, 0.0],
+        # rxn_prob=[0.5, 0.0, 0.5, 0.0],
         # rxn_prob=[0.0, 0.0, 0.0, 1.0],
+        # rxn_prob=[0.5, 0.0, 0.0, 0.5],
         rxn_prob=[0.25, 0.25, 0.25, 0.25],
 
         ic_params='trivial'
