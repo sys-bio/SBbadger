@@ -467,7 +467,7 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
 
     # ---------------------------------------------------------------------------
 
-    # print(inputCase)
+    # print('inputCase', inputCase)
 
     if inputCase == 1:
 
@@ -554,7 +554,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
             pmfIn = trim_pmf(edgeEVout, in_dist)
             outSamples, inSamples = sample_both_pmfs(pmfOut, 1, pmfIn, 1)
         if edgeEVin == edgeEVout:
-            # print('same')
             outSamples, inSamples = sample_both_pmfs(pmfOut, 1, pmfIn, 1)
 
     if inputCase == 13:
@@ -685,7 +684,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
         while True:
 
             if pick_continued == 1000:
-                quit()
                 return None, [outSamples, inSamples, jointSamples]
 
             if rxn_prob:
@@ -771,9 +769,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
     if not bool(outSamples) and bool(inSamples):
         pick_continued = 0
         while True:
-            # print()
-            # print('onc', outNodesCount)
-            # print('inc', inNodesCount)
 
             if pick_continued == 1000:
                 return None, [outSamples, inSamples, jointSamples]
@@ -782,7 +777,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
-            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -839,10 +833,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 probInCopy = [x/sumInCopy for x in inNodesCountCopy]
                 product2 = random.choices(inNodesList, probInCopy)[0]
 
-                # sumIn = sum(inNodesCount)
-                # probIn = [x/sumIn for x in inNodesCount]
-                # product2 = random.choices(inNodesList, probIn)[0]
-
                 reactant = random.choice(inNodesList)
 
                 if [[reactant], [product1, product2]] in reactionList2:
@@ -870,10 +860,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 probInCopy = [x/sumInCopy for x in inNodesCountCopy]
                 product2 = random.choices(inNodesList, probInCopy)[0]
 
-                # sumIn = sum(inNodesCount)
-                # probIn = [x/sumIn for x in inNodesCount]
-                # product2 = random.choices(inNodesList, probIn)[0]
-
                 reactant1 = random.choice(inNodesList)
                 reactant2 = random.choice(inNodesList)
 
@@ -895,9 +881,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
 
         pick_continued = 0
         while True:
-            # print()
-            # print('onc', outNodesCount)
-            # print('inc', inNodesCount)
 
             if pick_continued == 1000:
                 return None, [outSamples, inSamples, jointSamples]
@@ -906,7 +889,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
-            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -939,10 +921,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 sumOutCopy = sum(outNodesCountCopy)
                 probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
                 reactant2 = random.choices(outNodesList, probOutCopy)[0]
-
-                # sumOut = sum(outNodesCount)
-                # probOut = [x/sumOut for x in outNodesCount]
-                # reactant2 = random.choices(outNodesList, probOut)[0]
 
                 product = random.choice(outNodesList)
 
@@ -994,10 +972,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
                 reactant2 = random.choices(outNodesList, probOutCopy)[0]
 
-                # sumOut = sum(outNodesCount)
-                # probOut = [x / sumOut for x in outNodesCount]
-                # reactant2 = random.choices(outNodesList, probOut)[0]
-
                 product1 = random.choice(outNodesList)
                 product2 = random.choice(outNodesList)
 
@@ -1018,9 +992,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
     if (bool(outSamples) and bool(inSamples)) or bool(jointSamples):
         pick_continued = 0
         while True:
-            # print()
-            # print('onc', outNodesCount)
-            # print('inc', inNodesCount)
 
             if pick_continued == 1000:
                 return None, [outSamples, inSamples, jointSamples]
@@ -1029,7 +1000,6 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
                 rt = _pickReactionType(rxn_prob)
             else:
                 rt = _pickReactionType()
-            # print(rt)
 
             if rt == TReactionType.UNIUNI:
 
@@ -1291,7 +1261,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
     # Remove the first element which is the n_species
     reactionListCopy = deepcopy(reactionList)
     reactionListCopy.pop(0)
-    print(len(reactionListCopy))
 
     antStr = ''
     if len(floatingIds) > 0:
