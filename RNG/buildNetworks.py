@@ -8,6 +8,7 @@ from copy import deepcopy
 from scipy.stats import norm, lognorm, uniform, loguniform
 from collections import defaultdict
 
+
 # General settings for the package
 @dataclass
 class Settings:
@@ -85,7 +86,7 @@ def _pickReactionType(prob=None):
 
 
 def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
-                          in_range, out_range, joint_range, rxn_prob, allo_reg, spec_reg, mass_violating_reactions):
+                          in_range, out_range, joint_range, rxn_prob, mod_reg, mass_violating_reactions):
 
     # todo: expand kinetics?
     # todo: mass balance
@@ -694,9 +695,9 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 else:
                     rt = _pickReactionType()
 
-                allo_num = 0
-                if allo_reg:
-                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+                mod_num = 0
+                if mod_reg:
+                    mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
 
                 # -----------------------------------------------------------------------------
 
@@ -709,15 +710,16 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product]])
 
                     nodeSet.add(reactant)
                     nodeSet.add(product)
-                    nodeSet.update(allo_species)
+                    nodeSet.update(mod_species)
 
                 if rt == TReactionType.BIUNI:
 
@@ -733,16 +735,17 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product]])
 
                     nodeSet.add(reactant1)
                     nodeSet.add(reactant2)
                     nodeSet.add(product)
-                    nodeSet.update(allo_species)
+                    nodeSet.update(mod_species)
 
                 if rt == TReactionType.UNIBI:
 
@@ -758,16 +761,17 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product1, product2]])
 
                     nodeSet.add(reactant)
                     nodeSet.add(product1)
                     nodeSet.add(product2)
-                    nodeSet.update(allo_species)
+                    nodeSet.update(mod_species)
 
                 if rt == TReactionType.BIBI:
 
@@ -781,17 +785,18 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
                     nodeSet.add(reactant1)
                     nodeSet.add(reactant2)
                     nodeSet.add(product1)
                     nodeSet.add(product2)
-                    nodeSet.update(allo_species)
+                    nodeSet.update(mod_species)
 
                 if n_reactions:
                     if len(nodeSet) >= n_species and len(reactionList) >= n_reactions:
@@ -815,22 +820,22 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 else:
                     rt = _pickReactionType()
 
-                allo_num = 0
-                if allo_reg:
-                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+                mod_num = 0
+                if mod_reg:
+                    mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.UNIUNI:
 
-                    if max(inNodesCount) < (1 + allo_num):
+                    if max(inNodesCount) < (1 + mod_num):
                         pick_continued += 1
                         continue
 
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product] < (1 + allo_num):
+                    while inNodesCount[product] < (1 + mod_num):
                         product = random.choices(inNodesList, probIn)[0]
 
                     reactant = random.choice(inNodesList)
@@ -839,26 +844,26 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
-
-                    inNodesCount[product] -= (1 + allo_num)
-                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    inNodesCount[product] -= (1 + mod_num)
+                    reactionList.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product]])
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.BIUNI:
 
-                    if max(inNodesCount) < (2 + allo_num):
+                    if max(inNodesCount) < (2 + mod_num):
                         pick_continued += 1
                         continue
 
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product] < (2 + allo_num):
+                    while inNodesCount[product] < (2 + mod_num):
                         product = random.choices(inNodesList, probIn)[0]
 
                     reactant1 = random.choice(inNodesList)
@@ -872,36 +877,36 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
-
-                    inNodesCount[product] -= (2 + allo_num)
-                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    inNodesCount[product] -= (2 + mod_num)
+                    reactionList.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product]])
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.UNIBI:
 
-                    if sum(1 for each in inNodesCount if each >= (1 + allo_num)) < 2 \
-                            and max(inNodesCount) < (2 + 2*allo_num):
+                    if sum(1 for each in inNodesCount if each >= (1 + mod_num)) < 2 \
+                            and max(inNodesCount) < (2 + 2*mod_num):
                         pick_continued += 1
                         continue
 
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product1 = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product1] < (1 + allo_num):
+                    while inNodesCount[product1] < (1 + mod_num):
                         product1 = random.choices(inNodesList, probIn)[0]
 
                     inNodesCountCopy = deepcopy(inNodesCount)
-                    inNodesCountCopy[product1] -= (1 + allo_num)
+                    inNodesCountCopy[product1] -= (1 + mod_num)
                     sumInCopy = sum(inNodesCountCopy)
                     probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
                     product2 = random.choices(inNodesList, probInCopy)[0]
-                    while inNodesCountCopy[product2] < (1 + allo_num):
+                    while inNodesCountCopy[product2] < (1 + mod_num):
                         product2 = random.choices(inNodesList, probIn)[0]
 
                     reactant = random.choice(inNodesList)
@@ -914,37 +919,37 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
-
-                    inNodesCount[product1] -= (1 + allo_num)
-                    inNodesCount[product2] -= (1 + allo_num)
-                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    inNodesCount[product1] -= (1 + mod_num)
+                    inNodesCount[product2] -= (1 + mod_num)
+                    reactionList.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product1, product2]])
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.BIBI:
 
-                    if sum(1 for each in inNodesCount if each >= (2 + allo_num)) < 2 \
-                            and max(inNodesCount) < (4 + 2*allo_num):
+                    if sum(1 for each in inNodesCount if each >= (2 + mod_num)) < 2 \
+                            and max(inNodesCount) < (4 + 2*mod_num):
                         pick_continued += 1
                         continue
 
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product1 = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product1] < (2 + allo_num):
+                    while inNodesCount[product1] < (2 + mod_num):
                         product1 = random.choices(inNodesList, probIn)[0]
 
                     inNodesCountCopy = deepcopy(inNodesCount)
-                    inNodesCountCopy[product1] -= (2 + allo_num)
+                    inNodesCountCopy[product1] -= (2 + mod_num)
                     sumInCopy = sum(inNodesCountCopy)
                     probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
                     product2 = random.choices(inNodesList, probInCopy)[0]
-                    while inNodesCountCopy[product2] < (2 + allo_num):
+                    while inNodesCountCopy[product2] < (2 + mod_num):
                         product2 = random.choices(inNodesList, probIn)[0]
 
                     reactant1 = random.choice(inNodesList)
@@ -955,13 +960,13 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = random.sample(nodesList, allo_num)
+                    mod_species = random.sample(nodesList, mod_num)
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
-
-                    inNodesCount[product1] -= (2 + allo_num)
-                    inNodesCount[product2] -= (2 + allo_num)
-                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    inNodesCount[product1] -= (2 + mod_num)
+                    inNodesCount[product2] -= (2 + mod_num)
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
                 if sum(inNodesCount) == 0:
@@ -982,15 +987,15 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 else:
                     rt = _pickReactionType()
 
-                allo_num = 0
-                if allo_reg:
-                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+                mod_num = 0
+                if mod_reg:
+                    mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.UNIUNI:
 
-                    if sum(outNodesCount) < (1 + allo_num):
+                    if sum(outNodesCount) < (1 + mod_num):
                         pick_continued += 1
                         continue
 
@@ -1004,35 +1009,36 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy = deepcopy(outNodesCount)
                         outNodesCountCopy[reactant] -= 1
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 1
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 1
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant] -= 1
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 1
-                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product]])
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.BIUNI:
 
-                    if sum(outNodesCount) < (2 + allo_num):
+                    if sum(outNodesCount) < (2 + mod_num):
                         pick_continued += 1
                         continue
 
@@ -1056,28 +1062,29 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy[reactant2] -= 1
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 1
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 1
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant1] -= 1
                     outNodesCount[reactant2] -= 1
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 1
-                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product]])
 
                 # -----------------------------------------------------------------
@@ -1085,9 +1092,9 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 if rt == TReactionType.UNIBI:
 
                     cont = False
-                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + allo_num):
+                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + mod_num):
                         cont = True
-                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 1) \
+                    if sum(1 for each in outNodesCount if each >= 2) >= (mod_num - 1) \
                             and sum(1 for each in outNodesCount if each >= 4) >= 1:
                         cont = True
                     if not cont:
@@ -1111,30 +1118,31 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy = deepcopy(outNodesCount)
                         outNodesCountCopy[reactant] -= 2
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            while outNodesCountCopy[new_allo] < 2:
-                                new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 2
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_mod] < 2:
+                                new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 2
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant] -= 2
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 2
-                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product1, product2]])
 
                 # -----------------------------------------------------------------
@@ -1142,14 +1150,14 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 if rt == TReactionType.BIBI:
 
                     cont = False
-                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + allo_num):
+                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + mod_num):
                         cont = True
 
-                    if sum(1 for each in outNodesCount if each >= 2) >= allo_num \
+                    if sum(1 for each in outNodesCount if each >= 2) >= mod_num \
                             and sum(1 for each in outNodesCount if each >= 4) >= 1:
                         cont = True
 
-                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 2) \
+                    if sum(1 for each in outNodesCount if each >= 2) >= (mod_num - 2) \
                             and sum(1 for each in outNodesCount if each >= 4) >= 2:
                         cont = True
 
@@ -1179,30 +1187,31 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy[reactant2] -= 2
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            while outNodesCountCopy[new_allo] < 2:
-                                new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 2
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_mod] < 2:
+                                new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 2
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant1] -= 2
                     outNodesCount[reactant2] -= 2
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 2
-                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
                 if sum(outNodesCount) == 0:
@@ -1222,26 +1231,26 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 else:
                     rt = _pickReactionType()
 
-                allo_num = 0
-                if allo_reg:
-                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+                mod_num = 0
+                if mod_reg:
+                    mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.UNIUNI:
 
-                    if sum(outNodesCount) < (1 + allo_num):
+                    if sum(outNodesCount) < (1 + mod_num):
                         pick_continued += 1
                         continue
 
-                    if max(inNodesCount) < (1 + allo_num):
+                    if max(inNodesCount) < (1 + mod_num):
                         pick_continued += 1
                         continue
 
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product] < (1 + allo_num):
+                    while inNodesCount[product] < (1 + mod_num):
                         product = random.choices(inNodesList, probIn)[0]
 
                     sumOut = sum(outNodesCount)
@@ -1252,40 +1261,41 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy = deepcopy(outNodesCount)
                         outNodesCountCopy[reactant] -= 1
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 1
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 1
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    inNodesCount[product] -= (1 + allo_num)
+                    inNodesCount[product] -= (1 + mod_num)
                     outNodesCount[reactant] -= 1
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 1
-                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product]])
 
                 # -----------------------------------------------------------------
 
                 if rt == TReactionType.BIUNI:
 
-                    if sum(outNodesCount) < (2 + allo_num):
+                    if sum(outNodesCount) < (2 + mod_num):
                         pick_continued += 1
                         continue
 
-                    if max(inNodesCount) < (2 + allo_num):
+                    if max(inNodesCount) < (2 + mod_num):
                         pick_continued += 1
                         continue
 
@@ -1302,7 +1312,7 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product] < (2 + allo_num):
+                    while inNodesCount[product] < (2 + mod_num):
                         product = random.choices(inNodesList, probIn)[0]
 
                     if [[reactant1, reactant2], [product]] in reactionList2:
@@ -1313,29 +1323,30 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy[reactant2] -= 1
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 1
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 1
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
-                    inNodesCount[product] -= (2 + allo_num)
+                    inNodesCount[product] -= (2 + mod_num)
                     outNodesCount[reactant1] -= 1
                     outNodesCount[reactant2] -= 1
-                    for each in allo_species:
+                    for each in mod_species:
                         outNodesCount[each] -= 1
-                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product]])
 
                 # -----------------------------------------------------------------
@@ -1343,17 +1354,17 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 if rt == TReactionType.UNIBI:
 
                     cont = False
-                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + allo_num):
+                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + mod_num):
                         cont = True
-                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 1) \
+                    if sum(1 for each in outNodesCount if each >= 2) >= (mod_num - 1) \
                             and sum(1 for each in outNodesCount if each >= 4) >= 1:
                         cont = True
                     if not cont:
                         pick_continued += 1
                         continue
 
-                    if sum(1 for each in inNodesCount if each >= (1 + allo_num)) < 2 \
-                            and max(inNodesCount) < (2 + 2*allo_num):
+                    if sum(1 for each in inNodesCount if each >= (1 + mod_num)) < 2 \
+                            and max(inNodesCount) < (2 + 2*mod_num):
                         pick_continued += 1
                         continue
 
@@ -1366,16 +1377,16 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product1 = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product1] < (1 + allo_num):
+                    while inNodesCount[product1] < (1 + mod_num):
                         product1 = random.choices(inNodesList, probIn)[0]
 
                     inNodesCountCopy = deepcopy(inNodesCount)
-                    inNodesCountCopy[product1] -= (1 + allo_num)
+                    inNodesCountCopy[product1] -= (1 + mod_num)
                     sumInCopy = sum(inNodesCountCopy)
                     probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
                     product2 = random.choices(inNodesList, probInCopy)[0]
-                    while inNodesCountCopy[product2] < (1 + allo_num):
+                    while inNodesCountCopy[product2] < (1 + mod_num):
                         product2 = random.choices(inNodesList, probIn)[0]
 
                     if [[reactant], [product1, product2]] in reactionList2:
@@ -1386,32 +1397,33 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy = deepcopy(outNodesCount)
                         outNodesCountCopy[reactant] -= 2
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            while outNodesCountCopy[new_allo] < 2:
-                                new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 2
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_mod] < 2:
+                                new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 2
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant] -= 2
-                    inNodesCount[product1] -= (1 + allo_num)
-                    inNodesCount[product2] -= (1 + allo_num)
-                    for each in allo_species:
+                    inNodesCount[product1] -= (1 + mod_num)
+                    inNodesCount[product2] -= (1 + mod_num)
+                    for each in mod_species:
                         outNodesCount[each] -= 2
-                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant], [product1, product2]])
 
                 # -----------------------------------------------------------------
@@ -1419,14 +1431,14 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                 if rt == TReactionType.BIBI:
 
                     cont = False
-                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + allo_num):
+                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + mod_num):
                         cont = True
 
-                    if sum(1 for each in outNodesCount if each >= 2) >= allo_num \
+                    if sum(1 for each in outNodesCount if each >= 2) >= mod_num \
                             and sum(1 for each in outNodesCount if each >= 4) >= 1:
                         cont = True
 
-                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 2) \
+                    if sum(1 for each in outNodesCount if each >= 2) >= (mod_num - 2) \
                             and sum(1 for each in outNodesCount if each >= 4) >= 2:
                         cont = True
 
@@ -1434,8 +1446,8 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    if sum(1 for each in inNodesCount if each >= (2 + allo_num)) < 2 \
-                            and max(inNodesCount) < (4 + 2*allo_num):
+                    if sum(1 for each in inNodesCount if each >= (2 + mod_num)) < 2 \
+                            and max(inNodesCount) < (4 + 2*mod_num):
                         pick_continued += 1
                         continue
 
@@ -1456,16 +1468,16 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                     sumIn = sum(inNodesCount)
                     probIn = [x/sumIn for x in inNodesCount]
                     product1 = random.choices(inNodesList, probIn)[0]
-                    while inNodesCount[product1] < (2 + allo_num):
+                    while inNodesCount[product1] < (2 + mod_num):
                         product1 = random.choices(inNodesList, probIn)[0]
 
                     inNodesCountCopy = deepcopy(inNodesCount)
-                    inNodesCountCopy[product1] -= (2 + allo_num)
+                    inNodesCountCopy[product1] -= (2 + mod_num)
                     sumInCopy = sum(inNodesCountCopy)
                     probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
                     product2 = random.choices(inNodesList, probInCopy)[0]
-                    while inNodesCountCopy[product2] < (2 + allo_num):
+                    while inNodesCountCopy[product2] < (2 + mod_num):
                         product2 = random.choices(inNodesList, probIn)[0]
 
                     if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
@@ -1473,32 +1485,33 @@ def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, j
                         pick_continued += 1
                         continue
 
-                    allo_species = []
-                    if allo_num > 0:
+                    mod_species = []
+                    if mod_num > 0:
                         outNodesCountCopy[reactant2] -= 2
                         sumOutCopy = sum(outNodesCountCopy)
                         probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                        while len(allo_species) < allo_num:
-                            new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            while outNodesCountCopy[new_allo] < 2:
-                                new_allo = random.choices(outNodesList, probOutCopy)[0]
-                            if new_allo not in allo_species:
-                                allo_species.append(new_allo)
-                                if len(allo_species) < allo_num:
-                                    outNodesCountCopy[allo_species[-1]] -= 2
+                        while len(mod_species) < mod_num:
+                            new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_mod] < 2:
+                                new_mod = random.choices(outNodesList, probOutCopy)[0]
+                            if new_mod not in mod_species:
+                                mod_species.append(new_mod)
+                                if len(mod_species) < mod_num:
+                                    outNodesCountCopy[mod_species[-1]] -= 2
                                     sumOutCopy = sum(outNodesCountCopy)
                                     probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+                    reg_signs = [random.choices([1, -1], [mod_reg[1], 1-mod_reg[1]])[0] for _ in mod_species]
+                    reg_type = [random.choices(['a', 's'], [mod_reg[2], 1-mod_reg[2]])[0] for _ in mod_species]
 
                     outNodesCount[reactant1] -= 2
                     outNodesCount[reactant2] -= 2
-                    inNodesCount[product1] -= (2 + allo_num)
-                    inNodesCount[product2] -= (2 + allo_num)
-                    for each in allo_species:
+                    inNodesCount[product1] -= (2 + mod_num)
+                    inNodesCount[product2] -= (2 + mod_num)
+                    for each in mod_species:
                         outNodesCount[each] -= 2
-                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
                 if sum(inNodesCount) == 0:
@@ -2123,7 +2136,7 @@ def _removeBoundaryNodes(st):
 
 
 # todo: fix inputs
-def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kinetics, rev_prob, add_E, allo_reg):
+def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kinetics, rev_prob, add_E, mod_reg):
 
     E = ''
     E_end = ''
@@ -3472,6 +3485,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
         ma = set()
         kma = set()
+        ms = set()
+        kms = set()
         ro = set()
         kf = set()
         kr = set()
@@ -3479,6 +3494,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         km = set()
 
         for reactionIndex, r in enumerate(reactionListCopy):
+
+            print(r)
 
             antStr = antStr + 'J' + str(reactionIndex) + ': '
             if r[0] == TReactionType.UNIUNI:
@@ -3492,45 +3509,166 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 if not rev:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
+
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
@@ -3539,19 +3677,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 else:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - kr_' \
@@ -3560,34 +3698,154 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (1 + S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[2][0]) + ' - 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[2][0]) + ' + 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[2][0]) + ')' + E_end
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^(1/2)' + E_end
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
+
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
@@ -3609,19 +3867,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 if not rev:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr \
                         + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
@@ -3631,37 +3889,154 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ')' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
@@ -3672,19 +4047,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 else:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr \
                         + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
@@ -3696,45 +4071,162 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][0]) + ' - 1)' + E_end
+                            + str(r[2][0]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][0]) + ' + 1)' + E_end
+                            + str(r[2][0]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][0]) + ')' + E_end
+                            + str(r[2][0]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][0]) + ')^(1/2)' + E_end
+                            + str(r[2][0]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
@@ -3758,48 +4250,165 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 if not rev:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-                        
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
                     
                     antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
-                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)' + E_end
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
@@ -3808,19 +4417,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 else:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - kr_' \
@@ -3830,45 +4439,162 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (1 + S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][1]) + ' - 1)' + E_end
+                            + str(r[2][1]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][1]) + ' + 1)' + E_end
+                            + str(r[2][1]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][1]) + ')' + E_end
+                            + str(r[2][1]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
-                            + str(r[2][1]) + ')^(1/2)' + E_end
+                            + str(r[2][1]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
@@ -3894,19 +4620,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 if not rev:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr \
                         + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
@@ -3916,37 +4642,154 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ')' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
-                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)' + E_end
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
@@ -3957,19 +4800,19 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 else:
                     antStr = antStr + '; ' + E
                     for i, reg in enumerate(r[3]):
-                        if r[4][i] == -1:
+                        if r[5][i] == 'a' and r[4][i] == -1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-                        if r[4][i] == 1:
+                        if r[5][i] == 'a' and r[4][i] == 1:
                             antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
                                 + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
-
-                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
-                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
-                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                        if r[5][i] == 'a':
+                            ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                            kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                            ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
 
                     antStr = antStr \
                         + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
@@ -3983,49 +4826,166 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
                     if kinetics[0][8:10] == 'CM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
                             + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
-                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' - 1)' + E_end
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' - 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'DM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
                             + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
-                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + 1)' + E_end
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + 1)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'SM':
 
-                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + '1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
                             + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
-                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')' + E_end
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'FM':
 
-                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        if 's' in r[5]:
+                            antStr = antStr + '/((('
+                        else:
+                            antStr = antStr + '/(('
+
+                        antStr = antStr + 'S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reactionIndex) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
                             + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
                             + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
-                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')^(1/2)' + E_end
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')^(1/2)'
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + ' + (S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + ' + (kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
+                        else:
+                            antStr = antStr + E_end
 
                     if kinetics[0][8:10] == 'PM':
-                        pass
 
-                    # print(antStr)
-                    # quit()
+                        num_s = r[5].count('s')
+
+                        if 's' in r[5]:
+                            antStr = antStr + '/('
+
+                        for i, reg in enumerate(r[3]):
+
+                            if r[5][i] == 's' and r[4][i] == -1:
+                                antStr = antStr + '(S' + str(reg) + '/kms_' + str(reactionIndex) + '_' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if r[5][i] == 's' and r[4][i] == 1:
+                                antStr = antStr + '(kms_' + str(reactionIndex) + '_' + str(reg) + '/S' + str(reg) \
+                                         + ')^ms_' + str(reactionIndex) + '_' + str(reg)
+
+                            if (i + 1) < num_s:
+                                antStr = antStr + ' + '
+
+                            if r[5][i] == 's':
+                                ms.add('ms_' + str(reactionIndex) + '_' + str(reg))
+                                kms.add('kms_' + str(reactionIndex) + '_' + str(reg))
+
+                        if 's' in r[5]:
+                            antStr = antStr + ')' + E_end
 
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
                     km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
@@ -4086,7 +5046,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0], s=kinetics[3][kinetics[2].index('kf')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if kf:
+            antStr = antStr + '\n'
 
         kr = list(kr)
         kr.sort()
@@ -4115,7 +5076,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0], s=kinetics[3][kinetics[2].index('kr')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if kr:
+            antStr = antStr + '\n'
 
         km = list(km)
         km.sort()
@@ -4144,7 +5106,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0], s=kinetics[3][kinetics[2].index('km')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if km:
+            antStr = antStr + '\n'
 
         kma = list(kma)
         kma.sort()
@@ -4173,7 +5136,38 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0], s=kinetics[3][kinetics[2].index('km')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if kma:
+            antStr = antStr + '\n'
+
+        kms = list(kms)
+        kms.sort()
+        for each in kms:
+
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1]
+                                    - kinetics[3][kinetics[2].index('km')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('km')][0], kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0], s=kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        if kms:
+            antStr = antStr + '\n'
 
         m = list(m)
         m.sort()
@@ -4202,7 +5196,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0], s=kinetics[3][kinetics[2].index('mol')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if m:
+            antStr = antStr + '\n'
 
         ma = list(ma)
         ma.sort()
@@ -4231,7 +5226,38 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0], s=kinetics[3][kinetics[2].index('mol')][1])
                 antStr = antStr + each + ' = ' + str(const) + '\n'
 
-        antStr = antStr + '\n'
+        if ma:
+            antStr = antStr + '\n'
+
+        ms = list(ms)
+        ms.sort()
+        for each in ms:
+
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1]
+                                    - kinetics[3][kinetics[2].index('mol')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0], kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0], s=kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        if ms:
+            antStr = antStr + '\n'
         
         if 'deg' in kinetics[2]:
             # Next the degradation rate constants
@@ -4261,7 +5287,8 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                     antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
 
                 parameterIndex += 1
-        antStr = antStr + '\n'
+
+            antStr = antStr + '\n'
         
     # quit()
 

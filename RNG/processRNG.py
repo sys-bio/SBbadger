@@ -14,7 +14,7 @@ import numpy as np
 def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, n_reactions=None,
            kinetics=None, in_dist='random', out_dist='random', output_dir=None, overwrite=False, rxn_prob=False,
            rev_prob=False, joint_dist=None, in_range=None, out_range=None, joint_range=None, min_node_deg=1.0,
-           ic_params=None, allo_reg=None, spec_reg=None, mass_violating_reactions=True):
+           ic_params=None, mod_reg=None, mass_violating_reactions=True):
 
     if group_name is None:
         if not verbose_exceptions:
@@ -44,15 +44,15 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
                 sys.tracebacklimit = 0
             raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
 
-    if allo_reg:
-        if round(sum(allo_reg[0]), 10) != 1:
+    if mod_reg:
+        if round(sum(mod_reg[0]), 10) != 1:
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
-            raise Exception(f"Your stated modular regulator probabilities are {allo_reg[0]} and they do not add to 1.")
-        if allo_reg[1] < 0 or allo_reg[1] > 1:
+            raise Exception(f"Your stated modular regulator probabilities are {mod_reg[0]} and they do not add to 1.")
+        if mod_reg[1] < 0 or mod_reg[1] > 1:
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
-            raise Exception(f"Your positive (vs negative) probability is {allo_reg[1]} is not between 0 and 1.")
+            raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
 
     if isinstance(rev_prob, list):
         if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
@@ -132,7 +132,7 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
 
         rl, dists = buildNetworks._generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, joint_dist,
                                                         min_node_deg, in_range, out_range, joint_range, rxn_prob,
-                                                        allo_reg, spec_reg, mass_violating_reactions)
+                                                        mod_reg, mass_violating_reactions)
 
         if not rl:
             failed_attempts += 1
@@ -147,7 +147,7 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
         # quit()
-        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E, allo_reg)
+        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E, mod_reg)
 
         # print(antStr)
 
