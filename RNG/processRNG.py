@@ -5,52 +5,81 @@ import os
 import shutil
 import glob
 import antimony
+import tellurium as te
 from SBMLLint.tools import lp_analysis
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, kinetics=None,
-           in_dist='random', out_dist='random', output_dir=None, overwrite=False, rxn_prob=False, rev_prob=False,
-           joint_dist=None, in_range=None, out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None):
-
-    if not verbose_exceptions:
-        sys.tracebacklimit = 0
+def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None, n_species=None, n_reactions=None,
+           kinetics=None, in_dist='random', out_dist='random', output_dir=None, overwrite=False, rxn_prob=False,
+           rev_prob=False, joint_dist=None, in_range=None, out_range=None, joint_range=None, min_node_deg=1.0,
+           ic_params=None, allo_reg=None, spec_reg=None, mass_violating_reactions=True):
 
     if group_name is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception('Please provide a group_name.')
     if n_models is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception('Please provide n_models (the number of models).')
     if n_species is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception('Please provide n_species (the number of species).')
     if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
     if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception("You have provided both a joint distribution and onr or both of the input and output distributions")
 
     if rxn_prob:
         if round(sum(rxn_prob), 10) != 1:
-            raise Exception(f"Your stated probabilities are {rxn_prob} and they do not add to 1.")
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
+
+    if allo_reg:
+        if round(sum(allo_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {allo_reg[0]} and they do not add to 1.")
+        if allo_reg[1] < 0 or allo_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {allo_reg[1]} is not between 0 and 1.")
 
     if isinstance(rev_prob, list):
         if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
             raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
 
     if isinstance(rev_prob, float):
         if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
             raise Exception('Your reversibility probability is not between 0 and 1')
 
     if isinstance(joint_range, list) and joint_range[0] < 1:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception("Node degree cannot be less than 1.")
 
     if isinstance(in_range, list) and in_range[0] < 1:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception("Node degree cannot be less than 1.")
 
     if isinstance(out_range, list) and out_range[0] < 1:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
         raise Exception("Node degree cannot be less than 1.")
-
-    sys.tracebacklimit = 1000
 
     num_existing_models = 0
     if output_dir:
@@ -96,21 +125,32 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
                 os.makedirs('models/' + group_name + '/' + 'sbml')
 
     i = num_existing_models
-
+    failed_attempts = 0
     while i < num_existing_models + n_models:
 
-        print(i)
+        # print(i)
 
-        rl, dists = buildNetworks._generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
-                                                        in_range, out_range, joint_range, rxn_prob, rev_prob)
-        # todo: add counter and error statement
+        rl, dists = buildNetworks._generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, joint_dist,
+                                                        min_node_deg, in_range, out_range, joint_range, rxn_prob,
+                                                        allo_reg, spec_reg, mass_violating_reactions)
+
         if not rl:
+            failed_attempts += 1
+            if failed_attempts == 1000:
+                sys.tracebacklimit = 0
+                raise Exception("There have been 1000 consecutive failed attempts to randomly construct a network.\n"
+                                "Consider revising your settings.")
             continue
+        else:
+            failed_attempts = 0
 
         st = buildNetworks._getFullStoichiometryMatrix(rl)
         stt = buildNetworks._removeBoundaryNodes(st)
-        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E)
-        # print('antStr')
+        # quit()
+        antStr = buildNetworks._getAntimonyScript(stt[1], stt[2], rl, ic_params, kinetics, rev_prob, add_E, allo_reg)
+
+        # print(antStr)
+
         # lp_analysis.LPAnalysis(antStr)
 
         if output_dir:
@@ -138,39 +178,39 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
                 f.write(str(each[0]) + ',' + str(each[1]) + ',' + str(each[2]) + '\n')
             f.write('\n')
 
-        if dists[0]:
-            x = [dist_ind[0] for dist_ind in dists[0]]
-            y = [dist_ind[1] for dist_ind in dists[0]]
-            plt.figure()
-            plt.bar(x, y)
-            plt.xlabel("Out Degree")
-            plt.ylabel("Number of Nodes")
-            plt.title(group_name + '_' + str(i) + ' out edges')
-            plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_out' + '.png'))
-
-        if dists[1]:
-            x = [dist_ind[0] for dist_ind in dists[1]]
-            y = [dist_ind[1] for dist_ind in dists[1]]
-            plt.figure()
-            plt.bar(x, y)
-            plt.xlabel("In Degree")
-            plt.ylabel("Number of Nodes")
-            plt.title(group_name + '_' + str(i) + ' in edges')
-            plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_in' + '.png'))
-
-        if dists[2]:
-            x = [dist_ind[0] for dist_ind in dists[2]]
-            y = [dist_ind[1] for dist_ind in dists[2]]
-            z = [0 for _ in dists[2]]
-
-            dx = np.ones(len(dists[2]))
-            dy = np.ones(len(dists[2]))
-            dz = [dist_ind[2] for dist_ind in dists[2]]
-
-            fig = plt.figure()
-            ax1 = fig.add_subplot(111, projection='3d')
-            ax1.bar3d(x, y, z, dx, dy, dz)
-            plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_joint' + '.png'))
+        # if dists[0]:
+        #     x = [dist_ind[0] for dist_ind in dists[0]]
+        #     y = [dist_ind[1] for dist_ind in dists[0]]
+        #     plt.figure()
+        #     plt.bar(x, y)
+        #     plt.xlabel("Out Degree")
+        #     plt.ylabel("Number of Nodes")
+        #     plt.title(group_name + '_' + str(i) + ' out edges')
+        #     plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_out' + '.png'))
+        #
+        # if dists[1]:
+        #     x = [dist_ind[0] for dist_ind in dists[1]]
+        #     y = [dist_ind[1] for dist_ind in dists[1]]
+        #     plt.figure()
+        #     plt.bar(x, y)
+        #     plt.xlabel("In Degree")
+        #     plt.ylabel("Number of Nodes")
+        #     plt.title(group_name + '_' + str(i) + ' in edges')
+        #     plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_in' + '.png'))
+        #
+        # if dists[2]:
+        #     x = [dist_ind[0] for dist_ind in dists[2]]
+        #     y = [dist_ind[1] for dist_ind in dists[2]]
+        #     z = [0 for _ in dists[2]]
+        #
+        #     dx = np.ones(len(dists[2]))
+        #     dy = np.ones(len(dists[2]))
+        #     dz = [dist_ind[2] for dist_ind in dists[2]]
+        #
+        #     fig = plt.figure()
+        #     ax1 = fig.add_subplot(111, projection='3d')
+        #     ax1.bar3d(x, y, z, dx, dy, dz)
+        #     plt.savefig(os.path.join('models', group_name, 'distributions', group_name + '_' + str(i) + '_joint' + '.png'))
 
         if output_dir:
             sbml_dir = os.path.join(output_dir, 'models', group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
@@ -182,5 +222,8 @@ def runRNG(verbose_exceptions=False, group_name=None, add_E=False, n_models=None
         with open(sbml_dir, 'w') as f:
             f.write(sbml)
         antimony.clearPreviousLoads()
+
+        # r = te.loada(antStr)
+        # r.exportToSBML(sbml_dir)
 
         i += 1

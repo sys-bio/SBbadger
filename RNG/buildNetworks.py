@@ -4,11 +4,9 @@
 import random
 from dataclasses import dataclass
 import numpy as np
-import sys
 from copy import deepcopy
 from scipy.stats import norm, lognorm, uniform, loguniform
 from collections import defaultdict
-from SBMLLint.tools import lp_analysis
 
 # General settings for the package
 @dataclass
@@ -86,8 +84,8 @@ def _pickReactionType(prob=None):
         return TReactionType.BIBI
 
 
-def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
-                          in_range, out_range, joint_range, rxn_prob, rev_prob):
+def _generateReactionList(n_species, n_reactions, kinetics, in_dist, out_dist, joint_dist, min_node_deg,
+                          in_range, out_range, joint_range, rxn_prob, allo_reg, spec_reg, mass_violating_reactions):
 
     # todo: expand kinetics?
     # todo: mass balance
@@ -537,7 +535,7 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
 
     if inputCase == 11:
 
-        pass  # todo: unlikely edges case
+        pass  # todo: unlikely edge case
 
     if inputCase == 12:
 
@@ -575,7 +573,7 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
 
     if inputCase == 14:
 
-        pass  # todo: unlikely edges case
+        pass  # todo: unlikely edge case
 
     if inputCase == 15:
 
@@ -674,483 +672,1358 @@ def _generateReactionList(n_species, kinetics, in_dist, out_dist, joint_dist, mi
     reactionList2 = []
 
     # todo: finish pick_continued
+    # todo: adaptable probabilities
     # ---------------------------------------------------------------------------------------------------
 
-    if not bool(outSamples) and not bool(inSamples):
+    if 'modular' in kinetics[0]:
 
         nodesList = [i for i in range(n_species)]
-        nodeSet = set()
-        pick_continued = 0
-        while True:
 
-            if pick_continued == 1000:
-                return None, [outSamples, inSamples, jointSamples]
+        if not bool(outSamples) and not bool(inSamples):
 
-            if rxn_prob:
-                rt = _pickReactionType(rxn_prob)
-            else:
-                rt = _pickReactionType()
+            nodeSet = set()
+            pick_continued = 0
+            while True:
 
-            # -------------------------------------------------------------------
+                # todo: This is an issue for larger networks: link cutoff with number of species
+                if pick_continued == 10000:
+                    return None, [outSamples, inSamples, jointSamples]
 
-            if rt == TReactionType.UNIUNI:
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
 
-                product = random.choice(nodesList)
-                reactant = random.choice(nodesList)
+                allo_num = 0
+                if allo_reg:
+                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
 
-                if [[reactant], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                # -----------------------------------------------------------------------------
 
-                reactionList.append([rt, [reactant], [product]])
-                reactionList2.append([[reactant], [product]])
+                if rt == TReactionType.UNIUNI:
 
-                nodeSet.add(reactant)
-                nodeSet.add(product)
+                    product = random.choice(nodesList)
+                    reactant = random.choice(nodesList)
 
-            if rt == TReactionType.BIUNI:
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
 
-                product = random.choice(nodesList)
-                reactant1 = random.choice(nodesList)
-                reactant2 = random.choice(nodesList)
+                    allo_species = random.sample(nodesList, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                if [[reactant1, reactant2], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product]])
 
-                reactionList.append([rt, [reactant1, reactant2], [product]])
-                reactionList2.append([[reactant1, reactant2], [product]])
+                    nodeSet.add(reactant)
+                    nodeSet.add(product)
+                    nodeSet.update(allo_species)
 
-                nodeSet.add(reactant1)
-                nodeSet.add(reactant2)
-                nodeSet.add(product)
+                if rt == TReactionType.BIUNI:
 
-            if rt == TReactionType.UNIBI:
+                    product = random.choice(nodesList)
+                    reactant1 = random.choice(nodesList)
+                    reactant2 = random.choice(nodesList)
 
-                product1 = random.choice(nodesList)
-                product2 = random.choice(nodesList)
-                reactant = random.choice(nodesList)
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-                if [[reactant], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
-                reactionList.append([rt, [reactant], [product1, product2]])
-                reactionList2.append([[reactant], [product1, product2]])
+                    allo_species = random.sample(nodesList, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                nodeSet.add(reactant)
-                nodeSet.add(product1)
-                nodeSet.add(product2)
+                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product]])
 
-            if rt == TReactionType.BIBI:
+                    nodeSet.add(reactant1)
+                    nodeSet.add(reactant2)
+                    nodeSet.add(product)
+                    nodeSet.update(allo_species)
 
-                product1 = random.choice(nodesList)
-                product2 = random.choice(nodesList)
-                reactant1 = random.choice(nodesList)
-                reactant2 = random.choice(nodesList)
+                if rt == TReactionType.UNIBI:
 
-                if [[reactant1, reactant2], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    product1 = random.choice(nodesList)
+                    product2 = random.choice(nodesList)
+                    reactant = random.choice(nodesList)
 
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
-                reactionList2.append([[reactant1, reactant2], [product1, product2]])
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-                nodeSet.add(reactant1)
-                nodeSet.add(reactant2)
-                nodeSet.add(product1)
-                nodeSet.add(product2)
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
-            if len(nodeSet) == n_species:
-                break
+                    allo_species = random.sample(nodesList, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-    # -----------------------------------------------------------------
+                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product1, product2]])
 
-    if not bool(outSamples) and bool(inSamples):
-        pick_continued = 0
-        while True:
+                    nodeSet.add(reactant)
+                    nodeSet.add(product1)
+                    nodeSet.add(product2)
+                    nodeSet.update(allo_species)
 
-            if pick_continued == 1000:
-                return None, [outSamples, inSamples, jointSamples]
+                if rt == TReactionType.BIBI:
 
-            if rxn_prob:
-                rt = _pickReactionType(rxn_prob)
-            else:
-                rt = _pickReactionType()
+                    product1 = random.choice(nodesList)
+                    product2 = random.choice(nodesList)
+                    reactant1 = random.choice(nodesList)
+                    reactant2 = random.choice(nodesList)
 
-            if rt == TReactionType.UNIUNI:
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product = random.choices(inNodesList, probIn)[0]
+                    allo_species = random.sample(nodesList, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                reactant = random.choice(inNodesList)
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
 
-                if [[reactant], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    nodeSet.add(reactant1)
+                    nodeSet.add(reactant2)
+                    nodeSet.add(product1)
+                    nodeSet.add(product2)
+                    nodeSet.update(allo_species)
 
-                inNodesCount[product] -= 1
-                reactionList.append([rt, [reactant], [product]])
-                reactionList2.append([[reactant], [product]])
+                if n_reactions:
+                    if len(nodeSet) >= n_species and len(reactionList) >= n_reactions:
+                        break
+                else:
+                    if len(nodeSet) == n_species:
+                        break
 
-            if rt == TReactionType.BIUNI:
+        # -----------------------------------------------------------------
 
-                if max(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+        if not bool(outSamples) and bool(inSamples):
+            pick_continued = 0
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product = random.choices(inNodesList, probIn)[0]
-                while inNodesCount[product] < 2:
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                allo_num = 0
+                if allo_reg:
+                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
+                # -----------------------------------------------------------------
+
+                if rt == TReactionType.UNIUNI:
+
+                    if max(inNodesCount) < (1 + allo_num):
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < (1 + allo_num):
+                        product = random.choices(inNodesList, probIn)[0]
 
-                reactant1 = random.choice(inNodesList)
-                reactant2 = random.choice(inNodesList)
+                    reactant = random.choice(inNodesList)
 
-                if [[reactant1, reactant2], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
 
-                inNodesCount[product] -= 2
-                reactionList.append([rt, [reactant1, reactant2], [product]])
-                reactionList2.append([[reactant1, reactant2], [product]])
+                    allo_species = random.sample(nodesList, allo_num)
 
-            if rt == TReactionType.UNIBI:
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                if sum(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    inNodesCount[product] -= (1 + allo_num)
+                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product]])
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product1 = random.choices(inNodesList, probIn)[0]
+                # -----------------------------------------------------------------
 
-                inNodesCountCopy = deepcopy(inNodesCount)
-                inNodesCountCopy[product1] -= 1
-                sumInCopy = sum(inNodesCountCopy)
-                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
-                product2 = random.choices(inNodesList, probInCopy)[0]
+                if rt == TReactionType.BIUNI:
 
-                reactant = random.choice(inNodesList)
+                    if max(inNodesCount) < (2 + allo_num):
+                        pick_continued += 1
+                        continue
 
-                if [[reactant], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < (2 + allo_num):
+                        product = random.choices(inNodesList, probIn)[0]
 
-                inNodesCount[product1] -= 1
-                inNodesCount[product2] -= 1
-                reactionList.append([rt, [reactant], [product1, product2]])
-                reactionList2.append([[reactant], [product1, product2]])
+                    reactant1 = random.choice(inNodesList)
+                    reactant2 = random.choice(inNodesList)
 
-            if rt == TReactionType.BIBI:
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-                if max(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product1 = random.choices(inNodesList, probIn)[0]
+                    allo_species = random.sample(nodesList, allo_num)
 
-                inNodesCountCopy = deepcopy(inNodesCount)
-                inNodesCountCopy[product1] -= 1
-                sumInCopy = sum(inNodesCountCopy)
-                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
-                product2 = random.choices(inNodesList, probInCopy)[0]
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                reactant1 = random.choice(inNodesList)
-                reactant2 = random.choice(inNodesList)
+                    inNodesCount[product] -= (2 + allo_num)
+                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product]])
 
-                if [[reactant1, reactant2], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                # -----------------------------------------------------------------
 
-                inNodesCount[product1] -= 1
-                inNodesCount[product2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
-                reactionList2.append([[reactant1, reactant2], [product1, product2]])
+                if rt == TReactionType.UNIBI:
 
-            if sum(inNodesCount) == 0:
-                break
+                    if sum(1 for each in inNodesCount if each >= (1 + allo_num)) < 2 \
+                            and max(inNodesCount) < (2 + 2*allo_num):
+                        pick_continued += 1
+                        continue
 
-    # -----------------------------------------------------------------
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < (1 + allo_num):
+                        product1 = random.choices(inNodesList, probIn)[0]
 
-    if bool(outSamples) and not bool(inSamples):
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= (1 + allo_num)
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
-        pick_continued = 0
-        while True:
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < (1 + allo_num):
+                        product2 = random.choices(inNodesList, probIn)[0]
 
-            if pick_continued == 1000:
-                return None, [outSamples, inSamples, jointSamples]
+                    reactant = random.choice(inNodesList)
 
-            if rxn_prob:
-                rt = _pickReactionType(rxn_prob)
-            else:
-                rt = _pickReactionType()
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-            if rt == TReactionType.UNIUNI:
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant = random.choices(outNodesList, probOut)[0]
+                    allo_species = random.sample(nodesList, allo_num)
 
-                product = random.choice(outNodesList)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                if [[reactant], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    inNodesCount[product1] -= (1 + allo_num)
+                    inNodesCount[product2] -= (1 + allo_num)
+                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product1, product2]])
 
-                outNodesCount[reactant] -= 1
-                reactionList.append([rt, [reactant], [product]])
-                reactionList2.append([[reactant], [product]])
+                # -----------------------------------------------------------------
 
-            if rt == TReactionType.BIUNI:
+                if rt == TReactionType.BIBI:
 
-                if sum(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    if sum(1 for each in inNodesCount if each >= (2 + allo_num)) < 2 \
+                            and max(inNodesCount) < (4 + 2*allo_num):
+                        pick_continued += 1
+                        continue
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant1 = random.choices(outNodesList, probOut)[0]
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < (2 + allo_num):
+                        product1 = random.choices(inNodesList, probIn)[0]
 
-                outNodesCountCopy = deepcopy(outNodesCount)
-                outNodesCountCopy[reactant1] -= 1
-                sumOutCopy = sum(outNodesCountCopy)
-                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
-                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= (2 + allo_num)
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
 
-                product = random.choice(outNodesList)
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < (2 + allo_num):
+                        product2 = random.choices(inNodesList, probIn)[0]
 
-                if [[reactant1, reactant2], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    reactant1 = random.choice(inNodesList)
+                    reactant2 = random.choice(inNodesList)
 
-                outNodesCount[reactant1] -= 1
-                outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product]])
-                reactionList2.append([[reactant1, reactant2], [product]])
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
-            if rt == TReactionType.UNIBI:
+                    allo_species = random.sample(nodesList, allo_num)
 
-                if max(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant = random.choices(outNodesList, probOut)[0]
-                while outNodesCount[reactant] < 2:
+                    inNodesCount[product1] -= (2 + allo_num)
+                    inNodesCount[product2] -= (2 + allo_num)
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(inNodesCount) == 0:
+                    break
+
+        # -----------------------------------------------------------------
+
+        if bool(outSamples) and not bool(inSamples):
+
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                allo_num = 0
+                if allo_reg:
+                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
+                # -----------------------------------------------------------------
+
+                if rt == TReactionType.UNIUNI:
+
+                    if sum(outNodesCount) < (1 + allo_num):
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
                     reactant = random.choices(outNodesList, probOut)[0]
 
-                product1 = random.choice(outNodesList)
-                product2 = random.choice(outNodesList)
+                    product = random.choice(outNodesList)
 
-                if [[reactant], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
 
-                outNodesCount[reactant] -= 2
-                reactionList.append([rt, [reactant], [product1, product2]])
-                reactionList2.append([[reactant], [product1, product2]])
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy = deepcopy(outNodesCount)
+                        outNodesCountCopy[reactant] -= 1
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-            if rt == TReactionType.BIBI:
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 1
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                if max(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant1 = random.choices(outNodesList, probOut)[0]
+                    outNodesCount[reactant] -= 1
+                    for each in allo_species:
+                        outNodesCount[each] -= 1
+                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product]])
 
-                outNodesCountCopy = deepcopy(outNodesCount)
-                outNodesCountCopy[reactant1] -= 1
-                sumOutCopy = sum(outNodesCountCopy)
-                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
-                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                # -----------------------------------------------------------------
 
-                product1 = random.choice(outNodesList)
-                product2 = random.choice(outNodesList)
+                if rt == TReactionType.BIUNI:
 
-                if [[reactant1, reactant2], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if sum(outNodesCount) < (2 + allo_num):
+                        pick_continued += 1
+                        continue
 
-                outNodesCount[reactant1] -= 1
-                outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
-                reactionList2.append([[reactant1, reactant2], [product1, product2]])
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
 
-            if sum(outNodesCount) == 0:
-                break
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 1
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
 
-    # -----------------------------------------------------------------
+                    product = random.choice(outNodesList)
 
-    if (bool(outSamples) and bool(inSamples)) or bool(jointSamples):
-        pick_continued = 0
-        while True:
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-            if pick_continued == 1000:
-                return None, [outSamples, inSamples, jointSamples]
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
-            if rxn_prob:
-                rt = _pickReactionType(rxn_prob)
-            else:
-                rt = _pickReactionType()
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy[reactant2] -= 1
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-            if rt == TReactionType.UNIUNI:
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 1
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product = random.choices(inNodesList, probIn)[0]
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant = random.choices(outNodesList, probOut)[0]
+                    outNodesCount[reactant1] -= 1
+                    outNodesCount[reactant2] -= 1
+                    for each in allo_species:
+                        outNodesCount[each] -= 1
+                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product]])
 
-                if [[reactant], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                # -----------------------------------------------------------------
 
-                inNodesCount[product] -= 1
-                outNodesCount[reactant] -= 1
-                reactionList.append([rt, [reactant], [product]])
-                reactionList2.append([[reactant], [product]])
+                if rt == TReactionType.UNIBI:
 
-            if rt == TReactionType.BIUNI:
+                    cont = False
+                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + allo_num):
+                        cont = True
+                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 1) \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 1:
+                        cont = True
+                    if not cont:
+                        pick_continued += 1
+                        continue
 
-                if max(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant] < 2:
+                        reactant = random.choices(outNodesList, probOut)[0]
 
-                if sum(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    product1 = random.choice(outNodesList)
+                    product2 = random.choice(outNodesList)
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product = random.choices(inNodesList, probIn)[0]
-                while inNodesCount[product] < 2:
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy = deepcopy(outNodesCount)
+                        outNodesCountCopy[reactant] -= 2
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_allo] < 2:
+                                new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 2
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+
+                    outNodesCount[reactant] -= 2
+                    for each in allo_species:
+                        outNodesCount[each] -= 2
+                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                # -----------------------------------------------------------------
+
+                if rt == TReactionType.BIBI:
+
+                    cont = False
+                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + allo_num):
+                        cont = True
+
+                    if sum(1 for each in outNodesCount if each >= 2) >= allo_num \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 1:
+                        cont = True
+
+                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 2) \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 2:
+                        cont = True
+
+                    if not cont:
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant1] < 2:
+                        reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 2
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    while outNodesCountCopy[reactant2] < 2:
+                        reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    product1 = random.choice(outNodesList)
+                    product2 = random.choice(outNodesList)
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy[reactant2] -= 2
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_allo] < 2:
+                                new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 2
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+
+                    outNodesCount[reactant1] -= 2
+                    outNodesCount[reactant2] -= 2
+                    for each in allo_species:
+                        outNodesCount[each] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(outNodesCount) == 0:
+                    break
+
+        # -----------------------------------------------------------------
+
+        if (bool(outSamples) and bool(inSamples)) or bool(jointSamples):
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                allo_num = 0
+                if allo_reg:
+                    allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
+                # -----------------------------------------------------------------
+
+                if rt == TReactionType.UNIUNI:
+
+                    if sum(outNodesCount) < (1 + allo_num):
+                        pick_continued += 1
+                        continue
+
+                    if max(inNodesCount) < (1 + allo_num):
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
                     product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < (1 + allo_num):
+                        product = random.choices(inNodesList, probIn)[0]
 
-                sumOut = sum(outNodesCount)
-                probOut = [x/sumOut for x in outNodesCount]
-                reactant1 = random.choices(outNodesList, probOut)[0]
-
-                outNodesCountCopy = deepcopy(outNodesCount)
-                outNodesCountCopy[reactant1] -= 1
-                sumOutCopy = sum(outNodesCountCopy)
-                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
-                reactant2 = random.choices(outNodesList, probOutCopy)[0]
-
-                # sumOut = sum(outNodesCount)
-                # probOut = [x/sumOut for x in outNodesCount]
-                # reactant2 = random.choices(outNodesList, probOut)[0]
-
-                if [[reactant1, reactant2], [product]] in reactionList2:
-                    pick_continued += 1
-                    continue
-
-                inNodesCount[product] -= 2
-                outNodesCount[reactant1] -= 1
-                outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product]])
-                reactionList2.append([[reactant1, reactant2], [product]])
-
-            if rt == TReactionType.UNIBI:
-
-                if sum(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
-
-                if max(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
-
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product1 = random.choices(inNodesList, probIn)[0]
-
-                inNodesCountCopy = deepcopy(inNodesCount)
-                inNodesCountCopy[product1] -= 1
-                sumInCopy = sum(inNodesCountCopy)
-                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
-                product2 = random.choices(inNodesList, probInCopy)[0]
-
-                # sumIn = sum(inNodesCount)
-                # probIn = [x/sumIn for x in inNodesCount]
-                # product2 = random.choices(inNodesList, probIn)[0]
-
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant = random.choices(outNodesList, probOut)[0]
-                while outNodesCount[reactant] < 2:
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
                     reactant = random.choices(outNodesList, probOut)[0]
 
-                if [[reactant], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
 
-                inNodesCount[product1] -= 1
-                inNodesCount[product2] -= 1
-                outNodesCount[reactant] -= 2
-                reactionList.append([rt, [reactant], [product1, product2]])
-                reactionList2.append([[reactant], [product1, product2]])
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy = deepcopy(outNodesCount)
+                        outNodesCountCopy[reactant] -= 1
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-            if rt == TReactionType.BIBI:
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 1
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-                if max(inNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
 
-                if max(outNodesCount) < 2:
-                    pick_continued += 1
-                    continue
+                    inNodesCount[product] -= (1 + allo_num)
+                    outNodesCount[reactant] -= 1
+                    for each in allo_species:
+                        outNodesCount[each] -= 1
+                    reactionList.append([rt, [reactant], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product]])
 
-                sumIn = sum(inNodesCount)
-                probIn = [x/sumIn for x in inNodesCount]
-                product1 = random.choices(inNodesList, probIn)[0]
+                # -----------------------------------------------------------------
 
-                inNodesCountCopy = deepcopy(inNodesCount)
-                inNodesCountCopy[product1] -= 1
-                sumInCopy = sum(inNodesCountCopy)
-                probInCopy = [x/sumInCopy for x in inNodesCountCopy]
-                product2 = random.choices(inNodesList, probInCopy)[0]
+                if rt == TReactionType.BIUNI:
 
-                # sumIn = sum(inNodesCount)
-                # probIn = [x/sumIn for x in inNodesCount]
-                # product2 = random.choices(inNodesList, probIn)[0]
+                    if sum(outNodesCount) < (2 + allo_num):
+                        pick_continued += 1
+                        continue
 
-                sumOut = sum(outNodesCount)
-                probOut = [x / sumOut for x in outNodesCount]
-                reactant1 = random.choices(outNodesList, probOut)[0]
+                    if max(inNodesCount) < (2 + allo_num):
+                        pick_continued += 1
+                        continue
 
-                outNodesCountCopy = deepcopy(outNodesCount)
-                outNodesCountCopy[reactant1] -= 1
-                sumOutCopy = sum(outNodesCountCopy)
-                probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
-                reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+                    
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 1
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < (2 + allo_num):
+                        product = random.choices(inNodesList, probIn)[0]
 
-                # sumOut = sum(outNodesCount)
-                # probOut = [x / sumOut for x in outNodesCount]
-                # reactant2 = random.choices(outNodesList, probOut)[0]
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
 
-                if [[reactant1, reactant2], [product1, product2]] in reactionList2:
-                    pick_continued += 1
-                    continue
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
-                inNodesCount[product1] -= 1
-                inNodesCount[product2] -= 1
-                outNodesCount[reactant1] -= 1
-                outNodesCount[reactant2] -= 1
-                reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
-                reactionList2.append([[reactant1, reactant2], [product1, product2]])
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy[reactant2] -= 1
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
 
-            if sum(inNodesCount) == 0:
-                break
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 1
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+
+                    inNodesCount[product] -= (2 + allo_num)
+                    outNodesCount[reactant1] -= 1
+                    outNodesCount[reactant2] -= 1
+                    for each in allo_species:
+                        outNodesCount[each] -= 1
+                    reactionList.append([rt, [reactant1, reactant2], [product], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product]])
+
+                # -----------------------------------------------------------------
+                
+                if rt == TReactionType.UNIBI:
+
+                    cont = False
+                    if sum(1 for each in outNodesCount if each >= 2) >= (1 + allo_num):
+                        cont = True
+                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 1) \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 1:
+                        cont = True
+                    if not cont:
+                        pick_continued += 1
+                        continue
+
+                    if sum(1 for each in inNodesCount if each >= (1 + allo_num)) < 2 \
+                            and max(inNodesCount) < (2 + 2*allo_num):
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant] < 2:
+                        reactant = random.choices(outNodesList, probOut)[0]
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < (1 + allo_num):
+                        product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= (1 + allo_num)
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < (1 + allo_num):
+                        product2 = random.choices(inNodesList, probIn)[0]
+
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy = deepcopy(outNodesCount)
+                        outNodesCountCopy[reactant] -= 2
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_allo] < 2:
+                                new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 2
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+
+                    outNodesCount[reactant] -= 2
+                    inNodesCount[product1] -= (1 + allo_num)
+                    inNodesCount[product2] -= (1 + allo_num)
+                    for each in allo_species:
+                        outNodesCount[each] -= 2
+                    reactionList.append([rt, [reactant], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                # -----------------------------------------------------------------
+
+                if rt == TReactionType.BIBI:
+
+                    cont = False
+                    if sum(1 for each in outNodesCount if each >= 2) >= (2 + allo_num):
+                        cont = True
+
+                    if sum(1 for each in outNodesCount if each >= 2) >= allo_num \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 1:
+                        cont = True
+
+                    if sum(1 for each in outNodesCount if each >= 2) >= (allo_num - 2) \
+                            and sum(1 for each in outNodesCount if each >= 4) >= 2:
+                        cont = True
+
+                    if not cont:
+                        pick_continued += 1
+                        continue
+
+                    if sum(1 for each in inNodesCount if each >= (2 + allo_num)) < 2 \
+                            and max(inNodesCount) < (4 + 2*allo_num):
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant1] < 2:
+                        reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 2
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    while outNodesCountCopy[reactant2] < 2:
+                        reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < (2 + allo_num):
+                        product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= (2 + allo_num)
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < (2 + allo_num):
+                        product2 = random.choices(inNodesList, probIn)[0]
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    allo_species = []
+                    if allo_num > 0:
+                        outNodesCountCopy[reactant2] -= 2
+                        sumOutCopy = sum(outNodesCountCopy)
+                        probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                        while len(allo_species) < allo_num:
+                            new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            while outNodesCountCopy[new_allo] < 2:
+                                new_allo = random.choices(outNodesList, probOutCopy)[0]
+                            if new_allo not in allo_species:
+                                allo_species.append(new_allo)
+                                if len(allo_species) < allo_num:
+                                    outNodesCountCopy[allo_species[-1]] -= 2
+                                    sumOutCopy = sum(outNodesCountCopy)
+                                    probOutCopy = [x / sumOutCopy for x in outNodesCountCopy]
+
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1-allo_reg[1]])[0] for _ in allo_species]
+
+                    outNodesCount[reactant1] -= 2
+                    outNodesCount[reactant2] -= 2
+                    inNodesCount[product1] -= (2 + allo_num)
+                    inNodesCount[product2] -= (2 + allo_num)
+                    for each in allo_species:
+                        outNodesCount[each] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2], allo_species, reg_signs])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(inNodesCount) == 0:
+                    break
+
+        # -----------------------------------------------------------------
+
+    else:
+
+        if not bool(outSamples) and not bool(inSamples):
+
+            nodesList = [i for i in range(n_species)]
+            nodeSet = set()
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                # -------------------------------------------------------------------
+
+                if rt == TReactionType.UNIUNI:
+
+                    product = random.choice(nodesList)
+                    reactant = random.choice(nodesList)
+
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
+
+                    reactionList.append([rt, [reactant], [product]])
+                    reactionList2.append([[reactant], [product]])
+
+                    nodeSet.add(reactant)
+                    nodeSet.add(product)
+
+                if rt == TReactionType.BIUNI:
+
+                    product = random.choice(nodesList)
+                    reactant1 = random.choice(nodesList)
+                    reactant2 = random.choice(nodesList)
+
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
+                    reactionList.append([rt, [reactant1, reactant2], [product]])
+                    reactionList2.append([[reactant1, reactant2], [product]])
+
+                    nodeSet.add(reactant1)
+                    nodeSet.add(reactant2)
+                    nodeSet.add(product)
+
+                if rt == TReactionType.UNIBI:
+
+                    product1 = random.choice(nodesList)
+                    product2 = random.choice(nodesList)
+                    reactant = random.choice(nodesList)
+
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    reactionList.append([rt, [reactant], [product1, product2]])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                    nodeSet.add(reactant)
+                    nodeSet.add(product1)
+                    nodeSet.add(product2)
+
+                if rt == TReactionType.BIBI:
+
+                    product1 = random.choice(nodesList)
+                    product2 = random.choice(nodesList)
+                    reactant1 = random.choice(nodesList)
+                    reactant2 = random.choice(nodesList)
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                    nodeSet.add(reactant1)
+                    nodeSet.add(reactant2)
+                    nodeSet.add(product1)
+                    nodeSet.add(product2)
+
+                if n_reactions:
+                    if len(nodeSet) >= n_species and len(reactionList) >= n_reactions:
+                        break
+                else:
+                    if len(nodeSet) == n_species:
+                        break
+
+        # -----------------------------------------------------------------
+
+        if not bool(outSamples) and bool(inSamples):
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                if rt == TReactionType.UNIUNI:
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+
+                    reactant = random.choice(inNodesList)
+
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product] -= 1
+                    reactionList.append([rt, [reactant], [product]])
+                    reactionList2.append([[reactant], [product]])
+
+                if rt == TReactionType.BIUNI:
+
+                    if max(inNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < 2:
+                        product = random.choices(inNodesList, probIn)[0]
+
+                    reactant1 = random.choice(inNodesList)
+                    reactant2 = random.choice(inNodesList)
+
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product]])
+                    reactionList2.append([[reactant1, reactant2], [product]])
+
+                if rt == TReactionType.UNIBI:
+
+                    if sum(inNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= 1
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+
+                    reactant = random.choice(inNodesList)
+
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product1] -= 1
+                    inNodesCount[product2] -= 1
+                    reactionList.append([rt, [reactant], [product1, product2]])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                if rt == TReactionType.BIBI:
+
+                    if sum(1 for each in inNodesCount if each > 1) < 2 and max(inNodesCount) < 4:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < 2:
+                        product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= 2
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < 2:
+                        product2 = random.choices(inNodesList, probInCopy)[0]
+
+                    reactant1 = random.choice(inNodesList)
+                    reactant2 = random.choice(inNodesList)
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product1] -= 2
+                    inNodesCount[product2] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(inNodesCount) == 0:
+                    break
+
+        # -----------------------------------------------------------------
+
+        if bool(outSamples) and not bool(inSamples):
+
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                if rt == TReactionType.UNIUNI:
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+
+                    product = random.choice(outNodesList)
+
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
+
+                    outNodesCount[reactant] -= 1
+                    reactionList.append([rt, [reactant], [product]])
+                    reactionList2.append([[reactant], [product]])
+
+                if rt == TReactionType.BIUNI:
+
+                    if sum(outNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 1
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    product = random.choice(outNodesList)
+
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
+                    outNodesCount[reactant1] -= 1
+                    outNodesCount[reactant2] -= 1
+                    reactionList.append([rt, [reactant1, reactant2], [product]])
+                    reactionList2.append([[reactant1, reactant2], [product]])
+
+                if rt == TReactionType.UNIBI:
+
+                    if max(outNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant] < 2:
+                        reactant = random.choices(outNodesList, probOut)[0]
+
+                    product1 = random.choice(outNodesList)
+                    product2 = random.choice(outNodesList)
+
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    outNodesCount[reactant] -= 2
+                    reactionList.append([rt, [reactant], [product1, product2]])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                if rt == TReactionType.BIBI:
+
+                    if sum(1 for each in outNodesCount if each > 1) < 2 \
+                            and max(outNodesCount) < 4:
+                        pick_continued += 1
+                        continue
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant1] < 2:
+                        reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 2
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    while outNodesCountCopy[reactant2] < 2:
+                        reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    product1 = random.choice(outNodesList)
+                    product2 = random.choice(outNodesList)
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    outNodesCount[reactant1] -= 2
+                    outNodesCount[reactant2] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(outNodesCount) == 0:
+                    break
+
+        # -----------------------------------------------------------------
+
+        if (bool(outSamples) and bool(inSamples)) or bool(jointSamples):
+            pick_continued = 0
+            while True:
+
+                if pick_continued == 1000:
+                    return None, [outSamples, inSamples, jointSamples]
+
+                if rxn_prob:
+                    rt = _pickReactionType(rxn_prob)
+                else:
+                    rt = _pickReactionType()
+
+                if rt == TReactionType.UNIUNI:
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+
+                    if [[reactant], [product]] in reactionList2 or reactant == product:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product] -= 1
+                    outNodesCount[reactant] -= 1
+                    reactionList.append([rt, [reactant], [product]])
+                    reactionList2.append([[reactant], [product]])
+
+                if rt == TReactionType.BIUNI:
+
+                    if max(inNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    if sum(outNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product] < 2:
+                        product = random.choices(inNodesList, probIn)[0]
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x/sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 1
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    if [[reactant1, reactant2], [product]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product] -= 2
+                    outNodesCount[reactant1] -= 1
+                    outNodesCount[reactant2] -= 1
+                    reactionList.append([rt, [reactant1, reactant2], [product]])
+                    reactionList2.append([[reactant1, reactant2], [product]])
+
+                if rt == TReactionType.UNIBI:
+
+                    if sum(inNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    if max(outNodesCount) < 2:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= 1
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant] < 2:
+                        reactant = random.choices(outNodesList, probOut)[0]
+
+                    if [[reactant], [product1, product2]] in reactionList2:
+                        pick_continued += 1
+                        continue
+
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product1] -= 1
+                    inNodesCount[product2] -= 1
+                    outNodesCount[reactant] -= 2
+                    reactionList.append([rt, [reactant], [product1, product2]])
+                    reactionList2.append([[reactant], [product1, product2]])
+
+                if rt == TReactionType.BIBI:
+
+                    if sum(1 for each in inNodesCount if each > 1) < 2 and max(inNodesCount) < 4:
+                        pick_continued += 1
+                        continue
+
+                    if sum(1 for each in outNodesCount if each > 1) < 2 and max(outNodesCount) < 4:
+                        pick_continued += 1
+                        continue
+
+                    sumIn = sum(inNodesCount)
+                    probIn = [x/sumIn for x in inNodesCount]
+                    product1 = random.choices(inNodesList, probIn)[0]
+                    while inNodesCount[product1] < 2:
+                        product1 = random.choices(inNodesList, probIn)[0]
+
+                    inNodesCountCopy = deepcopy(inNodesCount)
+                    inNodesCountCopy[product1] -= 2
+                    sumInCopy = sum(inNodesCountCopy)
+                    probInCopy = [x/sumInCopy for x in inNodesCountCopy]
+                    product2 = random.choices(inNodesList, probInCopy)[0]
+                    while inNodesCountCopy[product2] < 2:
+                        product2 = random.choices(inNodesList, probInCopy)[0]
+
+                    sumOut = sum(outNodesCount)
+                    probOut = [x / sumOut for x in outNodesCount]
+                    reactant1 = random.choices(outNodesList, probOut)[0]
+                    while outNodesCount[reactant1] < 2:
+                        reactant1 = random.choices(outNodesList, probOut)[0]
+
+                    outNodesCountCopy = deepcopy(outNodesCount)
+                    outNodesCountCopy[reactant1] -= 2
+                    sumOutCopy = sum(outNodesCountCopy)
+                    probOutCopy = [x/sumOutCopy for x in outNodesCountCopy]
+                    reactant2 = random.choices(outNodesList, probOutCopy)[0]
+                    while outNodesCountCopy[reactant2] < 2:
+                        reactant2 = random.choices(outNodesList, probOutCopy)[0]
+
+                    if [[reactant1, reactant2], [product1, product2]] in reactionList2 \
+                            or {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    inNodesCount[product1] -= 2
+                    inNodesCount[product2] -= 2
+                    outNodesCount[reactant1] -= 2
+                    outNodesCount[reactant2] -= 2
+                    reactionList.append([rt, [reactant1, reactant2], [product1, product2]])
+                    reactionList2.append([[reactant1, reactant2], [product1, product2]])
+
+                if sum(inNodesCount) == 0:
+                    break
 
     reactionList.insert(0, n_species)
     return reactionList, [outSamples, inSamples, jointSamples]
@@ -1250,7 +2123,7 @@ def _removeBoundaryNodes(st):
 
 
 # todo: fix inputs
-def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kinetics, rev_prob, add_E):
+def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kinetics, rev_prob, add_E, allo_reg):
 
     E = ''
     E_end = ''
@@ -1269,6 +2142,12 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
             antStr = antStr + ', ' + 'S' + str(index)
         antStr = antStr + '\n'
 
+    if 'modular' in kinetics[0]:
+        for each in reactionListCopy:
+            for item in each[3]:
+                if item not in boundaryIds and item not in floatingIds:
+                    boundaryIds.append(item)
+
     if len(boundaryIds) > 0:
         antStr = antStr + 'ext ' + 'S' + str(boundaryIds[0])
         for index in boundaryIds[1:]:
@@ -1283,8 +2162,6 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
             rev1 = random.choices([True, False], [rev_prob[rxnType], 1.0 - rev_prob[rxnType]])[0]
         if isinstance(rev_prob, float) or isinstance(rev_prob, int):
             rev1 = random.choices([True, False], [rev_prob, 1 - rev_prob])[0]
-
-        # todo: add straight Boolean case
 
         return rev1
 
@@ -1473,7 +2350,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
             if 'deg' in kinetics[2]:
                 # Next the degradation rate constants
-                for sp in floatingIds:
+                for _ in floatingIds:
 
                     if kinetics[1] == 'trivial':
                         antStr = antStr + 'k' + str(parameterIndex) + ' = 1\n'
@@ -1891,7 +2768,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
             if 'deg' in kinetics[2]:
                 # Next the degradation rate constants
-                for sp in floatingIds:
+                for _ in floatingIds:
 
                     if kinetics[1] == 'trivial':
                         antStr = antStr + 'k' + str(parameterIndex) + ' = 1\n'
@@ -1940,27 +2817,43 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 antStr = antStr + ' -> '
                 antStr = antStr + 'S' + str(r[2][0])
 
-                if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
-                        + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
-                        + str(r[2][0]) + '/S' + str(r[1][0]) \
-                        + ')/keq' + str(reactionIndex) + ')/(1 + S' + str(r[1][0]) \
-                        + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + S' \
-                        + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' \
-                        + str(r[2][0]) + ')' + E_end
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+                rev = reversibility(0)
 
-                if 'k' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
-                        + str(r[2][0]) + '/S' + str(r[1][0]) \
-                        + ')/keq' + str(reactionIndex) + ')/(1 + S' + str(r[1][0]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + S' \
-                        + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[2][0]) + ')' + E_end
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
+                if not rev:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')/(1 + S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')/(1 + S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+
+                else:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
+                            + str(r[2][0]) + '/S' + str(r[1][0]) \
+                            + ')/keq' + str(reactionIndex) + ')/(1 + S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + S' \
+                            + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ')' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
+                            + str(r[2][0]) + '/S' + str(r[1][0]) \
+                            + ')/keq' + str(reactionIndex) + ')/(1 + S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + S' \
+                            + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ')' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
@@ -1970,37 +2863,65 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 antStr = antStr + ' -> '
                 antStr = antStr + 'S' + str(r[2][0])
 
-                if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' \
-                        + str(r[1][0]) + ')*(S' + str(r[1][1]) \
-                        + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
-                        + str(r[2][0]) + '/(S' + str(r[1][0]) \
-                        + '*S' + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/(1 + S' \
-                        + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
-                        + ' + (S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ')*(S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
-                        + ') + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')' + E_end
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+                rev = reversibility(1)
 
-                if 'k' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[1][0]) + ')*(S' + str(r[1][1]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
-                        + str(r[2][0]) + '/(S' + str(r[1][0]) \
-                        + '*S' + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/(1 + S' \
-                        + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
-                        + ' + (S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ')*(S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
-                        + ') + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')' + E_end
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
+                if not rev:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')/(1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ' + (S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + '))' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')/(1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ' + (S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + '))' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
+
+                else:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
+                            + str(r[2][0]) + '/(S' + str(r[1][0]) \
+                            + '*S' + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/(1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ' + (S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ') + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
+                            + str(r[2][0]) + '/(S' + str(r[1][0]) \
+                            + '*S' + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/(1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ' + (S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) \
+                            + ') + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
@@ -2010,37 +2931,55 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 antStr = antStr + ' + '
                 antStr = antStr + 'S' + str(r[2][1])
 
-                if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
-                        + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
-                        + str(r[2][0]) + '*S' + str(r[2][1]) \
-                        + '/S' + str(r[1][0]) + ')/keq' + str(reactionIndex) + ')/(1 + S' \
-                        + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' \
-                        + str(r[2][0]) + ' + S' + str(r[2][1]) \
-                        + '/kp_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + (S' \
-                        + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')*(S' + str(r[2][1]) + '/kp_' + str(reactionIndex) + '_' \
-                        + str(r[2][1]) + ')' + ')' + E_end
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][1]))
+                rev = reversibility(2)
 
-                if 'k' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
-                        + str(r[2][0]) + '*S' + str(r[2][1]) \
-                        + '/S' + str(r[1][0]) + ')/keq' + str(reactionIndex) + ')/(1 + S' \
-                        + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[2][0]) + ' + S' + str(r[2][1]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + (S' \
-                        + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')*(S' + str(r[2][1]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[2][1]) + ')' + ')' + E_end
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][1]))
+                if not rev:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')/(1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')/(1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+
+                else:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
+                            + str(r[2][0]) + '*S' + str(r[2][1]) \
+                            + '/S' + str(r[1][0]) + ')/keq' + str(reactionIndex) + ')/(1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ' + S' + str(r[2][1]) \
+                            + '/kp_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + (S' \
+                            + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')*(S' + str(r[2][1]) + '/kp_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ')' + ')' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][1]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) + ')*(1-(S' \
+                            + str(r[2][0]) + '*S' + str(r[2][1]) \
+                            + '/S' + str(r[1][0]) + ')/keq' + str(reactionIndex) + ')/(1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ' + S' + str(r[2][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + (S' \
+                            + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')*(S' + str(r[2][1]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ')' + ')' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][1]))
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
@@ -2052,39 +2991,63 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
                 antStr = antStr + ' + '
                 antStr = antStr + 'S' + str(r[2][1])
 
-                if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' \
-                        + str(r[1][0]) + ')*(S' + str(r[1][1]) \
-                        + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
-                        + str(r[2][0]) + '*S' + str(r[2][1]) \
-                        + '/(S' + str(r[1][0]) + '*S' \
-                        + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/((1 + S' \
-                        + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')*(1 + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' \
-                        + str(r[1][1]) + ' + S' + str(r[2][1]) \
-                        + '/kp_' + str(reactionIndex) + '_' + str(r[2][1]) + '))' + E_end
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
-                    kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][1]))
+                rev = reversibility(3)
 
-                if 'k' in kinetics[2]:
-                    antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[1][0]) + ')*(S' + str(r[1][1]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
-                        + str(r[2][0]) + '*S' + str(r[2][1]) \
-                        + '/(S' + str(r[1][0]) + '*S' \
-                        + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/((1 + S' \
-                        + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
-                        + ' + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
-                        + ')*(1 + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' \
-                        + str(r[1][1]) + ' + S' + str(r[2][1]) \
-                        + '/k_' + str(reactionIndex) + '_' + str(r[2][1]) + '))' + E_end
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
-                    k.append('k_' + str(reactionIndex) + '_' + str(r[2][1]))
+                if not rev:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')/((1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(1 + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' \
+                            + str(r[1][1]) + '))' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')/((1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ')*(1 + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[1][1]) + '))' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
+
+                else:
+                    if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/ks_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
+                            + str(r[2][0]) + '*S' + str(r[2][1]) \
+                            + '/(S' + str(r[1][0]) + '*S' \
+                            + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/((1 + S' \
+                            + str(r[1][0]) + '/ks_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[2][0]) + '/kp_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')*(1 + S' + str(r[1][1]) + '/ks_' + str(reactionIndex) + '_' \
+                            + str(r[1][1]) + ' + S' + str(r[2][1]) \
+                            + '/kp_' + str(reactionIndex) + '_' + str(r[2][1]) + '))' + E_end
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        ks.append('ks_' + str(reactionIndex) + '_' + str(r[1][1]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][0]))
+                        kp.append('kp_' + str(reactionIndex) + '_' + str(r[2][1]))
+
+                    if 'k' in kinetics[2]:
+                        antStr = antStr + '; ' + E + 'v' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[1][0]) + ')*(S' + str(r[1][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
+                            + str(r[2][0]) + '*S' + str(r[2][1]) \
+                            + '/(S' + str(r[1][0]) + '*S' \
+                            + str(r[1][1]) + '))/keq' + str(reactionIndex) + ')/((1 + S' \
+                            + str(r[1][0]) + '/k_' + str(reactionIndex) + '_' + str(r[1][0]) \
+                            + ' + S' + str(r[2][0]) + '/k_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                            + ')*(1 + S' + str(r[1][1]) + '/k_' + str(reactionIndex) + '_' \
+                            + str(r[1][1]) + ' + S' + str(r[2][1]) \
+                            + '/k_' + str(reactionIndex) + '_' + str(r[2][1]) + '))' + E_end
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[1][1]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][0]))
+                        k.append('k_' + str(reactionIndex) + '_' + str(r[2][1]))
 
             antStr = antStr + '\n'
         antStr = antStr + '\n'
@@ -2459,29 +3422,29 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
 
         if 'deg' in kinetics[2]:
             # Next the degradation rate constants
-            for sp in floatingIds:
+            for _ in floatingIds:
 
                 if kinetics[1] == 'trivial':
                     antStr = antStr + 'k' + str(parameterIndex) + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0], scale=kinetics[3][kinetics[2].index('v')][1]
-                                        - kinetics[3][kinetics[2].index('v')][0])
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0], scale=kinetics[3][kinetics[2].index('deg')][1]
+                                        - kinetics[3][kinetics[2].index('deg')][0])
                     antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0], kinetics[3][kinetics[2].index('v')][1])
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0], kinetics[3][kinetics[2].index('deg')][1])
                     antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0], scale=kinetics[3][kinetics[2].index('v')][1])
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0], scale=kinetics[3][kinetics[2].index('deg')][1])
                         if const >= 0:
                             antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0], s=kinetics[3][kinetics[2].index('v')][1])
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0], s=kinetics[3][kinetics[2].index('deg')][1])
                     antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
 
                 parameterIndex += 1
@@ -2505,6 +3468,803 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0], scale=kinetics[3][kinetics[2].index('v')][1])
         #     antStr = antStr + each + ' = ' + str(const) + '\n'
 
+    if 'modular' in kinetics[0]:
+
+        ma = set()
+        kma = set()
+        ro = set()
+        kf = set()
+        kr = set()
+        m = set()
+        km = set()
+
+        for reactionIndex, r in enumerate(reactionListCopy):
+
+            antStr = antStr + 'J' + str(reactionIndex) + ': '
+            if r[0] == TReactionType.UNIUNI:
+                # UniUni
+                antStr = antStr + 'S' + str(r[1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(r[2][0])
+
+                rev = reversibility(0)
+
+                if not rev:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    kf.add('kf_' + str(reactionIndex))
+
+                else:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - kr_' \
+                        + str(reactionIndex) + '*(S' + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                        + ')^m_' + str(reactionIndex) + '_' + str(r[2][0]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (1 + S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    kf.add('kf_' + str(reactionIndex))
+                    kr.add('kr_' + str(reactionIndex))
+
+            if r[0] == TReactionType.BIUNI:
+                # BiUni
+                antStr = antStr + 'S' + str(r[1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(r[1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(r[2][0])
+
+                rev = reversibility(1)
+
+                if not rev:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr \
+                        + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(' + 'S' \
+                        + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                        + str(reactionIndex) + '_' + str(r[1][1]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    kf.add('kf_' + str(reactionIndex))
+
+                else:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + ' * '
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr \
+                        + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(' + 'S' \
+                        + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                        + str(reactionIndex) + '_' + str(r[1][1]) + ' - kr_' + str(reactionIndex) + '*(S' \
+                        + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                        + ')^m_' + str(reactionIndex) + '_' + str(r[2][0]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*' + '(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    kf.add('kf_' + str(reactionIndex))
+                    kr.add('kr_' + str(reactionIndex))
+
+            if r[0] == TReactionType.UNIBI:
+                # UniBi
+                antStr = antStr + 'S' + str(r[1][0])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(r[2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(r[2][1])
+
+                rev = reversibility(2)
+
+                if not rev:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+                        
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+                    
+                    antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    kf.add('kf_' + str(reactionIndex))
+
+                else:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' - kr_' \
+                        + str(reactionIndex) + '*(S' + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                        + ')^m_' + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
+                        + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (1 + S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + ' + (S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][1]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][1]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][1]))
+                    kf.add('kf_' + str(reactionIndex))
+                    kr.add('kr_' + str(reactionIndex))
+
+            if r[0] == TReactionType.BIBI:
+                # BiBi
+                antStr = antStr + 'S' + str(r[1][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(r[1][1])
+                antStr = antStr + ' -> '
+                antStr = antStr + 'S' + str(r[2][0])
+                antStr = antStr + ' + '
+                antStr = antStr + 'S' + str(r[2][1])
+
+                rev = reversibility(3)
+
+                if not rev:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr \
+                        + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(' + 'S' \
+                        + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                        + str(reactionIndex) + '_' + str(r[1][1]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    kf.add('kf_' + str(reactionIndex))
+
+                else:
+                    antStr = antStr + '; ' + E
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+                        if r[4][i] == 1:
+                            antStr = antStr + '(' + 'ro_' + str(reactionIndex) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reactionIndex) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reactionIndex) \
+                                + '_' + str(reg) + '))^ma_' + str(reactionIndex) + '_' + str(reg) + '*'
+
+                        ma.add('ma_' + str(reactionIndex) + '_' + str(reg))
+                        kma.add('kma_' + str(reactionIndex) + '_' + str(reg))
+                        ro.add('ro_' + str(reactionIndex) + '_' + str(reg))
+
+                    antStr = antStr \
+                        + '(kf_' + str(reactionIndex) + '*(S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                        + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(' + 'S' \
+                        + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                        + str(reactionIndex) + '_' + str(r[1][1]) + ' - kr_' + str(reactionIndex) + '*(S' \
+                        + str(r[2][0]) + '/km_' + str(reactionIndex) + '_' + str(r[2][0]) \
+                        + ')^m_' + str(reactionIndex) + '_' + str(r[2][0]) + '*(S' \
+                        + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
+                        + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')'
+
+                    if kinetics[0][8:10] == 'CM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' - 1)' + E_end
+
+                    if kinetics[0][8:10] == 'DM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ' + 1)' + E_end
+
+                    if kinetics[0][8:10] == 'SM':
+
+                        antStr = antStr + '/((1 + S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(1 + S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')' + E_end
+
+                    if kinetics[0][8:10] == 'FM':
+
+                        antStr = antStr + '/((S' + str(r[1][0]) + '/km_' + str(reactionIndex) \
+                            + '_' + str(r[1][0]) + ')^m_' + str(reactionIndex) + '_' + str(r[1][0]) + '*(S' \
+                            + str(r[1][1]) + '/km_' + str(reactionIndex) + '_' + str(r[1][1]) + ')^m_' \
+                            + str(reactionIndex) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
+                            + str(reactionIndex) + '_' + str(r[2][0]) + ')^m_' + str(reactionIndex) + '_' \
+                            + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' + str(reactionIndex) + '_' + str(r[2][1]) \
+                            + ')^m_' + str(reactionIndex) + '_' + str(r[2][1]) + ')^(1/2)' + E_end
+
+                    if kinetics[0][8:10] == 'PM':
+                        pass
+
+                    # print(antStr)
+                    # quit()
+
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    km.add('km_' + str(reactionIndex) + '_' + str(r[2][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[1][1]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][0]))
+                    m.add('m_' + str(reactionIndex) + '_' + str(r[2][1]))
+                    kf.add('kf_' + str(reactionIndex))
+                    kr.add('kr_' + str(reactionIndex))
+
+            antStr = antStr + '\n'
+        antStr = antStr + '\n'
+
+        if 'deg' in kinetics[2]:
+            reactionIndex += 1
+            parameterIndex = reactionIndex
+            for sp in floatingIds:
+                antStr = antStr + 'J' + str(reactionIndex) + ': S' + str(sp) + ' ->; ' + 'k' + str(reactionIndex) + '*' + 'S' + str(sp) + '\n'
+                reactionIndex += 1
+            antStr = antStr + '\n'
+
+        ro = list(ro)
+        ro.sort()
+        if kinetics[1] == 'trivial':
+            for each in ro:
+                antStr = antStr + each + ' = ' + str(1) + '\n'
+        else:
+            for each in ro:
+                antStr = antStr + each + ' = ' + str(uniform.rvs(loc=0, scale=1)) + '\n'
+        antStr = antStr + '\n'
+
+        kf = list(kf)
+        kf.sort()
+        for each in kf:
+        
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0], scale=kinetics[3][kinetics[2].index('kf')][1]
+                                    - kinetics[3][kinetics[2].index('kf')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0], kinetics[3][kinetics[2].index('kf')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0], scale=kinetics[3][kinetics[2].index('kf')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0], s=kinetics[3][kinetics[2].index('kf')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+
+        kr = list(kr)
+        kr.sort()
+        for each in kr:
+
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0], scale=kinetics[3][kinetics[2].index('kr')][1]
+                                    - kinetics[3][kinetics[2].index('kr')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0], kinetics[3][kinetics[2].index('kr')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0], scale=kinetics[3][kinetics[2].index('kr')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0], s=kinetics[3][kinetics[2].index('kr')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+
+        km = list(km)
+        km.sort()
+        for each in km:
+        
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1]
+                                    - kinetics[3][kinetics[2].index('km')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('km')][0], kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0], s=kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+
+        kma = list(kma)
+        kma.sort()
+        for each in kma:
+
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1]
+                                    - kinetics[3][kinetics[2].index('km')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('km')][0], kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('km')][0], scale=kinetics[3][kinetics[2].index('km')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0], s=kinetics[3][kinetics[2].index('km')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+
+        m = list(m)
+        m.sort()
+        for each in m:
+        
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1]
+                                    - kinetics[3][kinetics[2].index('mol')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0], kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0], s=kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+
+        ma = list(ma)
+        ma.sort()
+        for each in ma:
+
+            if kinetics[1] == 'trivial':
+                antStr = antStr + each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1]
+                                    - kinetics[3][kinetics[2].index('mol')][0])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0], kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0], scale=kinetics[3][kinetics[2].index('mol')][1])
+                    if const >= 0:
+                        antStr = antStr + each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0], s=kinetics[3][kinetics[2].index('mol')][1])
+                antStr = antStr + each + ' = ' + str(const) + '\n'
+
+        antStr = antStr + '\n'
+        
+        if 'deg' in kinetics[2]:
+            # Next the degradation rate constants
+            for _ in floatingIds:
+
+                if kinetics[1] == 'trivial':
+                    antStr = antStr + 'k' + str(parameterIndex) + ' = 1\n'
+
+                if kinetics[1] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0], scale=kinetics[3][kinetics[2].index('deg')][1]
+                                        - kinetics[3][kinetics[2].index('deg')][0])
+                    antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
+
+                if kinetics[1] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0], kinetics[3][kinetics[2].index('deg')][1])
+                    antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
+
+                if kinetics[1] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0], scale=kinetics[3][kinetics[2].index('deg')][1])
+                        if const >= 0:
+                            antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0], s=kinetics[3][kinetics[2].index('deg')][1])
+                    antStr = antStr + 'k' + str(parameterIndex) + ' = ' + str(const) + '\n'
+
+                parameterIndex += 1
+        antStr = antStr + '\n'
+        
+    # quit()
+
     def getICvalue(ICind):
 
         # todo: add additional distributions (maybe, maybe not)
@@ -2512,8 +4272,14 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         IC = None
         if ic_params == 'trivial':
             IC = 1
-        if isinstance(ic_params, list) and ic_params[0] == 'dist':
+        if isinstance(ic_params, list) and ic_params[0] == 'uniform':
             IC = uniform.rvs(loc=ic_params[1], scale=ic_params[2]-ic_params[1])
+        if isinstance(ic_params, list) and ic_params[0] == 'loguniform':
+            IC = loguniform.rvs(ic_params[1], ic_params[2])
+        if isinstance(ic_params, list) and ic_params[0] == 'normal':
+            IC = norm.rvs(loc=ic_params[1], scale=ic_params[2])
+        if isinstance(ic_params, list) and ic_params[0] == 'lognormal':
+            IC = lognorm.rvs(scale=ic_params[1], s=ic_params[2])
         if isinstance(ic_params, list) and ic_params[0] == 'list':
             IC = ic_params[1][ICind]
         if ic_params is None:
@@ -2522,7 +4288,7 @@ def _getAntimonyScript(floatingIds, boundaryIds, reactionList, ic_params, kineti
         return IC
 
     for index, b in enumerate(boundaryIds):
-        ICvalue = getICvalue(b)
+        ICvalue = getICvalue(b, )
         antStr = antStr + 'S' + str(b) + ' = ' + str(ICvalue) + '\n'
 
     antStr = antStr + '\n'
