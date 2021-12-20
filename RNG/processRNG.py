@@ -181,6 +181,12 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
                       kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None,
                       mod_reg=None, mass_violating_reactions=True, directory=''):
 
+    if kinetics[0] != 'modular' and mod_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
     if group_name is '':
         if not verbose_exceptions:
             sys.tracebacklimit = 0
@@ -336,7 +342,7 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
             else:
                 failed_attempts = 0
 
-            ant_str = buildNetworks.get_antimony_script2(rl, ic_params, kinetics, rev_prob, add_enzyme)
+            ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
             anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
@@ -360,6 +366,12 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
                             overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None, in_range=None,
                             out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None, mod_reg=None,
                             mass_violating_reactions=True, plots=False):
+
+    if kinetics[0] != 'modular' and mod_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
 
     if group_name is None:
         if not verbose_exceptions:
@@ -517,7 +529,7 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
         else:
             failed_attempts = 0
 
-        ant_str = buildNetworks.get_antimony_script2(rl, ic_params, kinetics, rev_prob, add_enzyme)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
         if output_dir:
             anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
