@@ -1,6 +1,5 @@
 
 import processRNG
-import os
 
 # This example requires an existing set of distributions. Please see distributions_example.py.
 

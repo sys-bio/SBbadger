@@ -21,8 +21,8 @@ def bi_var_normal(x1, x2):
 
 processRNG.generate_dists_networks(
 
-    group_name='test_group_2',
-    n_models=4000,
+    group_name='test_group_1',
+    n_models=1000,
     n_species=100,
     out_dist=out_dist,
     kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
@@ -30,5 +30,4 @@ processRNG.generate_dists_networks(
     ic_params='trivial',
     plots=True,
     # edge_type='generic'
-
 )

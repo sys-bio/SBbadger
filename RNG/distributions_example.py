@@ -19,7 +19,7 @@ def bi_var_normal(x1, x2):
 processRNG.generate_distributions(
     group_name='test_group',
     overwrite=False,
-    n_models=10,
+    n_models=100,
     n_species=10,
     out_dist=out_dist,
     plots=True
