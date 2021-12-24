@@ -1,5 +1,5 @@
 
-import processRNG
+import processRNGmp
 from scipy.special import zeta
 import numpy as np
 
@@ -16,11 +16,13 @@ def bi_var_normal(x1, x2):
     return (1 / (2 * np.pi)) * np.exp(-(1 / 2) * ((((x1 - 10) / 1) ** 2) + (((x2 - 10) / 1) ** 2)))
 
 
-processRNG.generate_distributions(
-    group_name='test_group',
-    overwrite=False,
-    n_models=100,
-    n_species=10,
-    out_dist=out_dist,
-    plots=True
-)
+if __name__ == "__main__":
+
+    processRNGmp.generate_distributions(
+        group_name='test_group',
+        overwrite=True,
+        n_models=1,
+        n_species=10,
+        out_dist=out_dist,
+        plots=True
+    )
