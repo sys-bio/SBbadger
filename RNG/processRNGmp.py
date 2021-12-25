@@ -14,7 +14,6 @@ def run_generate_distributions(i, group_name=None, n_species=None, in_dist='rand
                                out_dist='random', output_dir=None, joint_dist=None, in_range=None,
                                out_range=None, joint_range=None, min_node_deg=1.0, plots=False):
 
-
     print(i)
 
     in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
@@ -93,7 +92,6 @@ def run_generate_distributions(i, group_name=None, n_species=None, in_dist='rand
             plt.savefig(os.path.join('models', group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
                                      + '.png'))
             plt.close()
-
 
 
 def generate_distributions(verbose_exceptions=False, group_name=None, n_models=None, n_species=None, in_dist='random',
@@ -189,84 +187,66 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
 
 def run_generate_networks(i, dists_list, group_name='', add_enzyme=False, n_reactions=None, kinetics=None,
                           rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None, mass_violating_reactions=True,
-                          directory='', edge_type='generic'):
+                          directory='', edge_type='generic', reaction_type=None):
 
-        print(i)
-        print(dists_list)
-        print(group_name)
-        print(add_enzyme)
-        print(n_reactions)
-        print(kinetics)
-        print(rxn_prob)
-        print(rev_prob)
-        print(ic_params)
-        print(mod_reg)
-        print(mass_violating_reactions)
-        print(directory)
-        # quit()
+    print(i)
 
+    out_dist = False
+    in_dist = False
+    joint_dist = False
+    out_samples = []
+    in_samples = []
+    joint_samples = []
+    with open(os.path.join(directory, group_name, 'distributions', dists_list[i][1])) as dl:
+        for line in dl:
+            if joint_dist:
+                if line.strip():
+                    joint_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+            if line[:-1] == 'joint distribution':
+                out_dist = False
+                in_dist = False
+                joint_dist = True
+            if in_dist:
+                if line.strip():
+                    in_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+            if line[:-1] == 'in distribution':
+                out_dist = False
+                in_dist = True
+                joint_dist = False
+            if out_dist:
+                if line.strip():
+                    out_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+            if line[:-1] == 'out distribution':
+                out_dist = True
+                in_dist = False
+                joint_dist = False
 
-        failed_attempts = 0
+    # print(out_samples)
+    # print(in_samples)
+    # print(joint_samples)
 
-        print(i)
+    n_species = 0
+    if out_samples and not n_species:
+        for each in out_samples:
+            n_species += each[1]
+    if in_samples and not n_species:
+        for each in out_samples:
+            n_species += each[1]
+    if joint_samples and not n_species:
+        for each in out_samples:
+            n_species += each[1]
 
-        out_dist = False
-        in_dist = False
-        joint_dist = False
-        out_samples = []
-        in_samples = []
-        joint_samples = []
-        with open(os.path.join(directory, group_name, 'distributions', dists_list[i][1])) as dl:
-            for line in dl:
-                if joint_dist:
-                    if line.strip():
-                        joint_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                if line[:-1] == 'joint distribution':
-                    out_dist = False
-                    in_dist = False
-                    joint_dist = True
-                if in_dist:
-                    if line.strip():
-                        in_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                if line[:-1] == 'in distribution':
-                    out_dist = False
-                    in_dist = True
-                    joint_dist = False
-                if out_dist:
-                    if line.strip():
-                        out_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                if line[:-1] == 'out distribution':
-                    out_dist = True
-                    in_dist = False
-                    joint_dist = False
+    rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
+                                          rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type)
 
-        # print(out_samples)
-        # print(in_samples)
-        # print(joint_samples)
+    if not rl[0]:
 
-        n_species = 0
-        if out_samples and not n_species:
-            for each in out_samples:
-                n_species += each[1]
-        if in_samples and not n_species:
-            for each in out_samples:
-                n_species += each[1]
-        if joint_samples and not n_species:
-            for each in out_samples:
-                n_species += each[1]
+        ant_str = "Network construction failed on this attempt, consider revising your settings."
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
 
-        rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                              rxn_prob, mod_reg, mass_violating_reactions, edge_type)
-
-        if not rl:
-            failed_attempts += 1
-            if failed_attempts == 1000:
-                sys.tracebacklimit = 0
-                raise Exception("There have been 1000 consecutive failed attempts to randomly construct a network.\n"
-                                "Consider revising your settings.")
-
-        else:
-            failed_attempts = 0
+    else:
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -282,9 +262,9 @@ def run_generate_networks(i, dists_list, group_name='', add_enzyme=False, n_reac
         antimony.clearPreviousLoads()
 
 
-def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False, n_reactions=None,
-                      kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None,
-                      mod_reg=None, mass_violating_reactions=True, directory='', edge_type='generic',
+def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False, n_reactions=None, kinetics=None,
+                      overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
+                      mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None,
                       n_cpus=cpu_count()):
 
     if kinetics[0] != 'modular' and mod_reg is not None:
@@ -365,7 +345,6 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
             else:
                 os.makedirs(os.path.join(directory, group_name, 'sbml'))
 
-        num_existing_models = 0
         if n_antimony == n_sbml:
             num_existing_models = n_antimony
         else:
@@ -383,7 +362,7 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
         dists_list.sort()
 
         args_list = [(i, dists_list, group_name, add_enzyme, n_reactions, kinetics, rxn_prob, rev_prob, ic_params,
-                      mod_reg, mass_violating_reactions, directory)
+                      mod_reg, mass_violating_reactions, directory, edge_type, reaction_type)
                      for i in range(num_existing_models, len(dists_list))]
 
         pool = Pool(n_cpus)
@@ -395,7 +374,7 @@ def run_generate_dists_networks(i, group_name=None, add_enzyme=False, n_species=
                                 in_dist='random', out_dist='random', output_dir=None, rxn_prob=None, rev_prob=False,
                                 joint_dist=None, in_range=None, out_range=None, joint_range=None, min_node_deg=1.0,
                                 ic_params=None, mod_reg=None, mass_violating_reactions=True, plots=False,
-                                edge_type='generic'):
+                                edge_type='generic', reaction_type=None):
 
     print(i)
 
@@ -404,10 +383,19 @@ def run_generate_dists_networks(i, group_name=None, add_enzyme=False, n_species=
                                        out_range, joint_range)
 
     rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob,
-                                          mod_reg, mass_violating_reactions, edge_type)
+                                          mod_reg, mass_violating_reactions, edge_type, reaction_type)
 
-    if not rl:
-        pass
+    if not rl[0]:
+
+        ant_str = "Network construction failed on this attempt, consider revising your settings."
+        if output_dir:
+            anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony',
+                                    group_name + '_' + str(i) + '.txt')
+        else:
+            anti_dir = os.path.join('models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+        i += 1
 
     else:
 

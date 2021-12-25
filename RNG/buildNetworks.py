@@ -1406,7 +1406,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
         pick_continued = 0
         while True:
-
+            print(pick_continued)
             if pick_continued == 1000:
                 return None, [out_samples, in_samples, joint_samples]
 
@@ -1751,9 +1751,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    if reaction_type == 'metabolic':
+
+                        if {reactant1, reactant2} & {product1, product2}:
+                            pick_continued += 1
+                            continue
+                        if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
+                            pick_continued += 1
+                            continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -1842,9 +1847,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    if reaction_type == 'metabolic':
+
+                        if {reactant1, reactant2} & {product1, product2}:
+                            pick_continued += 1
+                            continue
+                        if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
+                            pick_continued += 1
+                            continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
