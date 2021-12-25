@@ -22,16 +22,18 @@ def bi_var_normal(x1, x2):
 
 if __name__ == "__main__":
 
-    processRNGmp.generate_dists_networks(
+    processRNG.generate_dists_networks(
 
         group_name='test_group',
-        n_models=1000,
-        n_species=100,
+        rxn_prob=[0.0, 0.0, 0.0, 1.0],
+        n_models=10,
+        n_species=10,
         out_dist=out_dist,
         kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
         overwrite=True,
         ic_params='trivial',
         plots=True,
-        # edge_type='generic',
-        n_cpus=2
+        edge_type='metabolic',
+        reaction_type='metabolic'
+        # n_cpus=2
     )

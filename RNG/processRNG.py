@@ -111,6 +111,8 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
         # print('joint samples')
         # for each in joint_samples:
         #     print(each)
+        #
+        # quit()
 
         if output_dir:
             dist_dir = os.path.join(output_dir, 'models', group_name, 'distributions', group_name + '_' + str(i)
@@ -179,7 +181,8 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
 
 def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False, n_reactions=None,
                       kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None,
-                      mod_reg=None, mass_violating_reactions=True, directory=''):
+                      mod_reg=None, mass_violating_reactions=True, directory='', edge_type='generic',
+                      reaction_type=None):
 
     if kinetics[0] != 'modular' and mod_reg is not None:
         if not verbose_exceptions:
@@ -259,7 +262,6 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
             else:
                 os.makedirs(os.path.join(directory, group_name, 'sbml'))
 
-        num_existing_models = 0
         if n_antimony == n_sbml:
             num_existing_models = n_antimony
         else:
@@ -329,7 +331,8 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
                     n_species += each[1]
 
             rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                  kinetics, rxn_prob, mod_reg, mass_violating_reactions)
+                                                  rxn_prob, mod_reg, mass_violating_reactions, edge_type,
+                                                  reaction_type)
 
             if not rl:
                 failed_attempts += 1
@@ -365,7 +368,7 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
                             n_reactions=None, kinetics=None, in_dist='random', out_dist='random', output_dir=None,
                             overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None, in_range=None,
                             out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None, mod_reg=None,
-                            mass_violating_reactions=True, plots=False, edge_type='generic'):
+                            mass_violating_reactions=True, plots=False, edge_type='generic', reaction_type=None):
 
     if kinetics[0] != 'modular' and mod_reg is not None:
         if not verbose_exceptions:
@@ -504,20 +507,22 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
             buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range,
                                            out_range, joint_range)
 
-        # print('in samples')
-        # for each in in_samples:
-        #     print(each)
-        # print()
-        # print('out samples')
-        # for each in out_samples:
-        #     print(each)
-        # print()
-        # print('joint samples')
-        # for each in joint_samples:
-        #     print(each)
+        print('in samples')
+        for each in in_samples:
+            print(each)
+        print()
+        print('out samples')
+        for each in out_samples:
+            print(each)
+        print()
+        print('joint samples')
+        for each in joint_samples:
+            print(each)
+
+        # quit()
 
         rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob,
-                                              mod_reg, mass_violating_reactions, edge_type)
+                                              mod_reg, mass_violating_reactions, edge_type, reaction_type)
 
         if not rl:
             failed_attempts += 1
