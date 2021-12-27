@@ -179,10 +179,10 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
         i += 1
 
 
-def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False, n_reactions=None,
-                      kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None,
-                      mod_reg=None, mass_violating_reactions=True, directory='', edge_type='generic',
-                      reaction_type=None):
+def generate_networks_models(verbose_exceptions=False, group_name='', add_enzyme=False, n_reactions=None,
+                             kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None,
+                             mod_reg=None, mass_violating_reactions=True, directory='', edge_type='generic',
+                             reaction_type=None):
 
     if kinetics[0] != 'modular' and mod_reg is not None:
         if not verbose_exceptions:
@@ -233,10 +233,10 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
                 sys.tracebacklimit = 0
             raise Exception('Your reversibility probability is not between 0 and 1')
 
-    n_antimony = 0
-    n_sbml = 0
-
     if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
         if overwrite:
             if os.path.exists(os.path.join(directory, group_name, 'antimony')):
                 shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
@@ -249,26 +249,41 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
                 os.makedirs(os.path.join(directory, group_name, 'sbml'))
             else:
                 os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
         else:
             if os.path.exists(os.path.join(directory, group_name, 'antimony')):
-                gd = glob.glob(os.path.join(directory, group_name, 'antimony', '*'))
-                n_antimony = len(gd)
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
             else:
                 os.makedirs(os.path.join(directory, group_name, 'antimony'))
 
             if os.path.exists(os.path.join(directory, group_name, 'sbml')):
-                gd = glob.glob(os.path.join(directory, group_name, 'sbml', '*'))
-                n_sbml = len(gd)
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
             else:
                 os.makedirs(os.path.join(directory, group_name, 'sbml'))
 
-        if n_antimony == n_sbml:
-            num_existing_models = n_antimony
-        else:
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
-            raise Exception("There exists a discrepancy between the number of antimony and sbml files.\n"
-                            "Consider starting over and replacing them all.")
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
 
         path = os.path.join(directory, group_name, 'distributions')
         dist_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'csv']
@@ -278,99 +293,109 @@ def generate_networks(verbose_exceptions=False, group_name='', add_enzyme=False,
             dists_list.append([int(item.split('_')[-1].split('.')[0]), item])
         dists_list.sort()
 
-        i = num_existing_models
-        failed_attempts = 0
+        for dist in dists_list:
+            if dist[0] not in net_inds:
 
-        while i < len(dists_list):
+                ind = dist[0]
 
-            print(i)
+                out_dist = False
+                in_dist = False
+                joint_dist = False
+                out_samples = []
+                in_samples = []
+                joint_samples = []
+                with open(os.path.join(directory, group_name, 'distributions', dist[1])) as dl:
+                    for line in dl:
+                        if joint_dist:
+                            if line.strip():
+                                joint_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'joint distribution':
+                            out_dist = False
+                            in_dist = False
+                            joint_dist = True
+                        if in_dist:
+                            if line.strip():
+                                in_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'in distribution':
+                            out_dist = False
+                            in_dist = True
+                            joint_dist = False
+                        if out_dist:
+                            if line.strip():
+                                out_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'out distribution':
+                            out_dist = True
+                            in_dist = False
+                            joint_dist = False
 
-            out_dist = False
-            in_dist = False
-            joint_dist = False
-            out_samples = []
-            in_samples = []
-            joint_samples = []
-            with open(os.path.join(directory, group_name, 'distributions', dists_list[i][1])) as dl:
-                for line in dl:
-                    if joint_dist:
-                        if line.strip():
-                            joint_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                    if line[:-1] == 'joint distribution':
-                        out_dist = False
-                        in_dist = False
-                        joint_dist = True
-                    if in_dist:
-                        if line.strip():
-                            in_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                    if line[:-1] == 'in distribution':
-                        out_dist = False
-                        in_dist = True
-                        joint_dist = False
-                    if out_dist:
-                        if line.strip():
-                            out_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
-                    if line[:-1] == 'out distribution':
-                        out_dist = True
-                        in_dist = False
-                        joint_dist = False
+                # print(out_samples)
+                # print(in_samples)
+                # print(joint_samples)
 
-            # print(out_samples)
-            # print(in_samples)
-            # print(joint_samples)
+                n_species = 0
+                if out_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
+                if in_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
+                if joint_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
 
-            n_species = 0
-            if out_samples and not n_species:
-                for each in out_samples:
-                    n_species += each[1]
-            if in_samples and not n_species:
-                for each in out_samples:
-                    n_species += each[1]
-            if joint_samples and not n_species:
-                for each in out_samples:
-                    n_species += each[1]
+                rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
+                                                      rxn_prob, mod_reg, mass_violating_reactions, edge_type,
+                                                      reaction_type)
 
-            rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                  rxn_prob, mod_reg, mass_violating_reactions, edge_type,
-                                                  reaction_type)
+                if not rl[0]:
 
-            if not rl:
-                failed_attempts += 1
-                if failed_attempts == 1000:
-                    sys.tracebacklimit = 0
-                    raise Exception(
-                        "There have been 1000 consecutive failed attempts to randomly construct a network.\n"
-                        "Consider revising your settings.")
-                continue
-            else:
-                failed_attempts = 0
+                    ant_str = "Network construction failed on this attempt, consider revising your settings."
+                    anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                    with open(anti_dir, 'w') as f:
+                        f.write(ant_str)
+                else:
 
-            ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind) + '.csv')
+                    with open(net_dir, 'w') as f:
+                        for j, each in enumerate(rl):
+                            if j == 0:
+                                f.write(str(each))
+                            else:
+                                for k, item in enumerate(each):
+                                    if k == 0:
+                                        f.write(str(item))
+                                    else:
+                                        f.write(',(')
+                                        for m, every in enumerate(item):
+                                            if m == 0:
+                                                f.write(str(every))
+                                            else:
+                                                f.write(',' + str(every))
+                                        f.write(')')
+                            f.write('\n')
 
-            anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
-            with open(anti_dir, 'w') as f:
-                f.write(ant_str)
+                    ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
-            sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
-            antimony.loadAntimonyString(ant_str)
-            sbml = antimony.getSBMLString()
-            with open(sbml_dir, 'w') as f:
-                f.write(sbml)
-            antimony.clearPreviousLoads()
+                    anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                    with open(anti_dir, 'w') as f:
+                        f.write(ant_str)
 
-            # r = te.loada(ant_str)
-            # r.exportToSBML(sbml_dir)
-
-            i += 1
+                    sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(ind) + '.sbml')
+                    antimony.loadAntimonyString(ant_str)
+                    sbml = antimony.getSBMLString()
+                    with open(sbml_dir, 'w') as f:
+                        f.write(sbml)
+                    antimony.clearPreviousLoads()
 
 
-def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=None, n_species=None,
-                            n_reactions=None, kinetics=None, in_dist='random', out_dist='random', output_dir=None,
-                            overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None, in_range=None,
-                            out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None, mod_reg=None,
-                            mass_violating_reactions=True, plots=False, edge_type='generic', reaction_type=None):
+def generate_dists_networks_models(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=None,
+                                   n_species=None, n_reactions=None, kinetics=None, in_dist='random', out_dist='random',
+                                   output_dir=None, overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None,
+                                   in_range=None, out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None,
+                                   mod_reg=None, mass_violating_reactions=True, plots=False, edge_type='generic',
+                                   reaction_type=None):
 
-    if kinetics[0] != 'modular' and mod_reg is not None:
+    if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to modular kinetics.\n'
@@ -449,12 +474,14 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
             if os.path.exists(path):
                 shutil.rmtree(path)
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
                     os.makedirs(os.path.join(path, 'dist_figs'))
             else:
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
@@ -465,6 +492,7 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
                 num_existing_models = len(gd)
             else:
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
@@ -476,12 +504,14 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
             if os.path.exists(path):
                 shutil.rmtree(path)
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
                     os.makedirs(os.path.join(path, 'dist_figs'))
             else:
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
@@ -492,13 +522,13 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
                 num_existing_models = len(gd)
             else:
                 os.makedirs(os.path.join(path, 'antimony'))
+                os.makedirs(os.path.join(path, 'networks'))
                 os.makedirs(os.path.join(path, 'distributions'))
                 os.makedirs(os.path.join(path, 'sbml'))
                 if plots:
                     os.makedirs(os.path.join(path, 'dist_figs'))
 
     i = num_existing_models
-    failed_attempts = 0
     while i < num_existing_models + n_models:
 
         print(i)
@@ -537,12 +567,34 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
             i += 1
 
         else:
-            failed_attempts = 0
-
-            ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
             if output_dir:
-                anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                net_dir = os.path.join(output_dir, 'models', group_name, 'networks', group_name + '_' + str(i)
+                                       + '.csv')
+            else:
+                net_dir = os.path.join('models', group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            with open(net_dir, 'w') as f:
+                for j, each in enumerate(rl):
+                    if j == 0:
+                        f.write(str(each))
+                    else:
+                        for k, item in enumerate(each):
+                            if k == 0:
+                                f.write(str(item))
+                            else:
+                                f.write(',(')
+                                for m, every in enumerate(item):
+                                    if m == 0:
+                                        f.write(str(every))
+                                    else:
+                                        f.write(',' + str(every))
+                                f.write(')')
+                    f.write('\n')
+
+            ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+            if output_dir:
+                anti_dir = os.path.join(output_dir, 'models', group_name, 'antimony', group_name + '_' + str(i)
+                                        + '.txt')
             else:
                 anti_dir = os.path.join('models', group_name, 'antimony', group_name + '_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
@@ -624,3 +676,154 @@ def generate_dists_networks(verbose_exceptions=False, group_name=None, add_enzym
             # r.exportToSBML(sbml_dir)
 
             i += 1
+
+
+def generate_networks(verbose_exceptions=False, group_name='', n_reactions=None,
+                      overwrite=False, rxn_prob=None, rev_prob=False, mod_reg=None,
+                      mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None):
+
+    if group_name is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a group_name.')
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if rxn_prob:
+        if round(sum(rxn_prob), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
+
+    if mod_reg:
+        if round(sum(mod_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {mod_reg[0]} and they do not add to 1.")
+        if mod_reg[1] < 0 or mod_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    net_files = None
+    if directory:
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        path = os.path.join(directory, group_name, 'distributions')
+        dist_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'csv']
+
+        dists_list = []
+        for item in dist_files:
+            dists_list.append([int(item.split('_')[-1].split('.')[0]), item])
+        dists_list.sort()
+
+        for dist in dists_list:
+            if dist[0] not in net_inds:
+
+                ind = dist[0]
+
+                out_dist = False
+                in_dist = False
+                joint_dist = False
+                out_samples = []
+                in_samples = []
+                joint_samples = []
+                with open(os.path.join(directory, group_name, 'distributions', dist[1])) as dl:
+                    for line in dl:
+                        if joint_dist:
+                            if line.strip():
+                                joint_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'joint distribution':
+                            out_dist = False
+                            in_dist = False
+                            joint_dist = True
+                        if in_dist:
+                            if line.strip():
+                                in_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'in distribution':
+                            out_dist = False
+                            in_dist = True
+                            joint_dist = False
+                        if out_dist:
+                            if line.strip():
+                                out_samples.append((int(line.split(',')[0]), int(line.split(',')[1].strip())))
+                        if line[:-1] == 'out distribution':
+                            out_dist = True
+                            in_dist = False
+                            joint_dist = False
+
+                # print(out_samples)
+                # print(in_samples)
+                # print(joint_samples)
+                # quit()
+
+                n_species = 0
+                if out_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
+                if in_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
+                if joint_samples and not n_species:
+                    for each in out_samples:
+                        n_species += each[1]
+
+                rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
+                                                      rxn_prob, mod_reg, mass_violating_reactions, edge_type,
+                                                      reaction_type)
+
+                if not rl[0]:
+
+                    ant_str = "Network construction failed on this attempt, consider revising your settings."
+                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind) + '.csv')
+                    with open(net_dir, 'w') as f:
+                        f.write(ant_str)
+                else:
+
+                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind) + '.csv')
+                    with open(net_dir, 'w') as f:
+                        for j, each in enumerate(rl):
+                            if j == 0:
+                                f.write(str(each))
+                            else:
+                                for k, item in enumerate(each):
+                                    if k == 0:
+                                        f.write(str(item))
+                                    else:
+                                        f.write(',(')
+                                        for m, every in enumerate(item):
+                                            if m == 0:
+                                                f.write(str(every))
+                                            else:
+                                                f.write(',' + str(every))
+                                        f.write(')')
+                            f.write('\n')

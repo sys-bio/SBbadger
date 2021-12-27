@@ -21,7 +21,7 @@ if __name__ == "__main__":
     processRNGmp.generate_distributions(
         group_name='test_group',
         overwrite=True,
-        n_models=1,
+        n_models=10,
         n_species=10,
         out_dist=out_dist,
         plots=True

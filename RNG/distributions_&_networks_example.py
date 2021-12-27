@@ -1,11 +1,9 @@
 
-import os
-
 import processRNG
 import processRNGmp
 from scipy.special import zeta
 import numpy as np
-from scipy.stats import zipf, pareto
+from scipy.stats import zipf
 
 
 def in_dist(k):
@@ -22,14 +20,16 @@ def bi_var_normal(x1, x2):
 
 if __name__ == "__main__":
 
-    processRNG.generate_dists_networks(
+    processRNG.generate_dists_networks_models(
 
         group_name='test_group',
-        rxn_prob=[0.0, 0.0, 0.0, 1.0],
-        n_models=10,
+        rxn_prob=[0.0, 1.0, 0.0, 0.0],
+        n_models=1,
         n_species=10,
         out_dist=out_dist,
-        kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
+        # kinetics=['mass_action', 'trivial', ['kf', 'kr', 'kc']],
+        kinetics=['modular_PM', 'trivial', ['kf', 'kr', 'km', 'mol']],
+        mod_reg=[[0.0, 1.0, 0.0, 0.0], 0.5, 0.5],
         overwrite=True,
         ic_params='trivial',
         plots=True,

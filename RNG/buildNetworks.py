@@ -1406,7 +1406,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
         pick_continued = 0
         while True:
-            print(pick_continued)
             if pick_continued == 1000:
                 return None, [out_samples, in_samples, joint_samples]
 
