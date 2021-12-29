@@ -954,45 +954,45 @@ def linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=
             for each in rl:
                 print(each)
 
-            # if not rl[0]:
-            #
-            #     ant_str = "Network construction failed on this attempt, consider revising your settings."
-            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
-            #     with open(anti_dir, 'w') as f:
-            #         f.write(ant_str)
-            # else:
-            #
-            #     net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
-            #     with open(net_dir, 'w') as f:
-            #         for j, each in enumerate(rl):
-            #             if j == 0:
-            #                 f.write(str(each))
-            #             else:
-            #                 for k, item in enumerate(each):
-            #                     if k == 0:
-            #                         f.write(str(item))
-            #                     else:
-            #                         f.write(',(')
-            #                         for m, every in enumerate(item):
-            #                             if m == 0:
-            #                                 f.write(str(every))
-            #                             else:
-            #                                 f.write(',' + str(every))
-            #                         f.write(')')
-            #             f.write('\n')
-            #
-            #     ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
-            #
-            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
-            #     with open(anti_dir, 'w') as f:
-            #         f.write(ant_str)
-            #
-            #     sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
-            #     antimony.loadAntimonyString(ant_str)
-            #     sbml = antimony.getSBMLString()
-            #     with open(sbml_dir, 'w') as f:
-            #         f.write(sbml)
-            #     antimony.clearPreviousLoads()
+            if not rl[0]:
+
+                ant_str = "Network construction failed on this attempt, consider revising your settings."
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                with open(anti_dir, 'w') as f:
+                    f.write(ant_str)
+            else:
+
+                net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+                with open(net_dir, 'w') as f:
+                    for j, each in enumerate(rl):
+                        if j == 0:
+                            f.write(str(each))
+                        else:
+                            for k, item in enumerate(each):
+                                if k == 0:
+                                    f.write(str(item))
+                                else:
+                                    f.write(',(')
+                                    for m, every in enumerate(item):
+                                        if m == 0:
+                                            f.write(str(every))
+                                        else:
+                                            f.write(',' + str(every))
+                                    f.write(')')
+                        f.write('\n')
+
+                ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                with open(anti_dir, 'w') as f:
+                    f.write(ant_str)
+
+                sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+                antimony.loadAntimonyString(ant_str)
+                sbml = antimony.getSBMLString()
+                with open(sbml_dir, 'w') as f:
+                    f.write(sbml)
+                antimony.clearPreviousLoads()
 
 
 def cycle(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_reactions=None, n_models=None,
