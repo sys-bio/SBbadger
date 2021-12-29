@@ -827,3 +827,491 @@ def generate_networks(verbose_exceptions=False, group_name='', n_reactions=None,
                                                 f.write(',' + str(every))
                                         f.write(')')
                             f.write('\n')
+
+
+def linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_reactions=None, n_models=None,
+           kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
+           mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None,
+           mod_species_as_linear=True, strict_linear=False):
+
+    if 'modular' not in kinetics[0] and mod_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if group_name is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a group_name.')
+
+    if n_species is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_species (the number of species).')
+
+    if n_models is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_models (the number of models).')
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if rxn_prob:
+        if round(sum(rxn_prob), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
+
+    if mod_reg:
+        if round(sum(mod_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {mod_reg[0]} and they do not add to 1.")
+        if mod_reg[1] < 0 or mod_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        for i in range(n_models):
+
+            rl = buildNetworks.generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions,
+                                               edge_type, reaction_type, mod_species_as_linear, strict_linear)
+
+            print()
+            for each in rl:
+                print(each)
+
+            # if not rl[0]:
+            #
+            #     ant_str = "Network construction failed on this attempt, consider revising your settings."
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            # else:
+            #
+            #     net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            #     with open(net_dir, 'w') as f:
+            #         for j, each in enumerate(rl):
+            #             if j == 0:
+            #                 f.write(str(each))
+            #             else:
+            #                 for k, item in enumerate(each):
+            #                     if k == 0:
+            #                         f.write(str(item))
+            #                     else:
+            #                         f.write(',(')
+            #                         for m, every in enumerate(item):
+            #                             if m == 0:
+            #                                 f.write(str(every))
+            #                             else:
+            #                                 f.write(',' + str(every))
+            #                         f.write(')')
+            #             f.write('\n')
+            #
+            #     ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+            #
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            #
+            #     sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            #     antimony.loadAntimonyString(ant_str)
+            #     sbml = antimony.getSBMLString()
+            #     with open(sbml_dir, 'w') as f:
+            #         f.write(sbml)
+            #     antimony.clearPreviousLoads()
+
+
+def cycle(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_reactions=None, n_models=None,
+          kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
+          mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None):
+
+    if kinetics[0] != 'modular' and mod_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if group_name is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a group_name.')
+
+    if n_species is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_species (the number of species).')
+
+    if n_models is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_models (the number of models).')
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if rxn_prob:
+        if round(sum(rxn_prob), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
+
+    if mod_reg:
+        if round(sum(mod_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {mod_reg[0]} and they do not add to 1.")
+        if mod_reg[1] < 0 or mod_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        for i in range(n_models):
+
+            rl = buildNetworks.generate_cycle(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions,
+                                              edge_type, reaction_type)
+
+            # if not rl[0]:
+            #
+            #     ant_str = "Network construction failed on this attempt, consider revising your settings."
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            # else:
+            #
+            #     net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            #     with open(net_dir, 'w') as f:
+            #         for j, each in enumerate(rl):
+            #             if j == 0:
+            #                 f.write(str(each))
+            #             else:
+            #                 for k, item in enumerate(each):
+            #                     if k == 0:
+            #                         f.write(str(item))
+            #                     else:
+            #                         f.write(',(')
+            #                         for m, every in enumerate(item):
+            #                             if m == 0:
+            #                                 f.write(str(every))
+            #                             else:
+            #                                 f.write(',' + str(every))
+            #                         f.write(')')
+            #             f.write('\n')
+            #
+            #     ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+            #
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            #
+            #     sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            #     antimony.loadAntimonyString(ant_str)
+            #     sbml = antimony.getSBMLString()
+            #     with open(sbml_dir, 'w') as f:
+            #         f.write(sbml)
+            #     antimony.clearPreviousLoads()
+
+
+def branch(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_reactions=None, n_models=None,
+           kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
+           mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None):
+
+    if kinetics[0] != 'modular' and mod_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if group_name is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a group_name.')
+
+    if n_species is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_species (the number of species).')
+
+    if n_models is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide n_models (the number of models).')
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if rxn_prob:
+        if round(sum(rxn_prob), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated reaction probabilities are {rxn_prob} and they do not add to 1.")
+
+    if mod_reg:
+        if round(sum(mod_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {mod_reg[0]} and they do not add to 1.")
+        if mod_reg[1] < 0 or mod_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        for i in range(n_models):
+
+            rl = buildNetworks.generate_branch(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions,
+                                               edge_type, reaction_type)
+
+            # if not rl[0]:
+            #
+            #     ant_str = "Network construction failed on this attempt, consider revising your settings."
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            # else:
+            #
+            #     net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            #     with open(net_dir, 'w') as f:
+            #         for j, each in enumerate(rl):
+            #             if j == 0:
+            #                 f.write(str(each))
+            #             else:
+            #                 for k, item in enumerate(each):
+            #                     if k == 0:
+            #                         f.write(str(item))
+            #                     else:
+            #                         f.write(',(')
+            #                         for m, every in enumerate(item):
+            #                             if m == 0:
+            #                                 f.write(str(every))
+            #                             else:
+            #                                 f.write(',' + str(every))
+            #                         f.write(')')
+            #             f.write('\n')
+            #
+            #     ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+            #
+            #     anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            #     with open(anti_dir, 'w') as f:
+            #         f.write(ant_str)
+            #
+            #     sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            #     antimony.loadAntimonyString(ant_str)
+            #     sbml = antimony.getSBMLString()
+            #     with open(sbml_dir, 'w') as f:
+            #         f.write(sbml)
+            #     antimony.clearPreviousLoads()
