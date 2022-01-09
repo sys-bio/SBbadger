@@ -5,7 +5,10 @@ import numpy as np
 from copy import deepcopy
 from scipy.stats import norm, lognorm, uniform, loguniform
 from collections import defaultdict
+import pydot
 
+
+# todo: advise on having the zero case for regs
 
 # General settings for the package
 def restore_default_probabilities():
@@ -88,8 +91,8 @@ def _pick_reaction_type(prob=None):
 def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range, out_range,
                      joint_range):
 
-    # todo: expand kinetics?
     # todo: mass balance
+    # todo: produce error for bad distributions
 
     in_samples = []
     out_samples = []
@@ -114,7 +117,9 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
             else:
                 deg += 1
 
-        return pmf0
+        pmf_range = [i + 1 for i, each in enumerate(pmf0)]
+
+        return pmf0, pmf_range
 
     # todo: generalize out the endpoint tests
     def single_bounded_pmf(sdist, drange):
@@ -122,25 +127,22 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
         dist_ind = [j for j in range(drange[0], drange[1] + 1)]
         pmf0 = [sdist(j) for j in range(drange[0], drange[1] + 1)]
-        dist_sum = min(sum(pmf0), 1)
+        dist_sum = sum(pmf0)
         pmf0 = [x / dist_sum for x in pmf0]
-        dist = [x * n_species / dist_sum for x in pmf0]
+        dist = [x * n_species for x in pmf0]
 
-        while dist[0] < 1 or dist[-1] < 1:
-            if dist[0] < dist[-1]:
-                dist_ind.pop(0)
-                pmf0.pop(0)
-            else:
-                dist_ind.pop(-1)
-                pmf0.pop(-1)
+        while any(freq < 1 for freq in dist):
+
+            min_ind = pmf0.index(min(pmf0))
+            del dist_ind[min_ind]
+            del pmf0[min_ind]
             dist_sum = sum(pmf0)
-            dist = [x * n_species / dist_sum for x in pmf0]
             pmf0 = [x / dist_sum for x in pmf0]
-        startdeg = dist_ind[0]
+            dist = [x * n_species for x in pmf0]
 
-        return pmf0, startdeg
+        return pmf0, dist_ind
 
-    def sample_single_distribution(pmf0, start_deg0):
+    def sample_single_pmf(pmf0, drange):
 
         samplest = [0 for _ in pmf0]
         outind = [j for j in range(len(pmf0))]
@@ -154,51 +156,51 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
         samples = []
         for j in range(len(pmf0)):
             if samplest[j] > 0:
-                samples.append((start_deg0+j, samplest[j]))
+                samples.append((drange[j], samplest[j]))
 
         return samples
 
-    def sample_both_pmfs(pmf01, start_deg_01, pmf02, start_deg_02):
-
-        # sample the first distribution
-        samples1t = [0 for _ in pmf01]
+    def sample_both_pmfs(pmf01, drange1, pmf02, drange2):
 
         ind1 = [j for j in range(len(pmf01))]
         ind2 = [j for j in range(len(pmf02))]
 
-        j = 0
-        while j < n_species:
-            ind = random.choices(ind1, pmf01)[0]
-            samples1t[ind] += 1
-            j += 1
-
-        samples1 = []
-        for j in range(len(pmf01)):
-            if samples1t[j] > 0:
-                samples1.append((start_deg_01 + j, samples1t[j]))
-
-        # sample the second distribution so that the number of edges match
-        edges1 = 0
-        for item in samples1:
-            edges1 += item[0] * item[1]
         num_tries = 0
-
         while True:
+
+            samples1t = [0 for _ in pmf01]
+
+            j = 0
+            while j < n_species:
+                ind = random.choices(ind1, pmf01)[0]
+                samples1t[ind] += 1
+                j += 1
+
+            samples1 = []
+            for j in range(len(pmf01)):
+                if samples1t[j] > 0:
+                    samples1.append((drange1[j], samples1t[j]))
+
+            edges1 = 0
+            for item in samples1:
+                edges1 += item[0] * item[1]
+
             num_tries += 1
             edges2 = 0
             nodes = 0
             samples2t = [0 for _ in pmf02]
+
             while edges2 < edges1 and nodes < n_species:
                 ind = random.choices(ind2, pmf02)[0]
                 samples2t[ind] += 1
-                edges2 += ind + start_deg_02
+                edges2 += drange2[ind]
                 nodes += 1
 
             if edges2 == edges1:
                 samples2 = []
                 for j in range(len(pmf02)):
                     if samples2t[j] > 0:
-                        samples2.append((start_deg_02 + j, samples2t[j]))
+                        samples2.append((drange2[j], samples2t[j]))
                 break
 
             if num_tries == 10000:
@@ -215,58 +217,56 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
         return edge_count
 
-    def find_edges_expected_value(x_dist, x_range):
+    def find_edges_expected_value(x_dist, x_range, num_species=n_species):
 
         edge_ev = 0
         for j, item in enumerate(x_dist):
             if isinstance(x_range, list):
-                edge_ev += item * x_range[j] * n_species
+                edge_ev += item * x_range[j] * num_species
             elif isinstance(x_range, int):
-                edge_ev += item * (j + x_range) * n_species
+                edge_ev += item * (j + x_range) * num_species
             else:
-                edge_ev += item * (j+1) * n_species
+                edge_ev += item * (j+1) * num_species
 
         return edge_ev
 
-    def trim_pmf(edges1, dist2):
+    def trim_pmf_general(edge_count_target, dist, dist_range=None):
 
-        edges2 = 0
-        m_deg = 0
-        while edges2 < edges1:
+        if not dist_range:
+            dist_range = [i + 1 for i in range(len(dist))]
 
-            m_deg += 1
-            dist = [dist2(j+1) for j in range(m_deg)]
-            sum_dist = sum(dist)
-            new_dist = [x/sum_dist for x in dist]
-            edge_dist = [new_dist[j]/new_dist[-1] for j in range(len(new_dist))]
-            edges2 = 0
-            for j, item in enumerate(edge_dist):
-                edges2 += item * (j+1)
+        edge_ev = find_edges_expected_value(dist, dist_range)
+        reduced_species = deepcopy(n_species)
 
-        dist = [dist2(j+1) for j in range(m_deg-1)]
-        sum_dist = sum(dist)
-        new_dist = [x/sum_dist for x in dist]
+        dist_0 = None
+        dist_range_0 = None
+        edge_ev_0 = None
 
-        return new_dist
+        while edge_ev > edge_count_target:
 
-    def trim_pmf_2(edges_target, pmf0, start_deg0):
+            dist_0 = deepcopy(dist)
+            dist_range_0 = deepcopy(dist_range)
+            edge_ev_0 = deepcopy(edge_ev)
+            reduced_species -= 1
+            freqs = [reduced_species * dist[i] for i in range(len(dist))]
 
-        deg_range = [j + start_deg0 for j in range(len(pmf0))]
+            while any(freq < min_node_deg for freq in freqs):
+                rm_ind = freqs.index(min(freqs))
+                del dist[rm_ind]
+                del dist_range[rm_ind]
+                dist_sum = sum(dist)
+                dist = [dist[i]/dist_sum for i in range(len(dist))]
+                freqs = [reduced_species * dist[i] for i in range(len(dist))]
 
-        edges = 0
-        for j, item in enumerate(pmf0):
-            edges += item * n_species * deg_range[j]
+            edge_ev = find_edges_expected_value(dist, dist_range, reduced_species)
 
-        while edges > edges_target:
+        if abs(edge_ev - edge_count_target) < abs(edge_ev_0 - edge_count_target):
 
-            pmf0.pop(-1)
-            sum_pmf = sum(pmf)
-            pmf0 = [x/sum_pmf for x in pmf0]
-            edges = 0
-            for j, item in enumerate(pmf0):
-                edges += item * n_species * deg_range[j]
+            return dist, dist_range
 
-        return pmf0
+        if abs(edge_ev - edge_count_target) >= abs(edge_ev_0 - edge_count_target):
+
+            return dist_0, dist_range_0
 
     def joint_unbounded_pmf(joint_dist1):
 
@@ -463,74 +463,66 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     # ---------------------------------------------------------------------------
 
-    # print('input_case', input_case)
-
     if input_case == 1:
 
-        pmf = single_unbounded_pmf(out_dist)
-        out_samples = sample_single_distribution(pmf, 1)
+        pmf_out, range_out = single_unbounded_pmf(out_dist)
+        out_samples = sample_single_pmf(pmf_out, range_out)
 
     # todo: generalize the ranges
     if input_case == 2:
 
-        pmf, start_deg = single_bounded_pmf(out_dist, out_range)
-        out_samples = sample_single_distribution(pmf, start_deg)
+        pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
+        out_samples = sample_single_pmf(pmf_out, range_out)
 
     if input_case == 3:
 
         pmf = [x[1] for x in out_dist]
-        # todo: move warning to process file
-        if sum(pmf) != 1:
-            raise Exception("The PMF does not add to 1")
 
         start_deg = out_dist[0][0]
-        out_samples = sample_single_distribution(pmf, start_deg)
+        out_samples = sample_single_pmf(pmf, start_deg)
 
     if input_case == 4:
         out_samples = out_dist
 
     if input_case == 5:
 
-        pmf = single_unbounded_pmf(in_dist)
-        in_samples = sample_single_distribution(pmf, 1)
+        pmf_in, range_in = single_unbounded_pmf(in_dist)
+        in_samples = sample_single_pmf(pmf_in, range_in)
 
     if input_case == 6:
 
-        pmf, start_deg = single_bounded_pmf(in_dist, in_range)
-        in_samples = sample_single_distribution(pmf, start_deg)
+        pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
+        in_samples = sample_single_pmf(pmf_in, range_in)
 
     if input_case == 7:
 
         pmf = [x[1] for x in in_dist]
 
-        if sum(pmf) != 1:
-            raise Exception("The PMF does not add to 1")
-
         start_deg = in_dist[0][0]
-        in_samples = sample_single_distribution(pmf, start_deg)
+        in_samples = sample_single_pmf(pmf, start_deg)
 
     if input_case == 8:
         in_samples = in_dist
 
     if input_case == 9:
 
-        pmf1 = single_unbounded_pmf(out_dist)
-        pmf2 = single_unbounded_pmf(in_dist)
+        pmf_out, range_out = single_unbounded_pmf(out_dist)
+        pmf_in, range_in = single_unbounded_pmf(in_dist)
         in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
         if in_or_out:
-            in_samples, out_samples = sample_both_pmfs(pmf2, 1, pmf1, 1)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
         else:
-            out_samples, in_samples = sample_both_pmfs(pmf1, 1, pmf2, 1)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 10:
 
-        pmf1, start_deg1 = single_bounded_pmf(out_dist, out_range)
-        pmf2, start_deg2 = single_bounded_pmf(in_dist, in_range)
+        pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
+        pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
         in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
         if in_or_out:
-            in_samples, out_samples = sample_both_pmfs(pmf2, start_deg2, pmf1, start_deg1)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
         else:
-            out_samples, in_samples = sample_both_pmfs(pmf1, start_deg1, pmf2, start_deg2)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 11:
 
@@ -538,37 +530,37 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 12:
 
-        pmf_out = single_unbounded_pmf(out_dist)
-        pmf_in = single_unbounded_pmf(in_dist)
+        pmf_out, range_out = single_unbounded_pmf(out_dist)
+        pmf_in, range_in = single_unbounded_pmf(in_dist)
 
         edge_ev_out = find_edges_expected_value(pmf_out, out_range)
         edge_ev_in = find_edges_expected_value(pmf_in, in_range)
 
         if edge_ev_in < edge_ev_out:
-            pmf_out = trim_pmf(edge_ev_in, out_dist)
-            in_samples, out_samples = sample_both_pmfs(pmf_in, 1, pmf_out, 1)
+            pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
         if edge_ev_in > edge_ev_out:
-            pmf_in = trim_pmf(edge_ev_out, in_dist)
-            out_samples, in_samples = sample_both_pmfs(pmf_out, 1, pmf_in, 1)
+            pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, 1, pmf_in, 1)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 13:
+        pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
+        pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
 
-        pmf_out, start_deg_out = single_bounded_pmf(out_dist, out_range)
-        pmf_in, start_deg_in = single_bounded_pmf(in_dist, in_range)
-
-        edge_ev_out = find_edges_expected_value(pmf_out, start_deg_out)
-        edge_ev_in = find_edges_expected_value(pmf_in, start_deg_in)
+        edge_ev_out = find_edges_expected_value(pmf_out, range_out)
+        edge_ev_in = find_edges_expected_value(pmf_in, range_in)
 
         if edge_ev_in < edge_ev_out:
-            pmf_out = trim_pmf_2(edge_ev_in, pmf_out, start_deg_out)
-            in_samples, out_samples = sample_both_pmfs(pmf_in, start_deg_in, pmf_out, start_deg_out)
+
+            pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out, range_out)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
         if edge_ev_in > edge_ev_out:
-            pmf_in = trim_pmf_2(edge_ev_out, pmf_in, start_deg_in)
-            out_samples, in_samples = sample_both_pmfs(pmf_out, start_deg_out, pmf_in, start_deg_in)
+            pmf_in, in_range = trim_pmf_general(edge_ev_out, pmf_in, range_in)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, start_deg_out, pmf_in, start_deg_in)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 14:
 
@@ -584,18 +576,21 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 16:
 
-        pmf1 = [x[1] for x in out_dist]
-        pmf2 = [x[1] for x in in_dist]
+        pmf_out = [x[1] for x in out_dist]
+        pmf_in = [x[1] for x in in_dist]
 
-        edge_ev_out = find_edges_expected_value(pmf1, out_dist[0][0])
-        edge_ev_in = find_edges_expected_value(pmf2, in_dist[0][0])
+        range_out = [x[0] for x in out_dist]
+        range_in = [x[0] for x in in_dist]
+
+        edge_ev_out = find_edges_expected_value(pmf_out, range_out)
+        edge_ev_in = find_edges_expected_value(pmf_in, range_in)
 
         if edge_ev_in < edge_ev_out:
-            pmf1 = trim_pmf_2(edge_ev_in, pmf1, out_dist[0][0])
-            in_samples, out_samples = sample_both_pmfs(pmf2, in_dist[0][0], pmf1, out_dist[0][0])
+            pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out, range_out)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
         if edge_ev_in > edge_ev_out:
-            pmf2 = trim_pmf_2(edge_ev_out, pmf2, in_dist[0][0])
-            out_samples, in_samples = sample_both_pmfs(pmf1, out_dist[0][0], pmf2, in_dist[0][0])
+            pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in, range_in)
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 17:
 
@@ -639,6 +634,20 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
     return in_samples, out_samples, joint_samples
 
 
+def generate_network_plots(mod_i, edge_t, edge_l):
+
+    edges = []
+    for each in edge_l:
+        edges.append(('S'+str(each[0]), 'S'+str(each[1])))
+
+    graph = pydot.Dot(graph_type="digraph", layout="neato")
+    graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+    for each in edges:
+        graph.add_edge(pydot.Edge(each[0], each[1]))
+
+    graph.write_png("graph_" + str(mod_i) + ".png")
+
+
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg,
                        mass_violating_reactions, edge_type, reaction_type):
 
@@ -672,9 +681,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
         random.shuffle(in_nodes_count)
         random.shuffle(out_nodes_count)
 
+    # print(in_nodes_list)
+    # print(out_nodes_list)
+    # print()
+    #
+    # print(in_nodes_count)
+    # print(out_nodes_count)
+    # quit()
+
     reaction_list = []
     reaction_list2 = []
-    metabolic_edge_list = []
+    edge_list = []
 
     # todo: finish pick_continued
     # todo: adaptable probabilities
@@ -723,9 +740,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 node_set.add(product)
                 node_set.update(mod_species)
 
+                if edge_type == 'generic':
+                    edge_list.append((reactant, product))
                 if edge_type == 'metabolic':
                     if reactant != product:
-                        metabolic_edge_list.append([reactant, product])
+                        edge_list.append((reactant, product))
 
             if rt == TReactionType.BIUNI:
 
@@ -757,18 +776,21 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 node_set.add(product)
                 node_set.update(mod_species)
 
+                if edge_type == 'generic':
+                    edge_list.append((reactant1, product))
+                    edge_list.append((reactant2, product))
                 if edge_type == 'metabolic':
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-                        metabolic_edge_list.append([reactant1, product])
-                        metabolic_edge_list.append([reactant2, product])
+                        edge_list.append((reactant1, product))
+                        edge_list.append((reactant2, product))
                     if reactant1 == reactant2 and reactant1 != product:
-                        metabolic_edge_list.append([reactant1, product])
+                        edge_list.append((reactant1, product))
                     if reactant1 != reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant2, 'deg'])
+                        edge_list.append((reactant2, 'deg'))
                     if reactant1 != reactant2 and reactant2 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
                     if reactant1 == reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
 
             if rt == TReactionType.UNIBI:
 
@@ -800,18 +822,21 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 node_set.add(product2)
                 node_set.update(mod_species)
 
+                if edge_type == 'generic':
+                    edge_list.append((reactant, product1))
+                    edge_list.append((reactant, product2))
                 if edge_type == 'metabolic':
                     if reactant != product1 and reactant != product2 and product1 != product2:
-                        metabolic_edge_list.append([reactant, product1])
-                        metabolic_edge_list.append([reactant, product2])
+                        edge_list.append((reactant, product1))
+                        edge_list.append((reactant, product2))
                     if reactant != product1 and product1 == product2:
-                        metabolic_edge_list.append([reactant, product1])
+                        edge_list.append((reactant, product1))
                     if reactant == product1 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product2])
+                        edge_list.append(('syn', product2))
                     if reactant == product2 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product1])
+                        edge_list.append(('syn', product1))
                     if reactant == product1 and product1 == product2:
-                        metabolic_edge_list.append(['syn', reactant])
+                        edge_list.append(('syn', reactant))
 
             if rt == TReactionType.BIBI:
 
@@ -843,55 +868,60 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 node_set.add(product2)
                 node_set.update(mod_species)
 
+                if edge_type == 'generic':
+                    edge_list.append((reactant1, product1))
+                    edge_list.append((reactant2, product1))
+                    edge_list.append((reactant1, product2))
+                    edge_list.append((reactant2, product2))
                 if edge_type == 'metabolic':
 
                     if len({reactant1, reactant2, product1, product2}) \
                             == len([reactant1, reactant2, product1, product2]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
-                        metabolic_edge_list.append([reactant2, product1])
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
+                        edge_list.append((reactant2, product1))
+                        edge_list.append((reactant2, product2))
 
                     if reactant1 == reactant2 and \
                             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
 
                     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
 
                     if product1 == product2 and \
                             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant2, product1))
 
                     # ------------------------
 
                     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
 
                     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant2, product1))
 
                     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product2))
 
                     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
 
                     # ------------------------
 
                     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
 
                     # ------------------------
 
                     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
 
             if n_reactions:
                 if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
@@ -949,6 +979,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
+                    edge_list.append((reactant, product))
+
                 if edge_type == 'metabolic':
 
                     sum_in = sum(in_nodes_count)
@@ -969,7 +1001,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
-                    metabolic_edge_list.append([reactant, product])
+                    edge_list.append((reactant, product))
 
             # -----------------------------------------------------------------
 
@@ -1009,6 +1041,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     in_nodes_count[product] -= (2 + mod_num)
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
+
+                    edge_list.append((reactant1, product))
+                    edge_list.append((reactant2, product))
 
                 # if graph_type == 'hybrid':
                 #
@@ -1083,18 +1118,18 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-                        metabolic_edge_list.append([reactant1, product])
-                        metabolic_edge_list.append([reactant2, product])
+                        edge_list.append((reactant1, product))
+                        edge_list.append((reactant2, product))
                         in_nodes_count[product] -= 2
                     if reactant1 == reactant2 and reactant1 != product:
-                        metabolic_edge_list.append([reactant1, product])
+                        edge_list.append((reactant1, product))
                         in_nodes_count[product] -= 1
                     if reactant1 != reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant2, 'deg'])
+                        edge_list.append((reactant2, 'deg'))
                     if reactant1 != reactant2 and reactant2 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
                     if reactant1 == reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
 
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
@@ -1148,6 +1183,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
 
+                    edge_list.append((reactant, product1))
+                    edge_list.append((reactant, product2))
+
                 # if graph_type == 'hybrid':
                 #
                 #     if max(in_nodes_count) < (1 + mod_num):
@@ -1199,19 +1237,19 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if reactant != product1 and reactant != product2 and product1 != product2:
-                        metabolic_edge_list.append([reactant, product1])
-                        metabolic_edge_list.append([reactant, product2])
+                        edge_list.append((reactant, product1))
+                        edge_list.append((reactant, product2))
                         in_nodes_count[product1] -= 1
                         in_nodes_count[product2] -= 1
                     if reactant != product1 and product1 == product2:
-                        metabolic_edge_list.append([reactant, product1])
+                        edge_list.append((reactant, product1))
                         in_nodes_count[product1] -= 1
                     if reactant == product1 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product2])
+                        edge_list.append(('syn', product2))
                     if reactant == product2 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product1])
+                        edge_list.append(('syn', product1))
                     if reactant == product1 and product1 == product2:
-                        metabolic_edge_list.append(['syn', reactant])
+                        edge_list.append(('syn', reactant))
 
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
@@ -1263,6 +1301,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant1, reactant2], [product1, product2],
                                           mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product1, product2]])
+
+                    edge_list.append((reactant1, product1))
+                    edge_list.append((reactant2, product1))
+                    edge_list.append((reactant1, product2))
+                    edge_list.append((reactant2, product2))
 
                 if edge_type == 'metabolic':
 
@@ -1332,65 +1375,65 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if len({reactant1, reactant2, product1, product2}) == 4:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
-                        metabolic_edge_list.append([reactant2, product1])
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
+                        edge_list.append((reactant2, product1))
+                        edge_list.append((reactant2, product2))
                         in_nodes_count[product1] -= 2
                         in_nodes_count[product2] -= 2
 
                     if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
                         in_nodes_count[product1] -= 1
                         in_nodes_count[product2] -= 1
 
                     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         in_nodes_count[product1] -= 1
 
                     if product1 == product2 and \
                             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant2, product1))
                         in_nodes_count[product1] -= 2
 
                     # ------------------------
 
                     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         in_nodes_count[product2] -= 1
 
                     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant2, product1))
                         in_nodes_count[product1] -= 1
 
                     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product2))
                         in_nodes_count[product2] -= 1
 
                     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         in_nodes_count[product1] -= 1
 
                     # ------------------------
 
                     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         in_nodes_count[product2] -= 1
 
                     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         in_nodes_count[product1] -= 1
 
                     # ------------------------
 
                     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         in_nodes_count[product2] -= 1
 
                     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         in_nodes_count[product1] -= 1
 
                     reaction_list.append([rt, [reactant1, reactant2], [product1, product2],
@@ -1463,6 +1506,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
+                    edge_list.append((reactant, product))
+
                 if edge_type == 'metabolic':
 
                     sum_out = sum(out_nodes_count)
@@ -1484,7 +1529,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list2.append([[reactant], [product]])
 
                     if reactant != product:
-                        metabolic_edge_list.append([reactant, product])
+                        edge_list.append((reactant, product))
 
             # -----------------------------------------------------------------
 
@@ -1545,6 +1590,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
 
+                    edge_list.append((reactant1, product))
+                    edge_list.append((reactant2, product))
+
                 if edge_type == 'metabolic':
                     
                     sum_out = sum(out_nodes_count)
@@ -1580,19 +1628,19 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
                     
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-                        metabolic_edge_list.append([reactant1, product])
-                        metabolic_edge_list.append([reactant2, product])
+                        edge_list.append((reactant1, product))
+                        edge_list.append((reactant2, product))
                         out_nodes_count[reactant1] -= 1
                         out_nodes_count[reactant2] -= 1
                     if reactant1 == reactant2 and reactant1 != product:
-                        metabolic_edge_list.append([reactant1, product])
+                        edge_list.append((reactant1, product))
                         out_nodes_count[reactant1] -= 1
                     if reactant1 != reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant2, 'deg'])
+                        edge_list.append((reactant2, 'deg'))
                     if reactant1 != reactant2 and reactant2 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
                     if reactant1 == reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
 
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
@@ -1661,6 +1709,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
 
+                    edge_list.append((reactant, product1))
+                    edge_list.append((reactant, product2))
+
                 if edge_type == 'metabolic':
                     
                     product1 = random.choice(out_nodes_list)
@@ -1690,18 +1741,18 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if reactant != product1 and reactant != product2 and product1 != product2:
-                        metabolic_edge_list.append([reactant, product1])
-                        metabolic_edge_list.append([reactant, product2])
+                        edge_list.append((reactant, product1))
+                        edge_list.append((reactant, product2))
                         out_nodes_count[reactant] -= 2
                     if reactant != product1 and product1 == product2:
-                        metabolic_edge_list.append([reactant, product1])
+                        edge_list.append((reactant, product1))
                         out_nodes_count[reactant] -= 1
                     if reactant == product1 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product2])
+                        edge_list.append(('syn', product2))
                     if reactant == product2 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product1])
+                        edge_list.append(('syn', product1))
                     if reactant == product1 and product1 == product2:
-                        metabolic_edge_list.append(['syn', reactant])
+                        edge_list.append(('syn', reactant))
 
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
@@ -1787,6 +1838,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product1, product2]])
 
+                    edge_list.append((reactant1, product1))
+                    edge_list.append((reactant2, product1))
+                    edge_list.append((reactant1, product2))
+                    edge_list.append((reactant2, product2))
+
                 if edge_type == 'metabolic':
                     
                     reactant1 = random.choice(out_nodes_list)
@@ -1862,65 +1918,65 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     # ================================================
 
                     if len({reactant1, reactant2, product1, product2}) == 4:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
-                        metabolic_edge_list.append([reactant2, product1])
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
+                        edge_list.append((reactant2, product1))
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant1] -= 2
                         out_nodes_count[reactant2] -= 2
 
                     if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
                         out_nodes_count[reactant1] -= 2
 
                     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
 
                     if product1 == product2 and \
                             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant2, product1))
                         out_nodes_count[reactant1] -= 1
                         out_nodes_count[reactant2] -= 1
 
                     # ------------------------
 
                     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
 
                     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant2, product1))
                         out_nodes_count[reactant2] -= 1
 
                     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product2))
                         out_nodes_count[reactant1] -= 1
 
                     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
 
                     # ------------------------
 
                     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
 
                     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
 
                     # ------------------------
 
                     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
 
                     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
 
                     reaction_list.append([rt, [reactant1, reactant2], [product1, product2],
@@ -2002,6 +2058,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
+                    edge_list.append((reactant, product))
+
                 if edge_type == 'metabolic':
 
                     sum_out = sum(out_nodes_count)
@@ -2025,7 +2083,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
-                    metabolic_edge_list.append([reactant, product])
+                    edge_list.append((reactant, product))
 
             # -----------------------------------------------------------------
 
@@ -2095,6 +2153,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
 
+                    edge_list.append((reactant1, product))
+                    edge_list.append((reactant2, product))
+
                 if edge_type == 'metabolic':
 
                     sum_out = sum(out_nodes_count)
@@ -2132,21 +2193,21 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-                        metabolic_edge_list.append([reactant1, product])
-                        metabolic_edge_list.append([reactant2, product])
+                        edge_list.append((reactant1, product))
+                        edge_list.append((reactant2, product))
                         out_nodes_count[reactant1] -= 1
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product] -= 2
                     if reactant1 == reactant2 and reactant1 != product:
-                        metabolic_edge_list.append([reactant1, product])
+                        edge_list.append((reactant1, product))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product] -= 1
                     if reactant1 != reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant2, 'deg'])
+                        edge_list.append((reactant2, 'deg'))
                     if reactant1 != reactant2 and reactant2 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
                     if reactant1 == reactant2 and reactant1 == product:
-                        metabolic_edge_list.append([reactant1, 'deg'])
+                        edge_list.append((reactant1, 'deg'))
 
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
@@ -2234,6 +2295,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
 
+                    edge_list.append((reactant, product1))
+                    edge_list.append((reactant, product2))
+
                 if edge_type == 'metabolic':
 
                     sum_out = sum(out_nodes_count)
@@ -2271,21 +2335,21 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
                     if reactant != product1 and reactant != product2 and product1 != product2:
-                        metabolic_edge_list.append([reactant, product1])
-                        metabolic_edge_list.append([reactant, product2])
+                        edge_list.append((reactant, product1))
+                        edge_list.append((reactant, product2))
                         out_nodes_count[reactant] -= 2
                         in_nodes_count[product1] -= 1
                         in_nodes_count[product2] -= 1
                     if reactant != product1 and product1 == product2:
-                        metabolic_edge_list.append([reactant, product1])
+                        edge_list.append((reactant, product1))
                         out_nodes_count[reactant] -= 1
                         in_nodes_count[product1] -= 1
                     if reactant == product1 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product2])
+                        edge_list.append(('syn', product2))
                     if reactant == product2 and product1 != product2:
-                        metabolic_edge_list.append(['syn', product1])
+                        edge_list.append(('syn', product1))
                     if reactant == product1 and product1 == product2:
-                        metabolic_edge_list.append(['syn', reactant])
+                        edge_list.append(('syn', reactant))
 
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
@@ -2384,6 +2448,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reaction_list.append(
                         [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product1, product2]])
+
+                    edge_list.append((reactant1, product1))
+                    edge_list.append((reactant2, product1))
+                    edge_list.append((reactant1, product2))
+                    edge_list.append((reactant2, product2))
 
                 if edge_type == 'metabolic':
 
@@ -2501,31 +2570,31 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     # ================================================
 
                     if len({reactant1, reactant2, product1, product2}) == 4:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
-                        metabolic_edge_list.append([reactant2, product1])
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
+                        edge_list.append((reactant2, product1))
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant1] -= 2
                         out_nodes_count[reactant2] -= 2
                         in_nodes_count[product1] -= 2
                         in_nodes_count[product2] -= 2
 
                     if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant1, product2))
                         out_nodes_count[reactant1] -= 2
                         in_nodes_count[product1] -= 1
                         in_nodes_count[product2] -= 1
 
                     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product1] -= 1
 
                     if product1 == product2 and \
                             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-                        metabolic_edge_list.append([reactant1, product1])
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant1, product1))
+                        edge_list.append((reactant2, product1))
                         out_nodes_count[reactant1] -= 1
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product1] -= 2
@@ -2533,46 +2602,46 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     # ------------------------
 
                     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product2] -= 1
 
                     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant2, product1])
+                        edge_list.append((reactant2, product1))
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product1] -= 1
 
                     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product2])
+                        edge_list.append((reactant1, product2))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product2] -= 1
 
                     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product1] -= 1
 
                     # ------------------------
 
                     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product2] -= 1
 
                     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product1] -= 1
 
                     # ------------------------
 
                     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-                        metabolic_edge_list.append([reactant2, product2])
+                        edge_list.append((reactant2, product2))
                         out_nodes_count[reactant2] -= 1
                         in_nodes_count[product2] -= 1
 
                     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-                        metabolic_edge_list.append([reactant1, product1])
+                        edge_list.append((reactant1, product1))
                         out_nodes_count[reactant1] -= 1
                         in_nodes_count[product1] -= 1
 
@@ -2584,7 +2653,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 break
 
     reaction_list.insert(0, n_species)
-    return reaction_list
+
+    return reaction_list, edge_list
 
 
 # Includes boundary and floating species
@@ -2681,8 +2751,411 @@ def remove_boundary_nodes(st):
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
 
 
-def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type,
+def generate_simple_linear(n_species):
+
+    reaction_list = []
+    edge_list = []
+    node_set = set()
+    last_products = None
+
+    while True:
+
+        if not node_set:
+            reactant = 0
+        else:
+            reactant = max(last_products)
+
+        # product = max(set.union(node_set, {reactant})) + 1
+        product = reactant + 1
+        last_products = {product}
+
+        reaction_list.append([0, [reactant], [product], [], [], []])
+        edge_list.append([reactant, product])
+
+        node_set.add(reactant)
+        node_set.add(product)
+
+        if len(node_set) == n_species:
+
+            break
+
+    reaction_list.insert(0, n_species)
+    return reaction_list, edge_list
+
+
+def generate_simple_cyclic(mod_i, min_species, max_species, linkage, n_cycles):
+
+    reaction_list = []
+    n_species = 0
+
+    node_set = set()
+    last_product = None
+    cycle_lengths = []
+    cycle_nodes = [set()]
+    edge_list = []
+
+    for _ in range(n_cycles):
+        cycle_lengths.append(random.choice(range(min_species, max_species+1)))
+    print(cycle_lengths)
+
+    for i in range(cycle_lengths[0]-1):
+
+        if not node_set:
+            reactant = 0
+        else:
+            reactant = last_product
+
+        product = reactant + 1
+        last_product = product
+
+        reaction_list.append([0, [reactant], [product], [], [], []])
+        edge_list.append([reactant, product])
+
+        node_set.add(reactant)
+        node_set.add(product)
+        cycle_nodes[-1].add(reactant)
+        cycle_nodes[-1].add(product)
+
+    reaction_list.append([0, [last_product], [0], [], [], []])
+    edge_list.append([last_product, 0])
+
+    if len(cycle_lengths) > 1:
+
+        for cycle_length in cycle_lengths[1:]:
+
+            link = random.choice(list(node_set))
+
+            last_product += 1
+            reaction_list.append([0, [link], [last_product], [], [], []])
+            edge_list.append([link, last_product])
+
+            for _ in range(cycle_length - 2):
+
+                reactant = last_product
+                product = reactant + 1
+                last_product = product
+
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+
+                node_set.add(reactant)
+                node_set.add(product)
+                cycle_nodes[-1].add(reactant)
+                cycle_nodes[-1].add(product)
+
+            reaction_list.append([0, [last_product], [link], [], [], []])
+            edge_list.append([last_product, link])
+
+    reaction_list.insert(0, len(node_set))
+    return reaction_list, edge_list
+
+
+def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, reaction_type, edge_type,
                     mod_species_as_linear, strict_linear):
+
+    reaction_list = []
+    # reaction_list2 = []
+    # metabolic_edge_list = []
+
+    # todo: finish pick_continued
+    # todo: adaptable probabilities
+    # ---------------------------------------------------------------------------------------------------
+
+    nodes_list = [i for i in range(n_species)]
+    edge_list = []
+    node_set = set()
+    pick_continued = 0
+    last_products = None
+
+    while True:
+
+        # todo: This is an issue for larger networks: link cutoff with number of species
+        if pick_continued == 10000:
+            return None
+
+        if rxn_prob:
+            rt = _pick_reaction_type(rxn_prob)
+        else:
+            rt = _pick_reaction_type()
+
+        mod_num = 0
+        if mod_reg:
+            mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
+
+        # -----------------------------------------------------------------------------
+
+        if rt == TReactionType.UNIUNI:
+
+            if not node_set:
+                reactant = random.choice(nodes_list)
+            else:
+                reactant = random.choice(list(last_products))
+
+            product = random.choice(list(set(nodes_list) - node_set - {reactant}))
+            last_products = {product}
+
+            if mod_species_as_linear:
+                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product}),
+                                            min(mod_num, len(list(set(nodes_list) -
+                                                                  node_set - {reactant} - {product}))))
+            else:
+                mod_species = random.sample(nodes_list, mod_num)
+
+            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
+            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
+
+            reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
+            # reaction_list2.append([[reactant], [product]])
+            edge_list.append([reactant, product])
+
+            node_set.add(reactant)
+            node_set.add(product)
+            if mod_species_as_linear:
+                node_set.update(mod_species)
+
+            # if edge_type == 'metabolic':
+            #     if reactant != product:
+            #         metabolic_edge_list.append((reactant, product))
+
+        if rt == TReactionType.BIUNI:
+
+            if not node_set:
+                reactant1 = random.choice(nodes_list)
+                reactant2 = random.choice(nodes_list)
+            else:
+                reactant1 = random.choice(list(last_products))
+                if strict_linear:
+                    reactant2 = random.choice(list(last_products))
+                else:
+                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
+
+            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
+                product = len(nodes_list)
+                n_species += 1
+            else:
+                product = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
+            last_products = {product}
+
+            if not mass_violating_reactions and product in {reactant1, reactant2}:
+                pick_continued += 1
+                continue
+
+            if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                pick_continued += 1
+                continue
+
+            if mod_species_as_linear:
+                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2} - {product}),
+                                            min(mod_num, len(list(set(nodes_list) -
+                                                                  node_set - {reactant1, reactant2} - {product}))))
+            else:
+                mod_species = random.sample(nodes_list, mod_num)
+
+            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
+            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
+
+            reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
+            # reaction_list2.append([[reactant1, reactant2], [product]])
+            edge_list.append([reactant1, product])
+            edge_list.append([reactant2, product])
+
+            node_set.add(reactant1)
+            node_set.add(reactant2)
+            node_set.add(product)
+            if mod_species_as_linear:
+                node_set.update(mod_species)
+
+            # if edge_type == 'metabolic':
+            #     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
+            #         metabolic_edge_list.append((reactant1, product))
+            #         metabolic_edge_list.append((reactant2, product))
+            #     if reactant1 == reactant2 and reactant1 != product:
+            #         metabolic_edge_list.append((reactant1, product))
+            #     if reactant1 != reactant2 and reactant1 == product:
+            #         metabolic_edge_list.append((reactant2, 'deg'))
+            #     if reactant1 != reactant2 and reactant2 == product:
+            #         metabolic_edge_list.append((reactant1, 'deg'))
+            #     if reactant1 == reactant2 and reactant1 == product:
+            #         metabolic_edge_list.append((reactant1, 'deg'))
+
+        if rt == TReactionType.UNIBI:
+
+            if not node_set:
+                reactant = random.choice(nodes_list)
+            else:
+                reactant = random.choice(list(last_products))
+
+            if len(set(nodes_list) - node_set - {reactant}) == 0:
+                product1 = len(nodes_list)
+                product2 = len(nodes_list) + 1
+                n_species += 2
+            elif len(set(nodes_list) - node_set - {reactant}) == 1:
+                product1 = len(nodes_list)
+                n_species += 1
+                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
+            else:
+                product1 = random.choice(list(set(nodes_list) - node_set - {reactant}))
+                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
+            last_products = {product1, product2}
+
+            if not mass_violating_reactions and reactant in {product1, product2}:
+                pick_continued += 1
+                continue
+
+            if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                pick_continued += 1
+                continue
+
+            if mod_species_as_linear:
+                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product1, product2}),
+                                            min(mod_num, len(list(set(nodes_list) -
+                                                                  node_set - {reactant} - {product1, product2}))))
+            else:
+                mod_species = random.sample(nodes_list, mod_num)
+
+            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
+            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
+
+            reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
+            # reaction_list2.append([[reactant], [product1, product2]])
+            edge_list.append([reactant, product1])
+            edge_list.append([reactant, product2])
+
+            node_set.add(reactant)
+            node_set.add(product1)
+            node_set.add(product2)
+            node_set.update(mod_species)
+
+            # if edge_type == 'metabolic':
+            #     if reactant != product1 and reactant != product2 and product1 != product2:
+            #         metabolic_edge_list.append((reactant, product1))
+            #         metabolic_edge_list.append((reactant, product2))
+            #     if reactant != product1 and product1 == product2:
+            #         metabolic_edge_list.append((reactant, product1))
+            #     if reactant == product1 and product1 != product2:
+            #         metabolic_edge_list.append(('syn', product2))
+            #     if reactant == product2 and product1 != product2:
+            #         metabolic_edge_list.append(('syn', product1))
+            #     if reactant == product1 and product1 == product2:
+            #         metabolic_edge_list.append(('syn', reactant))
+
+        if rt == TReactionType.BIBI:
+
+            if not node_set:
+                reactant1 = random.choice(nodes_list)
+                reactant2 = random.choice(nodes_list)
+            else:
+                reactant1 = random.choice(list(last_products))
+                if strict_linear:
+                    reactant2 = random.choice(list(last_products))
+                else:
+                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
+
+            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
+                product1 = len(nodes_list)
+                product2 = len(nodes_list) + 1
+                n_species += 2
+            elif len(set(nodes_list) - node_set - {reactant1, reactant2}) == 1:
+                product1 = len(nodes_list)
+                n_species += 1
+                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
+            else:
+                product1 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
+                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
+            last_products = {product1, product2}
+
+            if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                pick_continued += 1
+                continue
+
+            if mod_species_as_linear:
+                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2}
+                                                 - {product1, product2}),
+                                            min(mod_num, len(list(set(nodes_list) - node_set - {reactant1, reactant2}
+                                                                  - {product1, product2}))))
+            else:
+                mod_species = random.sample(nodes_list, mod_num)
+
+            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
+            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
+
+            reaction_list.append(
+                [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
+            # reaction_list2.append([[reactant1, reactant2], [product1, product2]])
+            edge_list.append([reactant1, product1])
+            edge_list.append([reactant1, product2])
+            edge_list.append([reactant2, product1])
+            edge_list.append([reactant2, product2])
+
+            node_set.add(reactant1)
+            node_set.add(reactant2)
+            node_set.add(product1)
+            node_set.add(product2)
+            node_set.update(mod_species)
+
+            # if edge_type == 'metabolic':
+            #
+            #     if len({reactant1, reactant2, product1, product2}) == len([reactant1, reactant2, product1, product2]):
+            #
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant1, product2))
+            #         metabolic_edge_list.append((reactant2, product1))
+            #         metabolic_edge_list.append((reactant2, product2))
+            #
+            #     if reactant1 == reactant2 and \
+            #             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant1, product2))
+            #
+            #     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
+            #         metabolic_edge_list.append((reactant1, product1))
+            #
+            #     if product1 == product2 and \
+            #             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant2, product1))
+            #
+            #     # ------------------------
+            #
+            #     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
+            #         metabolic_edge_list.append((reactant2, product2))
+            #
+            #     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
+            #         metabolic_edge_list.append((reactant2, product1))
+            #
+            #     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
+            #         metabolic_edge_list.append((reactant1, product2))
+            #
+            #     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
+            #         metabolic_edge_list.append((reactant1, product1))
+            #
+            #     # ------------------------
+            #
+            #     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
+            #         metabolic_edge_list.append((reactant2, product2))
+            #     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
+            #         metabolic_edge_list.append((reactant1, product1))
+            #
+            #     # ------------------------
+            #
+            #     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
+            #         metabolic_edge_list.append((reactant2, product2))
+            #     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
+            #         metabolic_edge_list.append((reactant1, product1))
+
+        if n_reactions:
+            if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
+                break
+        else:
+            if len(node_set) == n_species:
+                break
+
+    reaction_list.insert(0, n_species)
+    return reaction_list, edge_list
+
+
+def generate_cycle(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type,
+                   mod_species_as_linear, strict_linear):
 
     reaction_list = []
     reaction_list2 = []
@@ -2745,7 +3218,7 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
             # if edge_type == 'metabolic':
             #     if reactant != product:
-            #         metabolic_edge_list.append([reactant, product])
+            #         metabolic_edge_list.append((reactant, product))
 
         if rt == TReactionType.BIUNI:
 
@@ -2795,16 +3268,16 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
             # if edge_type == 'metabolic':
             #     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-            #         metabolic_edge_list.append([reactant1, product])
-            #         metabolic_edge_list.append([reactant2, product])
+            #         metabolic_edge_list.append((reactant1, product))
+            #         metabolic_edge_list.append((reactant2, product))
             #     if reactant1 == reactant2 and reactant1 != product:
-            #         metabolic_edge_list.append([reactant1, product])
+            #         metabolic_edge_list.append((reactant1, product))
             #     if reactant1 != reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append([reactant2, 'deg'])
+            #         metabolic_edge_list.append((reactant2, 'deg'))
             #     if reactant1 != reactant2 and reactant2 == product:
-            #         metabolic_edge_list.append([reactant1, 'deg'])
+            #         metabolic_edge_list.append((reactant1, 'deg'))
             #     if reactant1 == reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append([reactant1, 'deg'])
+            #         metabolic_edge_list.append((reactant1, 'deg'))
 
         if rt == TReactionType.UNIBI:
 
@@ -2854,16 +3327,16 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
             # if edge_type == 'metabolic':
             #     if reactant != product1 and reactant != product2 and product1 != product2:
-            #         metabolic_edge_list.append([reactant, product1])
-            #         metabolic_edge_list.append([reactant, product2])
+            #         metabolic_edge_list.append((reactant, product1))
+            #         metabolic_edge_list.append((reactant, product2))
             #     if reactant != product1 and product1 == product2:
-            #         metabolic_edge_list.append([reactant, product1])
+            #         metabolic_edge_list.append((reactant, product1))
             #     if reactant == product1 and product1 != product2:
-            #         metabolic_edge_list.append(['syn', product2])
+            #         metabolic_edge_list.append(('syn', product2))
             #     if reactant == product2 and product1 != product2:
-            #         metabolic_edge_list.append(['syn', product1])
+            #         metabolic_edge_list.append(('syn', product1))
             #     if reactant == product1 and product1 == product2:
-            #         metabolic_edge_list.append(['syn', reactant])
+            #         metabolic_edge_list.append(('syn', reactant))
 
         if rt == TReactionType.BIBI:
 
@@ -2919,51 +3392,51 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             #
             #     if len({reactant1, reactant2, product1, product2}) == len([reactant1, reactant2, product1, product2]):
             #
-            #         metabolic_edge_list.append([reactant1, product1])
-            #         metabolic_edge_list.append([reactant1, product2])
-            #         metabolic_edge_list.append([reactant2, product1])
-            #         metabolic_edge_list.append([reactant2, product2])
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant1, product2))
+            #         metabolic_edge_list.append((reactant2, product1))
+            #         metabolic_edge_list.append((reactant2, product2))
             #
             #     if reactant1 == reactant2 and \
             #             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
-            #         metabolic_edge_list.append([reactant1, product1])
-            #         metabolic_edge_list.append([reactant1, product2])
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant1, product2))
             #
             #     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-            #         metabolic_edge_list.append([reactant1, product1])
+            #         metabolic_edge_list.append((reactant1, product1))
             #
             #     if product1 == product2 and \
             #             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-            #         metabolic_edge_list.append([reactant1, product1])
-            #         metabolic_edge_list.append([reactant2, product1])
+            #         metabolic_edge_list.append((reactant1, product1))
+            #         metabolic_edge_list.append((reactant2, product1))
             #
             #     # ------------------------
             #
             #     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append([reactant2, product2])
+            #         metabolic_edge_list.append((reactant2, product2))
             #
             #     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append([reactant2, product1])
+            #         metabolic_edge_list.append((reactant2, product1))
             #
             #     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append([reactant1, product2])
+            #         metabolic_edge_list.append((reactant1, product2))
             #
             #     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append([reactant1, product1])
+            #         metabolic_edge_list.append((reactant1, product1))
             #
             #     # ------------------------
             #
             #     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-            #         metabolic_edge_list.append([reactant2, product2])
+            #         metabolic_edge_list.append((reactant2, product2))
             #     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-            #         metabolic_edge_list.append([reactant1, product1])
+            #         metabolic_edge_list.append((reactant1, product1))
             #
             #     # ------------------------
             #
             #     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-            #         metabolic_edge_list.append([reactant2, product2])
+            #         metabolic_edge_list.append((reactant2, product2))
             #     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-            #         metabolic_edge_list.append([reactant1, product1])
+            #         metabolic_edge_list.append((reactant1, product1))
 
         if n_reactions:
             if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
@@ -2974,11 +3447,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
     reaction_list.insert(0, n_species)
     return reaction_list
-
-
-def generate_cycle(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type):
-
-    print('cycle')
 
 
 def generate_branch(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type):
