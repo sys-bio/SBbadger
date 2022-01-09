@@ -634,18 +634,18 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
     return in_samples, out_samples, joint_samples
 
 
-def generate_network_plots(mod_i, edge_t, edge_l):
-
-    edges = []
-    for each in edge_l:
-        edges.append(('S'+str(each[0]), 'S'+str(each[1])))
-
-    graph = pydot.Dot(graph_type="digraph", layout="neato")
-    graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-    for each in edges:
-        graph.add_edge(pydot.Edge(each[0], each[1]))
-
-    graph.write_png("graph_" + str(mod_i) + ".png")
+# def generate_network_plots(mod_i, edge_t, edge_l):
+#
+#     edges = []
+#     for each in edge_l:
+#         edges.append(('S'+str(each[0]), 'S'+str(each[1])))
+#
+#     graph = pydot.Dot(graph_type="digraph", layout="neato")
+#     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+#     for each in edges:
+#         graph.add_edge(pydot.Edge(each[0], each[1]))
+#
+#     graph.write_png("graph_" + str(mod_i) + ".png")
 
 
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg,
@@ -2847,6 +2847,144 @@ def generate_simple_cyclic(mod_i, min_species, max_species, linkage, n_cycles):
             edge_list.append([last_product, link])
 
     reaction_list.insert(0, len(node_set))
+    return reaction_list, edge_list
+
+
+def generate_simple_branched(n_species, seeds, path_probs, tips):
+
+    reaction_list = []
+    edge_list = []
+    node_set = set()
+    last_products = None
+
+    if not path_probs:
+        path_probs = [.25, .5, .25]
+
+    buds = []
+    current = 0
+    for i in range(seeds):
+
+        buds.append(i)
+        node_set.add(i)
+        current = i + 1
+
+    grow = True
+    if len(node_set) >= n_species:
+        grow = False
+
+    if tips:
+        stems_dict = defaultdict(int)
+        while grow:
+            print('------------------------------------')
+
+            stems_list = []
+            for bud in buds:
+                if bud in stems_dict and stems_dict[bud] not in stems_list:
+                    stems_list.append(stems_dict[bud])
+            print()
+            print('stems', stems_list)
+            print('buds', buds)
+            print()
+
+            # for each in stems_dict:
+            #     stems_list.append(stems_dict[each])
+
+            route = random.choices([0, 1, 2], path_probs)[0]
+            print()
+            print(route)
+
+            if route == 0:
+
+                if len(stems_list) == 0:
+                    continue
+
+                reactant = random.choice(stems_list)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.append(product)
+                stems_dict[product] = reactant
+                current += 1
+
+            if route == 1:
+                reactant = random.choice(buds)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.remove(reactant)
+                buds.append(product)
+                stems_dict[product] = reactant
+                current += 1
+
+            if route == 2:
+
+                if len(buds) == 1:
+                    continue
+                if len(stems_list) < 2:
+                    continue
+
+                reactant = random.choice(buds)
+                stem_choices = [stem for stem in stems_list if stem != stems_dict[reactant]]
+                product = random.choice(stem_choices)
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                buds.remove(reactant)
+
+            for each in reaction_list:
+                print(each)
+            if len(node_set) == n_species:
+                grow = False
+
+    else:
+        stems = []
+        while grow:
+
+            route = random.choices([0, 1, 2], path_probs)[0]
+
+            if route == 0:
+
+                if len(stems) == 0:
+                    continue
+
+                reactant = random.choice(stems)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.append(current)
+                current += 1
+
+            if route == 1:
+                reactant = random.choice(buds)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.remove(reactant)
+                buds.append(product)
+                stems.append(reactant)
+                current += 1
+
+            if route == 2:
+
+                if len(buds) == 1:
+                    continue
+
+                reactant = random.choice(buds)
+                product_selection = set(stems) | set(buds)
+                product_selection = list(product_selection - {reactant})
+                product = random.choice(product_selection)
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                buds.remove(reactant)
+                stems.append(reactant)
+
+            if len(node_set) == n_species:
+                grow = False
+
+    reaction_list.insert(0, n_species)
     return reaction_list, edge_list
 
 
