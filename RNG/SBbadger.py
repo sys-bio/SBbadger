@@ -13,10 +13,10 @@ import pydot
 
 def run_generate_distributions(i, group_name=None, n_species=None, in_dist='random',
                                out_dist='random', output_dir=None, joint_dist=None, in_range=None,
-                               out_range=None, joint_range=None, min_node_deg=1.0, dist_plots=False):
+                               out_range=None, joint_range=None, min_freq=1.0, dist_plots=True):
 
     in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
-        n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range, out_range, joint_range)
+        n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
 
     if output_dir:
         dist_dir = os.path.join(output_dir, 'models', group_name, 'distributions', group_name + '_' + str(i)
@@ -119,29 +119,19 @@ def run_generate_distributions(i, group_name=None, n_species=None, in_dist='rand
             fig = plt.figure()
             ax1 = fig.add_subplot(111, projection='3d')
             ax1.bar3d(x, y, z, dx, dy, dz)
+
+            ax1.set_xlabel("Out-Edge Degree")
+            ax1.set_ylabel("In-Edge Degree")
+            ax1.set_zlabel("Number of Nodes")
+
             plt.savefig(os.path.join('models', group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
                                      + '.png'))
             plt.close()
 
 
-def generate_distributions(verbose_exceptions=False, group_name=None, n_models=None, n_species=None, in_dist='random',
-                           out_dist='random', output_dir=None, overwrite=False, joint_dist=None, in_range=None,
-                           out_range=None, joint_range=None, min_node_deg=1.0, dist_plots=False, n_cpus=cpu_count()):
-
-    if group_name is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
-
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
+def generate_distributions(verbose_exceptions=False, group_name='test', n_models=1, n_species=100, in_dist='random',
+                           out_dist='random', output_dir=None, overwrite=True, joint_dist=None, in_range=None,
+                           out_range=None, joint_range=None, min_freq=1.0, dist_plots=True, n_cpus=cpu_count()):
 
     if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
         if not verbose_exceptions:
@@ -184,6 +174,15 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception("The provided joint degree distribution does not add to 1")
+
+    if isinstance(in_dist, list) and all(isinstance(x[1], int) for x in in_dist) \
+            and isinstance(out_dist, list) and all(isinstance(x[1], int) for x in out_dist) \
+            and sum(int(x[0]) * int(x[1]) for x in in_dist) != sum(int(x[0]) * int(x[1]) for x in out_dist):
+
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception("The total in-edges do not match the total out-edges. "
+                        "Please revise these frequency distributions.")
 
     num_existing_models = 0
     if output_dir:
@@ -229,7 +228,7 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
                     os.makedirs(os.path.join(path, 'dist_figs'))
 
     args_list = [(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, in_range, out_range,
-                  joint_range, min_node_deg, dist_plots) for i in range(num_existing_models, n_models)]
+                  joint_range, min_freq, dist_plots) for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
     pool.starmap(run_generate_distributions, args_list)
@@ -238,7 +237,7 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
 
 def run_generate_networks(i, dists_list, directory='', group_name='', n_reactions=None, rxn_prob=None, mod_reg=None,
                           mass_violating_reactions=True, edge_type='generic', reaction_type=None,
-                          net_plots=False):
+                          net_plots=True):
 
     out_dist = False
     in_dist = False
@@ -329,18 +328,13 @@ def run_generate_networks(i, dists_list, directory='', group_name='', n_reaction
         graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
         for each in edges:
             graph.add_edge(pydot.Edge(each[0], each[1]))
-        else:
-            graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+        graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'), format='dot')
 
 
-def generate_networks(verbose_exceptions=False, group_name='', n_reactions=None, overwrite=False,
+def generate_networks(verbose_exceptions=False, group_name='test', n_reactions=None, overwrite=True,
                       rxn_prob=None, rev_prob=False, mod_reg=None, mass_violating_reactions=True, directory='',
-                      edge_type='generic', reaction_type=None, n_cpus=cpu_count(), net_plots=False):
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
+                      edge_type='generic', reaction_type=None, n_cpus=cpu_count(), net_plots=True):
 
     if directory is '':
         if not verbose_exceptions:
@@ -472,13 +466,14 @@ def run_generate_models(i, nets_list, group_name='', add_enzyme=False, kinetics=
         antimony.clearPreviousLoads()
 
 
-def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, kinetics=None, overwrite=False,
+def generate_models(verbose_exceptions=False, group_name='test', add_enzyme=False, kinetics=None, overwrite=True,
                     rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None, directory='', n_cpus=cpu_count()):
 
     if kinetics is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        # if not verbose_exceptions:
+        #     sys.tracebacklimit = 0
+        # raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
@@ -486,10 +481,8 @@ def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, k
         raise Exception('Regulators are relevant only to modular kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
+    if ic_params is None:
+        ic_params = ['uniform', 0, 10]
 
     if directory is '':
         if not verbose_exceptions:
@@ -581,10 +574,11 @@ def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, k
 def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_species=None, n_reactions=None,
                                    kinetics=None, in_dist='random', out_dist='random', output_dir=None,
                                    rxn_prob=None, rev_prob=False, joint_dist=None, in_range=None, out_range=None,
-                                   joint_range=None, min_node_deg=1.0, ic_params=None, mod_reg=None,
-                                   mass_violating_reactions=True, dist_plots=False, net_plots=False,
+                                   joint_range=None, min_freq=1.0, ic_params=None, mod_reg=None,
+                                   mass_violating_reactions=True, dist_plots=True, net_plots=True,
                                    edge_type='generic', reaction_type=None):
 
+    # print(i)
     in_samples = []
     out_samples = []
     joint_samples = []
@@ -593,7 +587,9 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
     el = [[]]
 
     rl_failed_count = 0
+
     while not rl[0]:
+
         rl_failed_count += 1
         if rl_failed_count == 100:
             ant_str = "Network construction failed on this attempt, consider revising your settings."
@@ -607,11 +603,11 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
             break
 
         in_samples, out_samples, joint_samples = \
-            buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range,
+            buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
                                            out_range, joint_range)
 
-        rl = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob,
-                                              mod_reg, mass_violating_reactions, edge_type, reaction_type)
+        rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob,
+                                                  mod_reg, mass_violating_reactions, edge_type, reaction_type)
 
     if rl[0]:
 
@@ -651,8 +647,12 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
             if output_dir:
                 graph.write_png(os.path.join(output_dir, 'models', group_name, 'net_figs', group_name + '_' + str(i)
                                              + '.png'))
+                graph.write(os.path.join(output_dir, 'models', group_name, 'net_figs', group_name + '_' + str(i)
+                                         + '.dot'), format='dot')
             else:
                 graph.write_png(os.path.join('models', group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                graph.write(os.path.join('models', group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                            format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         if output_dir:
@@ -685,7 +685,7 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
         # todo: write separate script for visualization?
         if dist_plots:
 
-            if in_samples:
+            if in_samples and not out_samples:
                 x = [dist_ind[0] for dist_ind in in_samples]
                 y = [dist_ind[1] for dist_ind in in_samples]
                 plt.figure()
@@ -698,7 +698,7 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
                                          + '.png'))
                 plt.close()
 
-            if out_samples:
+            if out_samples and not in_samples:
                 x = [dist_ind[0] for dist_ind in out_samples]
                 y = [dist_ind[1] for dist_ind in out_samples]
                 plt.figure()
@@ -763,6 +763,11 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
                 fig = plt.figure()
                 ax1 = fig.add_subplot(111, projection='3d')
                 ax1.bar3d(x, y, z, dx, dy, dz)
+
+                ax1.set_xlabel("Out-Edge Degree")
+                ax1.set_ylabel("In-Edge Degree")
+                ax1.set_zlabel("Number of Nodes")
+
                 plt.savefig(os.path.join('models', group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
                                          + '.png'))
                 plt.close()
@@ -779,12 +784,18 @@ def generate_dists_networks_models(i, group_name=None, add_enzyme=False, n_speci
         antimony.clearPreviousLoads()
 
 
-def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=None,
-        n_species=None, n_reactions=None, kinetics=None, in_dist='random', out_dist='random',
-        output_dir=None, overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None,
-        in_range=None, out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None,
-        mod_reg=None, mass_violating_reactions=True, dist_plots=False, net_plots=False,
-        edge_type='generic', n_cpus=cpu_count()):
+def generate(verbose_exceptions=False, group_name='test', add_enzyme=False, n_models=1,
+             n_species=100, n_reactions=None, kinetics=None, in_dist='random', out_dist='random',
+             output_dir=None, overwrite=True, rxn_prob=None, rev_prob=False, joint_dist=None,
+             in_range=None, out_range=None, joint_range=None, min_freq=1.0, ic_params=None,
+             mod_reg=None, mass_violating_reactions=True, dist_plots=True, net_plots=True,
+             edge_type='generic', n_cpus=cpu_count()):
+
+    if kinetics is None:
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        # if not verbose_exceptions:
+        #     sys.tracebacklimit = 0
+        # raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
@@ -792,22 +803,8 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         raise Exception('Regulators are relevant only to modular kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
-    if group_name is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
-    if kinetics is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+    if ic_params is None:
+        ic_params = ['uniform', 0, 10]
 
     if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
         if not verbose_exceptions:
@@ -857,6 +854,15 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception("Node degree cannot be less than 1.")
+
+    if isinstance(in_dist, list) and all(isinstance(x[1], int) for x in in_dist) \
+            and isinstance(out_dist, list) and all(isinstance(x[1], int) for x in out_dist) \
+            and sum(int(x[0]) * int(x[1]) for x in in_dist) != sum(int(x[0]) * int(x[1]) for x in out_dist):
+
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception("The total in-edges do not match the total out-edges. "
+                        "Please revise these frequency distributions.")
 
     num_existing_models = 0
     if output_dir:
@@ -919,11 +925,473 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
                 os.makedirs(os.path.join(path, 'sbml'))
                 os.makedirs(os.path.join(path, 'dist_figs'))
 
+    # todo: work on this
+
     args_list = [(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
-                 rxn_prob, rev_prob, joint_dist, in_range, out_range, joint_range, min_node_deg, ic_params,
-                 mod_reg, mass_violating_reactions, dist_plots, net_plots, edge_type)
+                  rxn_prob, rev_prob, joint_dist, in_range, out_range, joint_range, min_freq, ic_params,
+                  mod_reg, mass_violating_reactions, dist_plots, net_plots, edge_type)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_dists_networks_models, args_list)
     pool.close()
+
+
+def simple_linear(verbose_exceptions=False, group_name='linear', add_enzyme=False, n_species=10, n_models=1,
+                  kinetics=None, overwrite=True, rev_prob=False, ic_params=None, directory='', net_plots=True):
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                shutil.rmtree(os.path.join(directory, group_name, 'net_figs'))
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'net_figs'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'net_figs', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        for i in range(n_models):
+
+            rl, el = buildNetworks.generate_simple_linear(n_species)
+
+            if not rl[0]:
+
+                ant_str = "Network construction failed on this attempt, consider revising your settings."
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                with open(anti_dir, 'w') as f:
+                    f.write(ant_str)
+            else:
+
+                net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+                with open(net_dir, 'w') as f:
+                    for j, each in enumerate(rl):
+                        if j == 0:
+                            f.write(str(each))
+                        else:
+                            for k, item in enumerate(each):
+                                if k == 0:
+                                    f.write(str(item))
+                                else:
+                                    f.write(',(')
+                                    for m, every in enumerate(item):
+                                        if m == 0:
+                                            f.write(str(every))
+                                        else:
+                                            f.write(',' + str(every))
+                                    f.write(')')
+                        f.write('\n')
+
+                if net_plots:
+                    edges = []
+                    for each in el:
+                        edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+
+                    graph = pydot.Dot(graph_type="digraph")
+                    graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                    for each in edges:
+                        graph.add_edge(pydot.Edge(each[0], each[1]))
+                    graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                                format='dot')
+
+                ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                with open(anti_dir, 'w') as f:
+                    f.write(ant_str)
+
+                sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+                antimony.loadAntimonyString(ant_str)
+                sbml = antimony.getSBMLString()
+                with open(sbml_dir, 'w') as f:
+                    f.write(sbml)
+                antimony.clearPreviousLoads()
+
+
+def run_simple_cyclic(i, group_name='', add_enzyme=False, min_species=None, max_species=None,
+                      n_cycles=1, kinetics=None, rev_prob=False, ic_params=None, directory='', net_plots=True):
+
+    rl, el = buildNetworks.generate_simple_cyclic(min_species, max_species, n_cycles)
+
+    if not rl[0]:
+
+        ant_str = "Network construction failed on this attempt, consider revising your settings."
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+    else:
+        net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+        with open(net_dir, 'w') as f:
+            for j, each in enumerate(rl):
+                if j == 0:
+                    f.write(str(each))
+                else:
+                    for k, item in enumerate(each):
+                        if k == 0:
+                            f.write(str(item))
+                        else:
+                            f.write(',(')
+                            for m, every in enumerate(item):
+                                if m == 0:
+                                    f.write(str(every))
+                                else:
+                                    f.write(',' + str(every))
+                            f.write(')')
+                f.write('\n')
+
+        if net_plots:
+            edges = []
+            for each in el:
+                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+
+            graph = pydot.Dot(graph_type="digraph", layout="neato")
+            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+            for each in edges:
+                graph.add_edge(pydot.Edge(each[0], each[1]))
+            graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+            graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                        format='neato')
+
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+        sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        antimony.loadAntimonyString(ant_str)
+        sbml = antimony.getSBMLString()
+        with open(sbml_dir, 'w') as f:
+            f.write(sbml)
+        antimony.clearPreviousLoads()
+
+
+def simple_cyclic(verbose_exceptions=False, group_name='cyclic', add_enzyme=False, min_species=10, max_species=20,
+                  n_cycles=1, n_models=1, kinetics=None, overwrite=True, rev_prob=False, ic_params=None, directory='',
+                  net_plots=True, n_cpus=cpu_count()):
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                shutil.rmtree(os.path.join(directory, group_name, 'net_figs'))
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'net_figs'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'net_figs', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        args_list = [(i, group_name, add_enzyme, min_species, max_species, n_cycles, kinetics, rev_prob,
+                      ic_params, directory, net_plots) for i in range(n_models) if i not in net_inds]
+
+        pool = Pool(n_cpus)
+        pool.starmap(run_simple_cyclic, args_list)
+        pool.close()
+
+
+def run_simple_branched(i, group_name='', add_enzyme=False, n_species=None, kinetics=None, rev_prob=False,
+                        ic_params=None, directory='', net_plots=True, seeds=1, path_probs=None, tips=False):
+
+    rl, el = buildNetworks.generate_simple_branched(n_species, seeds, path_probs, tips)
+
+    if not rl[0]:
+
+        ant_str = "Network construction failed on this attempt, consider revising your settings."
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+    else:
+
+        net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+        with open(net_dir, 'w') as f:
+            for j, each in enumerate(rl):
+                if j == 0:
+                    f.write(str(each))
+                else:
+                    for k, item in enumerate(each):
+                        if k == 0:
+                            f.write(str(item))
+                        else:
+                            f.write(',(')
+                            for m, every in enumerate(item):
+                                if m == 0:
+                                    f.write(str(every))
+                                else:
+                                    f.write(',' + str(every))
+                            f.write(')')
+                f.write('\n')
+
+        if net_plots:
+            edges = []
+            for each in el:
+                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+
+            graph = pydot.Dot(graph_type="digraph")
+            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+            for each in edges:
+                graph.add_edge(pydot.Edge(each[0], each[1]))
+            graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+            graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                        format='dot')
+
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+        sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        antimony.loadAntimonyString(ant_str)
+        sbml = antimony.getSBMLString()
+        with open(sbml_dir, 'w') as f:
+            f.write(sbml)
+        antimony.clearPreviousLoads()
+
+
+def simple_branched(verbose_exceptions=False, group_name='branched', add_enzyme=False, n_species=20, n_models=1,
+                    kinetics=None, overwrite=True, rev_prob=False, ic_params=None, directory='', net_plots=True,
+                    seeds=1, path_probs=None, tips=False, n_cpus=cpu_count()):
+
+    if directory is '':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide a directory.')
+
+    if kinetics is None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+
+    if isinstance(rev_prob, list):
+        if any(x < 0.0 for x in rev_prob) or any(x > 1.0 for x in rev_prob):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('One or more of your reversibility probabilities is not between 0 and 1')
+
+    if isinstance(rev_prob, float):
+        if rev_prob < 0.0 or rev_prob > 1.0:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if directory:
+        net_files = []
+        anti_files = []
+        sbml_files = []
+        if overwrite:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                shutil.rmtree(os.path.join(directory, group_name, 'antimony'))
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                shutil.rmtree(os.path.join(directory, group_name, 'sbml'))
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                shutil.rmtree(os.path.join(directory, group_name, 'networks'))
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                shutil.rmtree(os.path.join(directory, group_name, 'net_figs'))
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        else:
+            if os.path.exists(os.path.join(directory, group_name, 'antimony')):
+                anti_files = [f for f in os.listdir(os.path.join(directory, group_name, 'antimony'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'antimony', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'antimony'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'sbml')):
+                sbml_files = [f for f in os.listdir(os.path.join(directory, group_name, 'sbml'))
+                              if os.path.isfile(os.path.join(directory, group_name, 'sbml', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'sbml'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'networks')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'networks', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'networks'))
+
+            if os.path.exists(os.path.join(directory, group_name, 'net_figs')):
+                net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'net_figs'))
+                             if os.path.isfile(os.path.join(directory, group_name, 'net_figs', f))]
+            else:
+                os.makedirs(os.path.join(directory, group_name, 'net_figs'))
+
+        net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+        anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
+        sbml_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in sbml_files]
+
+        if set(net_inds) != set(anti_inds) or set(anti_inds) != set(sbml_inds) or set(net_inds) != set(sbml_inds):
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
+                            "Consider starting over and overwriting them all.")
+
+        args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, directory, net_plots,
+                      seeds, path_probs, tips) for i in range(n_models) if i not in net_inds]
+
+        pool = Pool(n_cpus)
+        pool.starmap(run_simple_branched, args_list)
+        pool.close()

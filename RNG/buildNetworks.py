@@ -5,10 +5,16 @@ import numpy as np
 from copy import deepcopy
 from scipy.stats import norm, lognorm, uniform, loguniform
 from collections import defaultdict
-import pydot
 
 
-# todo: advise on having the zero case for regs
+# todo: mass balance
+# todo: reversible edges
+# todo: confer with Jin
+# todo: missed range cases
+# todo: revisit pick_continued
+# todo: adaptable probabilities
+# todo: remove "metabolic" edges
+# todo: pyDot coordinates
 
 # General settings for the package
 def restore_default_probabilities():
@@ -91,9 +97,6 @@ def _pick_reaction_type(prob=None):
 def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range, out_range,
                      joint_range):
 
-    # todo: mass balance
-    # todo: produce error for bad distributions
-
     in_samples = []
     out_samples = []
     joint_samples = []
@@ -108,8 +111,9 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
                 dist.append(sdist(j + 1))
             distsum = sum(dist)
             dist_n = [x * n_species / distsum for x in dist]
-
-            if dist_n[-1] < min_node_deg:
+            if any(elem < min_node_deg for elem in dist_n[:-1]):
+                raise Exception("\nThe provided distribution appears to be malformed; consider revising.")
+            elif dist_n[-1] < min_node_deg:
                 pmf0 = dist[:-1]
                 sum_dist_f = sum(pmf0)
                 pmf0 = [x / sum_dist_f for x in pmf0]
@@ -121,7 +125,6 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
         return pmf0, pmf_range
 
-    # todo: generalize out the endpoint tests
     def single_bounded_pmf(sdist, drange):
         """Start with given degree range and trim until cutoffs found"""
 
@@ -313,7 +316,9 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
             for item in new_dscores:
                 scaled_dscores.append(n_species * item / dsum)
 
-            if any(x < min_node_deg for x in scaled_dscores):
+            if any(x < min_node_deg for x in scaled_dscores[:len(dist)]):
+                raise Exception("\nThe provided distribution appears to be malformed; consider revising.")
+            if any(x < min_node_deg for x in scaled_dscores[len(dist):]):
                 break
 
             dist = new_dist
@@ -468,7 +473,6 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
         pmf_out, range_out = single_unbounded_pmf(out_dist)
         out_samples = sample_single_pmf(pmf_out, range_out)
 
-    # todo: generalize the ranges
     if input_case == 2:
 
         pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
@@ -476,10 +480,10 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 3:
 
-        pmf = [x[1] for x in out_dist]
+        pmf_out = [x[1] for x in out_dist]
+        range_out = [x[0] for x in out_dist]
 
-        start_deg = out_dist[0][0]
-        out_samples = sample_single_pmf(pmf, start_deg)
+        out_samples = sample_single_pmf(pmf_out, range_out)
 
     if input_case == 4:
         out_samples = out_dist
@@ -496,10 +500,10 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 7:
 
-        pmf = [x[1] for x in in_dist]
+        pmf_in = [x[1] for x in in_dist]
+        range_in = [x[0] for x in in_dist]
 
-        start_deg = in_dist[0][0]
-        in_samples = sample_single_pmf(pmf, start_deg)
+        in_samples = sample_single_pmf(pmf_in, range_in)
 
     if input_case == 8:
         in_samples = in_dist
@@ -532,18 +536,33 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
         pmf_out, range_out = single_unbounded_pmf(out_dist)
         pmf_in, range_in = single_unbounded_pmf(in_dist)
+        # print()
+        # print('pmf_in = ', pmf_in)
+        # print('pmf_out = ', pmf_out)
 
         edge_ev_out = find_edges_expected_value(pmf_out, out_range)
         edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+        # print()
+        # print('in edge expected value: ', edge_ev_in)
+        # print('out edge expected value:', edge_ev_out)
 
         if edge_ev_in < edge_ev_out:
             pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
             in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+
         if edge_ev_in > edge_ev_out:
             pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in)
+
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+        # print()
+        # print('pmf_in = ', pmf_in)
+
         if edge_ev_in == edge_ev_out:
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+
+        # print()
+        # print('in_samples =  ', in_samples)
+        # print('out_samples = ', out_samples)
 
     if input_case == 13:
         pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
@@ -693,8 +712,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
     reaction_list2 = []
     edge_list = []
 
-    # todo: finish pick_continued
-    # todo: adaptable probabilities
     # ---------------------------------------------------------------------------------------------------
 
     nodes_list = [i for i in range(n_species)]
@@ -707,7 +724,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
             # todo: This is an issue for larger networks: link cutoff with number of species
             if pick_continued == 10000:
-                return None, [out_samples, in_samples, joint_samples]
+                return [None], [out_samples, in_samples, joint_samples]
 
             if rxn_prob:
                 rt = _pick_reaction_type(rxn_prob)
@@ -938,7 +955,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
         while True:
 
             if pick_continued == 1000:
-                return None, [out_samples, in_samples, joint_samples]
+                return [None], [out_samples, in_samples, joint_samples]
 
             if rxn_prob:
                 rt = _pick_reaction_type(rxn_prob)
@@ -1450,7 +1467,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
         pick_continued = 0
         while True:
             if pick_continued == 1000:
-                return None, [out_samples, in_samples, joint_samples]
+                return [None], [out_samples, in_samples, joint_samples]
 
             if rxn_prob:
                 rt = _pick_reaction_type(rxn_prob)
@@ -1993,7 +2010,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
         while True:
 
             if pick_continued == 1000:
-                return None, [out_samples, in_samples, joint_samples]
+                return [None], [out_samples, in_samples, joint_samples]
 
             if rxn_prob:
                 rt = _pick_reaction_type(rxn_prob)
@@ -2664,7 +2681,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 # reaction_list = [numSpecies, reaction, reaction, ....]
 # reaction = [reactionType, [list of reactants], [list of products], rateConstant]
 
-# todo: allow this to take the networks from network directory
+# todo: allow this to read networks from network directory
 def get_full_stoichiometry_matrix(reaction_list):
     n_species = reaction_list[0]
     reaction_list_copy = deepcopy(reaction_list)
@@ -2765,7 +2782,6 @@ def generate_simple_linear(n_species):
         else:
             reactant = max(last_products)
 
-        # product = max(set.union(node_set, {reactant})) + 1
         product = reactant + 1
         last_products = {product}
 
@@ -2783,10 +2799,9 @@ def generate_simple_linear(n_species):
     return reaction_list, edge_list
 
 
-def generate_simple_cyclic(mod_i, min_species, max_species, linkage, n_cycles):
+def generate_simple_cyclic(min_species, max_species, n_cycles):
 
     reaction_list = []
-    n_species = 0
 
     node_set = set()
     last_product = None
@@ -2796,7 +2811,6 @@ def generate_simple_cyclic(mod_i, min_species, max_species, linkage, n_cycles):
 
     for _ in range(n_cycles):
         cycle_lengths.append(random.choice(range(min_species, max_species+1)))
-    print(cycle_lengths)
 
     for i in range(cycle_lengths[0]-1):
 
@@ -2855,7 +2869,6 @@ def generate_simple_branched(n_species, seeds, path_probs, tips):
     reaction_list = []
     edge_list = []
     node_set = set()
-    last_products = None
 
     if not path_probs:
         path_probs = [.25, .5, .25]
@@ -2875,23 +2888,13 @@ def generate_simple_branched(n_species, seeds, path_probs, tips):
     if tips:
         stems_dict = defaultdict(int)
         while grow:
-            print('------------------------------------')
 
             stems_list = []
             for bud in buds:
                 if bud in stems_dict and stems_dict[bud] not in stems_list:
                     stems_list.append(stems_dict[bud])
-            print()
-            print('stems', stems_list)
-            print('buds', buds)
-            print()
-
-            # for each in stems_dict:
-            #     stems_list.append(stems_dict[each])
 
             route = random.choices([0, 1, 2], path_probs)[0]
-            print()
-            print(route)
 
             if route == 0:
 
@@ -2932,8 +2935,6 @@ def generate_simple_branched(n_species, seeds, path_probs, tips):
                 edge_list.append([reactant, product])
                 buds.remove(reactant)
 
-            for each in reaction_list:
-                print(each)
             if len(node_set) == n_species:
                 grow = False
 
@@ -2992,11 +2993,7 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
                     mod_species_as_linear, strict_linear):
 
     reaction_list = []
-    # reaction_list2 = []
-    # metabolic_edge_list = []
 
-    # todo: finish pick_continued
-    # todo: adaptable probabilities
     # ---------------------------------------------------------------------------------------------------
 
     nodes_list = [i for i in range(n_species)]
@@ -3007,7 +3004,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
     while True:
 
-        # todo: This is an issue for larger networks: link cutoff with number of species
         if pick_continued == 10000:
             return None
 
@@ -3043,17 +3039,12 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
             reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant], [product]])
             edge_list.append([reactant, product])
 
             node_set.add(reactant)
             node_set.add(product)
             if mod_species_as_linear:
                 node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant != product:
-            #         metabolic_edge_list.append((reactant, product))
 
         if rt == TReactionType.BIUNI:
 
@@ -3093,7 +3084,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
             reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant1, reactant2], [product]])
             edge_list.append([reactant1, product])
             edge_list.append([reactant2, product])
 
@@ -3102,19 +3092,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             node_set.add(product)
             if mod_species_as_linear:
                 node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-            #         metabolic_edge_list.append((reactant1, product))
-            #         metabolic_edge_list.append((reactant2, product))
-            #     if reactant1 == reactant2 and reactant1 != product:
-            #         metabolic_edge_list.append((reactant1, product))
-            #     if reactant1 != reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append((reactant2, 'deg'))
-            #     if reactant1 != reactant2 and reactant2 == product:
-            #         metabolic_edge_list.append((reactant1, 'deg'))
-            #     if reactant1 == reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append((reactant1, 'deg'))
 
         if rt == TReactionType.UNIBI:
 
@@ -3155,7 +3132,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
             reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant], [product1, product2]])
             edge_list.append([reactant, product1])
             edge_list.append([reactant, product2])
 
@@ -3163,19 +3139,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             node_set.add(product1)
             node_set.add(product2)
             node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant != product1 and reactant != product2 and product1 != product2:
-            #         metabolic_edge_list.append((reactant, product1))
-            #         metabolic_edge_list.append((reactant, product2))
-            #     if reactant != product1 and product1 == product2:
-            #         metabolic_edge_list.append((reactant, product1))
-            #     if reactant == product1 and product1 != product2:
-            #         metabolic_edge_list.append(('syn', product2))
-            #     if reactant == product2 and product1 != product2:
-            #         metabolic_edge_list.append(('syn', product1))
-            #     if reactant == product1 and product1 == product2:
-            #         metabolic_edge_list.append(('syn', reactant))
 
         if rt == TReactionType.BIBI:
 
@@ -3219,7 +3182,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
             reaction_list.append(
                 [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant1, reactant2], [product1, product2]])
             edge_list.append([reactant1, product1])
             edge_list.append([reactant1, product2])
             edge_list.append([reactant2, product1])
@@ -3231,56 +3193,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
             node_set.add(product2)
             node_set.update(mod_species)
 
-            # if edge_type == 'metabolic':
-            #
-            #     if len({reactant1, reactant2, product1, product2}) == len([reactant1, reactant2, product1, product2]):
-            #
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant1, product2))
-            #         metabolic_edge_list.append((reactant2, product1))
-            #         metabolic_edge_list.append((reactant2, product2))
-            #
-            #     if reactant1 == reactant2 and \
-            #             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant1, product2))
-            #
-            #     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     if product1 == product2 and \
-            #             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant2, product1))
-            #
-            #     # ------------------------
-            #
-            #     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #
-            #     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant2, product1))
-            #
-            #     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant1, product2))
-            #
-            #     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     # ------------------------
-            #
-            #     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     # ------------------------
-            #
-            #     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-            #         metabolic_edge_list.append((reactant1, product1))
-
         if n_reactions:
             if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
                 break
@@ -3290,306 +3202,6 @@ def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_re
 
     reaction_list.insert(0, n_species)
     return reaction_list, edge_list
-
-
-def generate_cycle(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type,
-                   mod_species_as_linear, strict_linear):
-
-    reaction_list = []
-    reaction_list2 = []
-    # metabolic_edge_list = []
-
-    # todo: finish pick_continued
-    # todo: adaptable probabilities
-    # ---------------------------------------------------------------------------------------------------
-
-    nodes_list = [i for i in range(n_species)]
-
-    node_set = set()
-    pick_continued = 0
-    last_products = None
-
-    while True:
-
-        # todo: This is an issue for larger networks: link cutoff with number of species
-        if pick_continued == 10000:
-            return None
-
-        if rxn_prob:
-            rt = _pick_reaction_type(rxn_prob)
-        else:
-            rt = _pick_reaction_type()
-
-        mod_num = 0
-        if mod_reg:
-            mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
-
-        # -----------------------------------------------------------------------------
-
-        if rt == TReactionType.UNIUNI:
-
-            if not node_set:
-                reactant = random.choice(nodes_list)
-            else:
-                reactant = random.choice(list(last_products))
-
-            product = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            last_products = {product}
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant} - {product}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
-            reaction_list2.append([[reactant], [product]])
-
-            node_set.add(reactant)
-            node_set.add(product)
-            if mod_species_as_linear:
-                node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant != product:
-            #         metabolic_edge_list.append((reactant, product))
-
-        if rt == TReactionType.BIUNI:
-
-            if not node_set:
-                reactant1 = random.choice(nodes_list)
-                reactant2 = random.choice(nodes_list)
-            else:
-                reactant1 = random.choice(list(last_products))
-                if strict_linear:
-                    reactant2 = random.choice(list(last_products))
-                else:
-                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
-
-            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
-                product = len(nodes_list)
-                n_species += 1
-            else:
-                product = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            last_products = {product}
-
-            if not mass_violating_reactions and product in {reactant1, reactant2}:
-                pick_continued += 1
-                continue
-
-            if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2} - {product}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant1, reactant2} - {product}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant1, reactant2], [product]])
-
-            node_set.add(reactant1)
-            node_set.add(reactant2)
-            node_set.add(product)
-            if mod_species_as_linear:
-                node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
-            #         metabolic_edge_list.append((reactant1, product))
-            #         metabolic_edge_list.append((reactant2, product))
-            #     if reactant1 == reactant2 and reactant1 != product:
-            #         metabolic_edge_list.append((reactant1, product))
-            #     if reactant1 != reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append((reactant2, 'deg'))
-            #     if reactant1 != reactant2 and reactant2 == product:
-            #         metabolic_edge_list.append((reactant1, 'deg'))
-            #     if reactant1 == reactant2 and reactant1 == product:
-            #         metabolic_edge_list.append((reactant1, 'deg'))
-
-        if rt == TReactionType.UNIBI:
-
-            if not node_set:
-                reactant = random.choice(nodes_list)
-            else:
-                reactant = random.choice(list(last_products))
-
-            if len(set(nodes_list) - node_set - {reactant}) == 0:
-                product1 = len(nodes_list)
-                product2 = len(nodes_list) + 1
-                n_species += 2
-            elif len(set(nodes_list) - node_set - {reactant}) == 1:
-                product1 = len(nodes_list)
-                n_species += 1
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            else:
-                product1 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            last_products = {product1, product2}
-
-            if not mass_violating_reactions and reactant in {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product1, product2}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant} - {product1, product2}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant], [product1, product2]])
-
-            node_set.add(reactant)
-            node_set.add(product1)
-            node_set.add(product2)
-            node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #     if reactant != product1 and reactant != product2 and product1 != product2:
-            #         metabolic_edge_list.append((reactant, product1))
-            #         metabolic_edge_list.append((reactant, product2))
-            #     if reactant != product1 and product1 == product2:
-            #         metabolic_edge_list.append((reactant, product1))
-            #     if reactant == product1 and product1 != product2:
-            #         metabolic_edge_list.append(('syn', product2))
-            #     if reactant == product2 and product1 != product2:
-            #         metabolic_edge_list.append(('syn', product1))
-            #     if reactant == product1 and product1 == product2:
-            #         metabolic_edge_list.append(('syn', reactant))
-
-        if rt == TReactionType.BIBI:
-
-            if not node_set:
-                reactant1 = random.choice(nodes_list)
-                reactant2 = random.choice(nodes_list)
-            else:
-                reactant1 = random.choice(list(last_products))
-                if strict_linear:
-                    reactant2 = random.choice(list(last_products))
-                else:
-                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
-
-            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
-                product1 = len(nodes_list)
-                product2 = len(nodes_list) + 1
-                n_species += 2
-            elif len(set(nodes_list) - node_set - {reactant1, reactant2}) == 1:
-                product1 = len(nodes_list)
-                n_species += 1
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            else:
-                product1 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            last_products = {product1, product2}
-
-            if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2}
-                                                 - {product1, product2}),
-                                            min(mod_num, len(list(set(nodes_list) - node_set - {reactant1, reactant2}
-                                                                  - {product1, product2}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append(
-                [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
-            # reaction_list2.append([[reactant1, reactant2], [product1, product2]])
-
-            node_set.add(reactant1)
-            node_set.add(reactant2)
-            node_set.add(product1)
-            node_set.add(product2)
-            node_set.update(mod_species)
-
-            # if edge_type == 'metabolic':
-            #
-            #     if len({reactant1, reactant2, product1, product2}) == len([reactant1, reactant2, product1, product2]):
-            #
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant1, product2))
-            #         metabolic_edge_list.append((reactant2, product1))
-            #         metabolic_edge_list.append((reactant2, product2))
-            #
-            #     if reactant1 == reactant2 and \
-            #             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant1, product2))
-            #
-            #     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     if product1 == product2 and \
-            #             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
-            #         metabolic_edge_list.append((reactant1, product1))
-            #         metabolic_edge_list.append((reactant2, product1))
-            #
-            #     # ------------------------
-            #
-            #     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #
-            #     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant2, product1))
-            #
-            #     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant1, product2))
-            #
-            #     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     # ------------------------
-            #
-            #     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
-            #         metabolic_edge_list.append((reactant1, product1))
-            #
-            #     # ------------------------
-            #
-            #     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
-            #         metabolic_edge_list.append((reactant2, product2))
-            #     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
-            #         metabolic_edge_list.append((reactant1, product1))
-
-        if n_reactions:
-            if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
-                break
-        else:
-            if len(node_set) == n_species:
-                break
-
-    reaction_list.insert(0, n_species)
-    return reaction_list
-
-
-def generate_branch(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, edge_type, reaction_type):
-
-    print('branch')
 
 
 def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme):
@@ -3640,7 +3252,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     dims = st.shape
 
-    # n_species = dims[0]
     n_reactions = dims[1]
 
     species_ids = np.arange(n_species)
@@ -4907,7 +4518,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     if kinetics[0] == 'lin_log':
 
-        hs = []
+        rc = []
 
         reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
@@ -4937,19 +4548,19 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
                 ant_str += ')'
 
@@ -4966,27 +4577,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
                 ant_str += ')'
 
@@ -5003,27 +4614,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -2:
-                            ant_str += ' - ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
                 ant_str += ')'
 
@@ -5042,31 +4653,31 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -2:
-                            ant_str += ' - ' + '2*log(S' + str(each) + '/hs_' + str(each) + '_' + str(reaction_index) \
+                            ant_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
-                            hs.append('hs_' + str(each) + '_' + str(reaction_index))
+                            rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
                 ant_str += ')'
             ant_str += '\n'
@@ -5112,13 +4723,13 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
         ant_str += '\n'
 
-        for each in hs:
+        for each in rc:
             if kinetics[1] == 'trivial':
                 ant_str += each + ' = 1\n'
             else:
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('hs')][0],
-                                    scale=kinetics[3][kinetics[2].index('hs')][1]
-                                    - kinetics[3][kinetics[2].index('hs')][0])
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
+                                    scale=kinetics[3][kinetics[2].index('rc')][1]
+                                    - kinetics[3][kinetics[2].index('rc')][0])
                 ant_str += each + ' = ' + str(const) + '\n'
 
         if 'deg' in kinetics[2]:
@@ -5156,19 +4767,19 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
         # todo: Save this later. Allow for different distributions types depending on parameter type
         # if kinetics[1] == 'uniform':
-        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('hs')][0],
-        #                         scale=kinetics[3][kinetics[2].index('hs')][1]
-        #                         - kinetics[3][kinetics[2].index('hs')][0])
+        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
+        #                         scale=kinetics[3][kinetics[2].index('rc')][1]
+        #                         - kinetics[3][kinetics[2].index('rc')][0])
         #     ant_str += each + ' = ' + str(const) + '\n'
         #
         # if kinetics[1] == 'loguniform':
-        #     const = uniform.rvs(kinetics[3][kinetics[2].index('hs')][0],
-        #                         kinetics[3][kinetics[2].index('hs')][1])
+        #     const = uniform.rvs(kinetics[3][kinetics[2].index('rc')][0],
+        #                         kinetics[3][kinetics[2].index('rc')][1])
         #     ant_str += each + ' = ' + str(const) + '\n'
         #
         # if kinetics[1] == 'normal':
-        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('hs')][0],
-        #                         scale=kinetics[3][kinetics[2].index('hs')][1])
+        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
+        #                         scale=kinetics[3][kinetics[2].index('rc')][1])
         #     ant_str += each + ' = ' + str(const) + '\n'
         #
         # if kinetics[1] == 'lognormal':
@@ -6912,27 +6523,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                    scale=kinetics[3][kinetics[2].index('mol')][1]
-                                    - kinetics[3][kinetics[2].index('mol')][0])
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                    scale=kinetics[3][kinetics[2].index('m')][1]
+                                    - kinetics[3][kinetics[2].index('m')][0])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0],
-                                       kinetics[3][kinetics[2].index('mol')][1])
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('m')][0],
+                                       kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                     scale=kinetics[3][kinetics[2].index('mol')][1])
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                     scale=kinetics[3][kinetics[2].index('m')][1])
                     if const >= 0:
                         ant_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0],
-                                    s=kinetics[3][kinetics[2].index('mol')][1])
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('m')][0],
+                                    s=kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
         if m:
@@ -6946,27 +6557,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                    scale=kinetics[3][kinetics[2].index('mol')][1]
-                                    - kinetics[3][kinetics[2].index('mol')][0])
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                    scale=kinetics[3][kinetics[2].index('m')][1]
+                                    - kinetics[3][kinetics[2].index('m')][0])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0],
-                                       kinetics[3][kinetics[2].index('mol')][1])
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('m')][0],
+                                       kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                     scale=kinetics[3][kinetics[2].index('mol')][1])
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                     scale=kinetics[3][kinetics[2].index('m')][1])
                     if const >= 0:
                         ant_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0],
-                                    s=kinetics[3][kinetics[2].index('mol')][1])
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('m')][0],
+                                    s=kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
         if ma:
@@ -6980,27 +6591,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                    scale=kinetics[3][kinetics[2].index('mol')][1]
-                                    - kinetics[3][kinetics[2].index('mol')][0])
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                    scale=kinetics[3][kinetics[2].index('m')][1]
+                                    - kinetics[3][kinetics[2].index('m')][0])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('mol')][0],
-                                       kinetics[3][kinetics[2].index('mol')][1])
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('m')][0],
+                                       kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('mol')][0],
-                                     scale=kinetics[3][kinetics[2].index('mol')][1])
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
+                                     scale=kinetics[3][kinetics[2].index('m')][1])
                     if const >= 0:
                         ant_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('mol')][0],
-                                    s=kinetics[3][kinetics[2].index('mol')][1])
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('m')][0],
+                                    s=kinetics[3][kinetics[2].index('m')][1])
                 ant_str += each + ' = ' + str(const) + '\n'
 
         if ms:

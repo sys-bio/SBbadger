@@ -8,26 +8,12 @@ import antimony
 import matplotlib.pyplot as plt
 import numpy as np
 import pydot
+import io
 
 
-def generate_distributions(verbose_exceptions=False, group_name=None, n_models=None, n_species=None, in_dist='random',
-                           out_dist='random', output_dir=None, overwrite=False, joint_dist=None, in_range=None,
-                           out_range=None, joint_range=None, min_node_deg=1.0, dist_plots=False):
-
-    if group_name is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
-
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
+def generate_distributions(verbose_exceptions=False, group_name='test', n_models=1, n_species=100, in_dist='random',
+                           out_dist='random', output_dir=None, overwrite=True, joint_dist=None, in_range=None,
+                           out_range=None, joint_range=None, min_freq=1.0, dist_plots=True):
 
     if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
         if not verbose_exceptions:
@@ -70,6 +56,15 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception("The provided joint degree distribution does not add to 1")
+
+    if isinstance(in_dist, list) and all(isinstance(x[1], int) for x in in_dist) \
+            and isinstance(out_dist, list) and all(isinstance(x[1], int) for x in out_dist) \
+            and sum(int(x[0]) * int(x[1]) for x in in_dist) != sum(int(x[0]) * int(x[1]) for x in out_dist):
+
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception("The total in-edges do not match the total out-edges. "
+                        "Please revise these frequency distributions.")
 
     num_existing_models = 0
     if output_dir:
@@ -118,7 +113,7 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
     while i < num_existing_models + n_models:
 
         in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
-            n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range, out_range, joint_range)
+            n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
 
         if output_dir:
             dist_dir = os.path.join(output_dir, 'models', group_name, 'distributions', group_name + '_' + str(i)
@@ -221,6 +216,11 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
                 fig = plt.figure()
                 ax1 = fig.add_subplot(111, projection='3d')
                 ax1.bar3d(x, y, z, dx, dy, dz)
+
+                ax1.set_xlabel("Out-Edge Degree")
+                ax1.set_ylabel("In-Edge Degree")
+                ax1.set_zlabel("Number of Nodes")
+
                 plt.savefig(os.path.join('models', group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
                                          + '.png'))
                 plt.close()
@@ -228,14 +228,9 @@ def generate_distributions(verbose_exceptions=False, group_name=None, n_models=N
         i += 1
 
 
-def generate_networks(verbose_exceptions=False, group_name='', n_reactions=None, overwrite=False, rxn_prob=None,
+def generate_networks(verbose_exceptions=False, group_name='test', n_reactions=None, overwrite=True, rxn_prob=None,
                       rev_prob=False, mod_reg=None, mass_violating_reactions=True, directory='', edge_type='generic',
-                      reaction_type=None, net_plots=False):
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
+                      reaction_type=None, net_plots=True):
 
     if directory is '':
         if not verbose_exceptions:
@@ -398,18 +393,20 @@ def generate_networks(verbose_exceptions=False, group_name='', n_reactions=None,
                     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
                     for each in edges:
                         graph.add_edge(pydot.Edge(each[0], each[1]))
-                    else:
-                        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind)
-                                                     + '.png'))
+                    graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind)
+                                                 + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind) + '.dot'),
+                                format='dot')
 
 
-def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, kinetics=None, overwrite=False,
+def generate_models(verbose_exceptions=False, group_name='test', add_enzyme=False, kinetics=None, overwrite=True,
                     rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None, directory=''):
 
     if kinetics is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        # if not verbose_exceptions:
+        #     sys.tracebacklimit = 0
+        # raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
@@ -417,10 +414,8 @@ def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, k
         raise Exception('Regulators are relevant only to modular kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
+    if ic_params is None:
+        ic_params = ['uniform', 0, 10]
 
     if directory is '':
         if not verbose_exceptions:
@@ -558,12 +553,18 @@ def generate_models(verbose_exceptions=False, group_name='', add_enzyme=False, k
                     antimony.clearPreviousLoads()
 
 
-def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=None,
-        n_species=None, n_reactions=None, kinetics=None, in_dist='random', out_dist='random',
-        output_dir=None, overwrite=False, rxn_prob=None, rev_prob=False, joint_dist=None,
-        in_range=None, out_range=None, joint_range=None, min_node_deg=1.0, ic_params=None,
-        mod_reg=None, mass_violating_reactions=True, dist_plots=False, net_plots=False,
-        edge_type='generic', reaction_type=None):
+def generate(verbose_exceptions=False, group_name='test', add_enzyme=False, n_models=1,
+             n_species=100, n_reactions=None, kinetics=None, in_dist='random', out_dist='random',
+             output_dir=None, overwrite=True, rxn_prob=None, rev_prob=False, joint_dist=None,
+             in_range=None, out_range=None, joint_range=None, min_freq=1.0, ic_params=None,
+             mod_reg=None, mass_violating_reactions=True, dist_plots=True, net_plots=True,
+             edge_type='generic', reaction_type=None):
+
+    if kinetics is None:
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        # if not verbose_exceptions:
+        #     sys.tracebacklimit = 0
+        # raise Exception('Please provide the type of kinetics to use. See example run file for available options')
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
@@ -571,22 +572,8 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         raise Exception('Regulators are relevant only to modular kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
-    if group_name is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
-    if kinetics is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide the type of kinetics to use. See example run file for available options')
+    if ic_params is None:
+        ic_params = ['uniform', 0, 10]
 
     if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
         if not verbose_exceptions:
@@ -636,6 +623,15 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception("Node degree cannot be less than 1.")
+
+    if isinstance(in_dist, list) and all(isinstance(x[1], int) for x in in_dist) \
+            and isinstance(out_dist, list) and all(isinstance(x[1], int) for x in out_dist) \
+            and sum(int(x[0])*int(x[1]) for x in in_dist) != sum(int(x[0])*int(x[1]) for x in out_dist):
+
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception("The total in-edges do not match the total out-edges. "
+                        "Please revise these frequency distributions.")
 
     num_existing_models = 0
     if output_dir:
@@ -701,6 +697,8 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
     i = num_existing_models
     while i < num_existing_models + n_models:
 
+        # print(i)
+
         in_samples = []
         out_samples = []
         joint_samples = []
@@ -709,7 +707,9 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         el = [[]]
 
         rl_failed_count = -1
+
         while not rl[0]:
+
             rl_failed_count += 1
             if rl_failed_count == 100:
                 print(i, 'failed')
@@ -724,12 +724,13 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
                 break
 
             in_samples, out_samples, joint_samples = \
-                buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_range,
+                buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
                                                out_range, joint_range)
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                       rxn_prob, mod_reg, mass_violating_reactions, edge_type,
                                                       reaction_type)
+            # print(rl)
 
         if not rl[0]:
             i += 1
@@ -765,14 +766,29 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
 
             graph = pydot.Dot(graph_type="digraph")
             graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+            node_ids = set()
+            for each in edges:
+                node_ids.add(each[0])
+                node_ids.add(each[1])
+            for each in node_ids:
+                # print(each)
+                graph.add_node(pydot.Node(each))
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
-
             if output_dir:
                 graph.write_png(os.path.join(output_dir, 'models', group_name, 'net_figs', group_name + '_' + str(i)
                                              + '.png'))
+                graph.write(os.path.join(output_dir, 'models', group_name, 'net_figs', group_name + '_' + str(i)
+                                         + '.dot'), format='dot')
             else:
                 graph.write_png(os.path.join('models', group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                graph.write(os.path.join('models', group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                            format='dot')
+
+                # output graph to Dot object
+                # graph_file = graph.create_dot(prog='dot')
+                # graph_file = graph_file.decode('ascii')
+                # graph_file = pydot.graph_from_dot_data(graph_file)[0]
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         if output_dir:
@@ -805,7 +821,7 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         # todo: write separate script for visualization?
         if dist_plots:
 
-            if in_samples:
+            if in_samples and not out_samples:
                 x = [dist_ind[0] for dist_ind in in_samples]
                 y = [dist_ind[1] for dist_ind in in_samples]
                 plt.figure()
@@ -818,7 +834,7 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
                                          + '.png'))
                 plt.close()
 
-            if out_samples:
+            if out_samples and not in_samples:
                 x = [dist_ind[0] for dist_ind in out_samples]
                 y = [dist_ind[1] for dist_ind in out_samples]
                 plt.figure()
@@ -883,6 +899,11 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
                 fig = plt.figure()
                 ax1 = fig.add_subplot(111, projection='3d')
                 ax1.bar3d(x, y, z, dx, dy, dz)
+
+                ax1.set_xlabel("Out-Edge Degree")
+                ax1.set_ylabel("In-Edge Degree")
+                ax1.set_zlabel("Number of Nodes")
+
                 plt.savefig(os.path.join('models', group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
                                          + '.png'))
                 plt.close()
@@ -901,23 +922,8 @@ def run(verbose_exceptions=False, group_name=None, add_enzyme=False, n_models=No
         i += 1
 
 
-def simple_linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_models=None,
-                  kinetics=None, overwrite=False, rev_prob=False, ic_params=None, directory='', net_plots=False):
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
+def simple_linear(verbose_exceptions=False, group_name='linear', add_enzyme=False, n_species=10, n_models=1,
+                  kinetics=None, overwrite=True, rev_prob=False, ic_params=None, directory='', net_plots=True):
 
     if directory is '':
         if not verbose_exceptions:
@@ -1009,9 +1015,9 @@ def simple_linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_s
 
             rl, el = buildNetworks.generate_simple_linear(n_species)
 
-            print()
-            for each in rl:
-                print(each)
+            # print()
+            # for each in rl:
+            #     print(each)
 
             if not rl[0]:
 
@@ -1051,6 +1057,8 @@ def simple_linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_s
                         graph.add_edge(pydot.Edge(each[0], each[1]))
 
                     graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                                format='dot')
 
                 ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1066,29 +1074,9 @@ def simple_linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_s
                 antimony.clearPreviousLoads()
 
 
-def simple_cyclic(verbose_exceptions=False, group_name='', add_enzyme=False, min_species=None, max_species=None,
-                  linkage=1, n_cycles=1, n_models=None, kinetics=None, overwrite=False, rev_prob=False,
-                  ic_params=None, directory='', net_plots=False):
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if min_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide min_species (the minimum number of species per cycle).')
-
-    if max_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide max_species (the maximum number of species per cycle).')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
+def simple_cyclic(verbose_exceptions=False, group_name='cyclic', add_enzyme=False, min_species=10, max_species=20,
+                  linkage=1, n_cycles=1, n_models=1, kinetics=None, overwrite=True, rev_prob=False,
+                  ic_params=None, directory='', net_plots=True):
 
     if directory is '':
         if not verbose_exceptions:
@@ -1178,11 +1166,11 @@ def simple_cyclic(verbose_exceptions=False, group_name='', add_enzyme=False, min
 
         for i in range(n_models):
 
-            rl, el = buildNetworks.generate_simple_cyclic(i, min_species, max_species, linkage, n_cycles)
+            rl, el = buildNetworks.generate_simple_cyclic(i, min_species, max_species, n_cycles)
 
-            print()
-            for each in rl:
-                print(each)
+            # print()
+            # for each in rl:
+            #     print(each)
 
             if not rl[0]:
 
@@ -1191,7 +1179,7 @@ def simple_cyclic(verbose_exceptions=False, group_name='', add_enzyme=False, min
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
             else:
-                print(i)
+                # print(i)
                 net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv')
                 with open(net_dir, 'w') as f:
                     for j, each in enumerate(rl):
@@ -1222,6 +1210,8 @@ def simple_cyclic(verbose_exceptions=False, group_name='', add_enzyme=False, min
                         graph.add_edge(pydot.Edge(each[0], each[1]))
 
                     graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                                format='neato')
 
                 ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1237,24 +1227,9 @@ def simple_cyclic(verbose_exceptions=False, group_name='', add_enzyme=False, min
                 antimony.clearPreviousLoads()
 
 
-def simple_branched(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_models=None,
-                    kinetics=None, overwrite=False, rev_prob=False, ic_params=None, directory='', net_plots=False,
+def simple_branched(verbose_exceptions=False, group_name='branched', add_enzyme=False, n_species=20, n_models=1,
+                    kinetics=None, overwrite=True, rev_prob=False, ic_params=None, directory='', net_plots=True,
                     seeds=1, path_probs=None, tips=False):
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
 
     if directory is '':
         if not verbose_exceptions:
@@ -1346,9 +1321,9 @@ def simple_branched(verbose_exceptions=False, group_name='', add_enzyme=False, n
 
             rl, el = buildNetworks.generate_simple_branched(n_species, seeds, path_probs, tips)
 
-            print()
-            for each in rl:
-                print(each)
+            # print()
+            # for each in rl:
+            #     print(each)
 
             if not rl[0]:
 
@@ -1388,6 +1363,8 @@ def simple_branched(verbose_exceptions=False, group_name='', add_enzyme=False, n
                         graph.add_edge(pydot.Edge(each[0], each[1]))
 
                     graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                                format='dot')
 
                 ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1403,31 +1380,16 @@ def simple_branched(verbose_exceptions=False, group_name='', add_enzyme=False, n
                 antimony.clearPreviousLoads()
 
 
-def linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=None, n_reactions=None, n_models=None,
-           kinetics=None, overwrite=False, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
+def linear(verbose_exceptions=False, group_name='linear2', add_enzyme=False, n_species=10, n_reactions=None, n_models=1,
+           kinetics=None, overwrite=True, rxn_prob=None, rev_prob=False, ic_params=None, mod_reg=None,
            mass_violating_reactions=True, directory='', edge_type='generic', reaction_type=None,
-           mod_species_as_linear=True, strict_linear=False, net_plots=False):
+           mod_species_as_linear=True, strict_linear=False, net_plots=True):
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to modular kinetics.\n'
                         'Please reset the run with appropriate parameters.')
-
-    if group_name is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a group_name.')
-
-    if n_species is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_species (the number of species).')
-
-    if n_models is None:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide n_models (the number of models).')
 
     if directory is '':
         if not verbose_exceptions:
@@ -1536,9 +1498,9 @@ def linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=
             rl, el = buildNetworks.generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions,
                                                    edge_type, reaction_type, mod_species_as_linear, strict_linear)
 
-            print()
-            for each in rl:
-                print(each)
+            # print()
+            # for each in rl:
+            #     print(each)
 
             if not rl[0]:
 
@@ -1572,12 +1534,14 @@ def linear(verbose_exceptions=False, group_name='', add_enzyme=False, n_species=
                     for each in el:
                         edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-                    graph = pydot.Dot(graph_type="digraph", layout="neato")
+                    graph = pydot.Dot(graph_type="digraph")
                     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
                     for each in edges:
                         graph.add_edge(pydot.Edge(each[0], each[1]))
 
                     graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
+                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                                format='dot')
 
                 ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
