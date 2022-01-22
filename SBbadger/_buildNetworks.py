@@ -16,14 +16,6 @@ from collections import defaultdict
 # todo: remove "metabolic" edges
 # todo: pyDot coordinates
 
-# General settings for the package
-def restore_default_probabilities():
-    """Restore the default settings for the reaction mechanism probabilities"""
-    Settings.ReactionProbabilities.UniUni = 0.35
-    Settings.ReactionProbabilities.BiUni = 0.3
-    Settings.ReactionProbabilities.UniBi = 0.3
-    Settings.ReactionProbabilities.BiBI = 0.05
-
 
 @dataclass
 class Settings:
@@ -2766,442 +2758,6 @@ def remove_boundary_nodes(st):
 
     boundary_ids = indexes
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
-
-
-def generate_simple_linear(n_species):
-
-    reaction_list = []
-    edge_list = []
-    node_set = set()
-    last_products = None
-
-    while True:
-
-        if not node_set:
-            reactant = 0
-        else:
-            reactant = max(last_products)
-
-        product = reactant + 1
-        last_products = {product}
-
-        reaction_list.append([0, [reactant], [product], [], [], []])
-        edge_list.append([reactant, product])
-
-        node_set.add(reactant)
-        node_set.add(product)
-
-        if len(node_set) == n_species:
-
-            break
-
-    reaction_list.insert(0, n_species)
-    return reaction_list, edge_list
-
-
-def generate_simple_cyclic(min_species, max_species, n_cycles):
-
-    reaction_list = []
-
-    node_set = set()
-    last_product = None
-    cycle_lengths = []
-    cycle_nodes = [set()]
-    edge_list = []
-
-    for _ in range(n_cycles):
-        cycle_lengths.append(random.choice(range(min_species, max_species+1)))
-
-    for i in range(cycle_lengths[0]-1):
-
-        if not node_set:
-            reactant = 0
-        else:
-            reactant = last_product
-
-        product = reactant + 1
-        last_product = product
-
-        reaction_list.append([0, [reactant], [product], [], [], []])
-        edge_list.append([reactant, product])
-
-        node_set.add(reactant)
-        node_set.add(product)
-        cycle_nodes[-1].add(reactant)
-        cycle_nodes[-1].add(product)
-
-    reaction_list.append([0, [last_product], [0], [], [], []])
-    edge_list.append([last_product, 0])
-
-    if len(cycle_lengths) > 1:
-
-        for cycle_length in cycle_lengths[1:]:
-
-            link = random.choice(list(node_set))
-
-            last_product += 1
-            reaction_list.append([0, [link], [last_product], [], [], []])
-            edge_list.append([link, last_product])
-
-            for _ in range(cycle_length - 2):
-
-                reactant = last_product
-                product = reactant + 1
-                last_product = product
-
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-
-                node_set.add(reactant)
-                node_set.add(product)
-                cycle_nodes[-1].add(reactant)
-                cycle_nodes[-1].add(product)
-
-            reaction_list.append([0, [last_product], [link], [], [], []])
-            edge_list.append([last_product, link])
-
-    reaction_list.insert(0, len(node_set))
-    return reaction_list, edge_list
-
-
-def generate_simple_branched(n_species, seeds, path_probs, tips):
-
-    reaction_list = []
-    edge_list = []
-    node_set = set()
-
-    if not path_probs:
-        path_probs = [.25, .5, .25]
-
-    buds = []
-    current = 0
-    for i in range(seeds):
-
-        buds.append(i)
-        node_set.add(i)
-        current = i + 1
-
-    grow = True
-    if len(node_set) >= n_species:
-        grow = False
-
-    if tips:
-        stems_dict = defaultdict(int)
-        while grow:
-
-            stems_list = []
-            for bud in buds:
-                if bud in stems_dict and stems_dict[bud] not in stems_list:
-                    stems_list.append(stems_dict[bud])
-
-            route = random.choices([0, 1, 2], path_probs)[0]
-
-            if route == 0:
-
-                if len(stems_list) == 0:
-                    continue
-
-                reactant = random.choice(stems_list)
-                product = current
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                node_set.add(product)
-                buds.append(product)
-                stems_dict[product] = reactant
-                current += 1
-
-            if route == 1:
-                reactant = random.choice(buds)
-                product = current
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                node_set.add(product)
-                buds.remove(reactant)
-                buds.append(product)
-                stems_dict[product] = reactant
-                current += 1
-
-            if route == 2:
-
-                if len(buds) == 1:
-                    continue
-                if len(stems_list) < 2:
-                    continue
-
-                reactant = random.choice(buds)
-                stem_choices = [stem for stem in stems_list if stem != stems_dict[reactant]]
-                product = random.choice(stem_choices)
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                buds.remove(reactant)
-
-            if len(node_set) == n_species:
-                grow = False
-
-    else:
-        stems = []
-        while grow:
-
-            route = random.choices([0, 1, 2], path_probs)[0]
-
-            if route == 0:
-
-                if len(stems) == 0:
-                    continue
-
-                reactant = random.choice(stems)
-                product = current
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                node_set.add(product)
-                buds.append(current)
-                current += 1
-
-            if route == 1:
-                reactant = random.choice(buds)
-                product = current
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                node_set.add(product)
-                buds.remove(reactant)
-                buds.append(product)
-                stems.append(reactant)
-                current += 1
-
-            if route == 2:
-
-                if len(buds) == 1:
-                    continue
-
-                reactant = random.choice(buds)
-                product_selection = set(stems) | set(buds)
-                product_selection = list(product_selection - {reactant})
-                product = random.choice(product_selection)
-                reaction_list.append([0, [reactant], [product], [], [], []])
-                edge_list.append([reactant, product])
-                buds.remove(reactant)
-                stems.append(reactant)
-
-            if len(node_set) == n_species:
-                grow = False
-
-    reaction_list.insert(0, n_species)
-    return reaction_list, edge_list
-
-
-def generate_linear(n_species, n_reactions, rxn_prob, mod_reg, mass_violating_reactions, reaction_type, edge_type,
-                    mod_species_as_linear, strict_linear):
-
-    reaction_list = []
-
-    # ---------------------------------------------------------------------------------------------------
-
-    nodes_list = [i for i in range(n_species)]
-    edge_list = []
-    node_set = set()
-    pick_continued = 0
-    last_products = None
-
-    while True:
-
-        if pick_continued == 10000:
-            return None
-
-        if rxn_prob:
-            rt = _pick_reaction_type(rxn_prob)
-        else:
-            rt = _pick_reaction_type()
-
-        mod_num = 0
-        if mod_reg:
-            mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
-
-        # -----------------------------------------------------------------------------
-
-        if rt == TReactionType.UNIUNI:
-
-            if not node_set:
-                reactant = random.choice(nodes_list)
-            else:
-                reactant = random.choice(list(last_products))
-
-            product = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            last_products = {product}
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant} - {product}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
-            edge_list.append([reactant, product])
-
-            node_set.add(reactant)
-            node_set.add(product)
-            if mod_species_as_linear:
-                node_set.update(mod_species)
-
-        if rt == TReactionType.BIUNI:
-
-            if not node_set:
-                reactant1 = random.choice(nodes_list)
-                reactant2 = random.choice(nodes_list)
-            else:
-                reactant1 = random.choice(list(last_products))
-                if strict_linear:
-                    reactant2 = random.choice(list(last_products))
-                else:
-                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
-
-            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
-                product = len(nodes_list)
-                n_species += 1
-            else:
-                product = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            last_products = {product}
-
-            if not mass_violating_reactions and product in {reactant1, reactant2}:
-                pick_continued += 1
-                continue
-
-            if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2} - {product}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant1, reactant2} - {product}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
-            edge_list.append([reactant1, product])
-            edge_list.append([reactant2, product])
-
-            node_set.add(reactant1)
-            node_set.add(reactant2)
-            node_set.add(product)
-            if mod_species_as_linear:
-                node_set.update(mod_species)
-
-        if rt == TReactionType.UNIBI:
-
-            if not node_set:
-                reactant = random.choice(nodes_list)
-            else:
-                reactant = random.choice(list(last_products))
-
-            if len(set(nodes_list) - node_set - {reactant}) == 0:
-                product1 = len(nodes_list)
-                product2 = len(nodes_list) + 1
-                n_species += 2
-            elif len(set(nodes_list) - node_set - {reactant}) == 1:
-                product1 = len(nodes_list)
-                n_species += 1
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            else:
-                product1 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant}))
-            last_products = {product1, product2}
-
-            if not mass_violating_reactions and reactant in {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant} - {product1, product2}),
-                                            min(mod_num, len(list(set(nodes_list) -
-                                                                  node_set - {reactant} - {product1, product2}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
-            edge_list.append([reactant, product1])
-            edge_list.append([reactant, product2])
-
-            node_set.add(reactant)
-            node_set.add(product1)
-            node_set.add(product2)
-            node_set.update(mod_species)
-
-        if rt == TReactionType.BIBI:
-
-            if not node_set:
-                reactant1 = random.choice(nodes_list)
-                reactant2 = random.choice(nodes_list)
-            else:
-                reactant1 = random.choice(list(last_products))
-                if strict_linear:
-                    reactant2 = random.choice(list(last_products))
-                else:
-                    reactant2 = random.choice(list(set(nodes_list) - (node_set - last_products)))
-
-            if len(set(nodes_list) - node_set - {reactant1, reactant2}) == 0:
-                product1 = len(nodes_list)
-                product2 = len(nodes_list) + 1
-                n_species += 2
-            elif len(set(nodes_list) - node_set - {reactant1, reactant2}) == 1:
-                product1 = len(nodes_list)
-                n_species += 1
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            else:
-                product1 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-                product2 = random.choice(list(set(nodes_list) - node_set - {reactant1, reactant2}))
-            last_products = {product1, product2}
-
-            if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                pick_continued += 1
-                continue
-
-            if mod_species_as_linear:
-                mod_species = random.sample(list(set(nodes_list) - node_set - {reactant1, reactant2}
-                                                 - {product1, product2}),
-                                            min(mod_num, len(list(set(nodes_list) - node_set - {reactant1, reactant2}
-                                                                  - {product1, product2}))))
-            else:
-                mod_species = random.sample(nodes_list, mod_num)
-
-            reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-            reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-
-            reaction_list.append(
-                [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
-            edge_list.append([reactant1, product1])
-            edge_list.append([reactant1, product2])
-            edge_list.append([reactant2, product1])
-            edge_list.append([reactant2, product2])
-
-            node_set.add(reactant1)
-            node_set.add(reactant2)
-            node_set.add(product1)
-            node_set.add(product2)
-            node_set.update(mod_species)
-
-        if n_reactions:
-            if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
-                break
-        else:
-            if len(node_set) == n_species:
-                break
-
-    reaction_list.insert(0, n_species)
-    return reaction_list, edge_list
 
 
 def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme):
@@ -6686,3 +6242,224 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             ant_str += 'E' + str(index) + ' = 1\n'
 
     return ant_str
+
+
+def generate_simple_linear(n_species):
+
+    reaction_list = []
+    edge_list = []
+    node_set = set()
+    last_products = None
+
+    while True:
+
+        if not node_set:
+            reactant = 0
+        else:
+            reactant = max(last_products)
+
+        product = reactant + 1
+        last_products = {product}
+
+        reaction_list.append([0, [reactant], [product], [], [], []])
+        edge_list.append([reactant, product])
+
+        node_set.add(reactant)
+        node_set.add(product)
+
+        if len(node_set) == n_species:
+
+            break
+
+    reaction_list.insert(0, n_species)
+    return reaction_list, edge_list
+
+
+def generate_simple_cyclic(min_species, max_species, n_cycles):
+
+    reaction_list = []
+
+    node_set = set()
+    last_product = None
+    cycle_lengths = []
+    cycle_nodes = [set()]
+    edge_list = []
+
+    for _ in range(n_cycles):
+        cycle_lengths.append(random.choice(range(min_species, max_species+1)))
+
+    for i in range(cycle_lengths[0]-1):
+
+        if not node_set:
+            reactant = 0
+        else:
+            reactant = last_product
+
+        product = reactant + 1
+        last_product = product
+
+        reaction_list.append([0, [reactant], [product], [], [], []])
+        edge_list.append([reactant, product])
+
+        node_set.add(reactant)
+        node_set.add(product)
+        cycle_nodes[-1].add(reactant)
+        cycle_nodes[-1].add(product)
+
+    reaction_list.append([0, [last_product], [0], [], [], []])
+    edge_list.append([last_product, 0])
+
+    if len(cycle_lengths) > 1:
+
+        for cycle_length in cycle_lengths[1:]:
+
+            link = random.choice(list(node_set))
+
+            last_product += 1
+            reaction_list.append([0, [link], [last_product], [], [], []])
+            edge_list.append([link, last_product])
+
+            for _ in range(cycle_length - 2):
+
+                reactant = last_product
+                product = reactant + 1
+                last_product = product
+
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+
+                node_set.add(reactant)
+                node_set.add(product)
+                cycle_nodes[-1].add(reactant)
+                cycle_nodes[-1].add(product)
+
+            reaction_list.append([0, [last_product], [link], [], [], []])
+            edge_list.append([last_product, link])
+
+    reaction_list.insert(0, len(node_set))
+    return reaction_list, edge_list
+
+
+def generate_simple_branched(n_species, seeds, path_probs, tips):
+
+    reaction_list = []
+    edge_list = []
+    node_set = set()
+
+    if not path_probs:
+        path_probs = [.25, .5, .25]
+
+    buds = []
+    current = 0
+    for i in range(seeds):
+
+        buds.append(i)
+        node_set.add(i)
+        current = i + 1
+
+    grow = True
+    if len(node_set) >= n_species:
+        grow = False
+
+    if tips:
+        stems_dict = defaultdict(int)
+        while grow:
+
+            stems_list = []
+            for bud in buds:
+                if bud in stems_dict and stems_dict[bud] not in stems_list:
+                    stems_list.append(stems_dict[bud])
+
+            route = random.choices([0, 1, 2], path_probs)[0]
+
+            if route == 0:
+
+                if len(stems_list) == 0:
+                    continue
+
+                reactant = random.choice(stems_list)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.append(product)
+                stems_dict[product] = reactant
+                current += 1
+
+            if route == 1:
+                reactant = random.choice(buds)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.remove(reactant)
+                buds.append(product)
+                stems_dict[product] = reactant
+                current += 1
+
+            if route == 2:
+
+                if len(buds) == 1:
+                    continue
+                if len(stems_list) < 2:
+                    continue
+
+                reactant = random.choice(buds)
+                stem_choices = [stem for stem in stems_list if stem != stems_dict[reactant]]
+                product = random.choice(stem_choices)
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                buds.remove(reactant)
+
+            if len(node_set) == n_species:
+                grow = False
+
+    else:
+        stems = []
+        while grow:
+
+            route = random.choices([0, 1, 2], path_probs)[0]
+
+            if route == 0:
+
+                if len(stems) == 0:
+                    continue
+
+                reactant = random.choice(stems)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.append(current)
+                current += 1
+
+            if route == 1:
+                reactant = random.choice(buds)
+                product = current
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                node_set.add(product)
+                buds.remove(reactant)
+                buds.append(product)
+                stems.append(reactant)
+                current += 1
+
+            if route == 2:
+
+                if len(buds) == 1:
+                    continue
+
+                reactant = random.choice(buds)
+                product_selection = set(stems) | set(buds)
+                product_selection = list(product_selection - {reactant})
+                product = random.choice(product_selection)
+                reaction_list.append([0, [reactant], [product], [], [], []])
+                edge_list.append([reactant, product])
+                buds.remove(reactant)
+                stems.append(reactant)
+
+            if len(node_set) == n_species:
+                grow = False
+
+    reaction_list.insert(0, n_species)
+    return reaction_list, edge_list

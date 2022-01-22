@@ -1,5 +1,5 @@
 
-import SBbadger
+import generate
 from scipy.stats import zipf
 
 
@@ -13,7 +13,7 @@ def out_dist(k):
 
 if __name__ == "__main__":
 
-    SBbadger.generate(
+    generate.models(
         group_name="simple_example",
         n_species=100,
         kinetics=['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]],
