@@ -91,17 +91,14 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     def single_unbounded_pmf(sdist):
         """Assumes starting degree of 1 and extends until cutoff found"""
-        print('------------------')
+
         deg = 1
         while True:
             dist = []
             for j in range(deg):
                 dist.append(sdist(j + 1))
-            print()
-            print(dist)
             distsum = sum(dist)
             dist_n = [x * n_species / distsum for x in dist]
-            print(dist_n)
             if any(elem < min_node_deg for elem in dist_n[:-1]) and dist_n[-1] >= min_node_deg:
                 raise Exception("\nThe provided distribution appears to be malformed; consider revising.")
             elif dist_n[-1] < min_node_deg:

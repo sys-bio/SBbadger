@@ -22,7 +22,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
     rl = [None]
     el = [[]]
 
-    rl_failed_count = 0
+    rl_failed_count = -1
 
     while not rl[0]:
 
