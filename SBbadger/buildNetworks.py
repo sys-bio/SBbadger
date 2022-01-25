@@ -9,12 +9,8 @@ from collections import defaultdict
 
 # todo: mass balance
 # todo: reversible edges
-# todo: confer with Jin
-# todo: missed range cases
 # todo: revisit pick_continued
 # todo: adaptable probabilities
-# todo: remove "metabolic" edges
-# todo: pyDot coordinates
 
 
 @dataclass
@@ -95,15 +91,18 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     def single_unbounded_pmf(sdist):
         """Assumes starting degree of 1 and extends until cutoff found"""
-
+        print('------------------')
         deg = 1
         while True:
             dist = []
             for j in range(deg):
                 dist.append(sdist(j + 1))
+            print()
+            print(dist)
             distsum = sum(dist)
             dist_n = [x * n_species / distsum for x in dist]
-            if any(elem < min_node_deg for elem in dist_n[:-1]):
+            print(dist_n)
+            if any(elem < min_node_deg for elem in dist_n[:-1]) and dist_n[-1] >= min_node_deg:
                 raise Exception("\nThe provided distribution appears to be malformed; consider revising.")
             elif dist_n[-1] < min_node_deg:
                 pmf0 = dist[:-1]
@@ -431,13 +430,13 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
         if in_dist == out_dist and in_range and in_range == out_range:
             input_case = 10
         if in_dist == out_dist and in_range != out_range:
-            input_case = 11  # todo (maybe): add this (unlikely edge) case
+            input_case = 11
         if in_dist != out_dist and in_range is None and out_range is None:
             input_case = 12
         if in_dist != out_dist and in_range and in_range == out_range:
             input_case = 13
         if in_dist != out_dist and in_range != out_range:
-            input_case = 14  # todo (maybe): add this (unlikely edge) case
+            input_case = 14
 
     if isinstance(out_dist, list) and isinstance(in_dist, list):
         if all(isinstance(x[1], int) for x in out_dist) and all(isinstance(x[1], int) for x in in_dist):
@@ -449,7 +448,6 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
         if not joint_range:
             input_case = 17
         if joint_range:
-            # todo: include case defining different ranges for outgoing and incoming edges
             input_case = 18
 
     if isinstance(joint_dist, list):
@@ -522,21 +520,11 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 11:
 
-        pass  # todo: unlikely edge case
-
-    if input_case == 12:
-
-        pmf_out, range_out = single_unbounded_pmf(out_dist)
-        pmf_in, range_in = single_unbounded_pmf(in_dist)
-        # print()
-        # print('pmf_in = ', pmf_in)
-        # print('pmf_out = ', pmf_out)
+        pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
+        pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
 
         edge_ev_out = find_edges_expected_value(pmf_out, out_range)
         edge_ev_in = find_edges_expected_value(pmf_in, in_range)
-        # print()
-        # print('in edge expected value: ', edge_ev_in)
-        # print('out edge expected value:', edge_ev_out)
 
         if edge_ev_in < edge_ev_out:
             pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
@@ -546,15 +534,29 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
             pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in)
 
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
-        # print()
-        # print('pmf_in = ', pmf_in)
 
         if edge_ev_in == edge_ev_out:
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
-        # print()
-        # print('in_samples =  ', in_samples)
-        # print('out_samples = ', out_samples)
+    if input_case == 12:
+
+        pmf_out, range_out = single_unbounded_pmf(out_dist)
+        pmf_in, range_in = single_unbounded_pmf(in_dist)
+
+        edge_ev_out = find_edges_expected_value(pmf_out, out_range)
+        edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+
+        if edge_ev_in < edge_ev_out:
+            pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+
+        if edge_ev_in > edge_ev_out:
+            pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in)
+
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+
+        if edge_ev_in == edge_ev_out:
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 13:
         pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
@@ -575,7 +577,23 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
     if input_case == 14:
 
-        pass  # todo: unlikely edge case
+        pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
+        pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
+
+        edge_ev_out = find_edges_expected_value(pmf_out, out_range)
+        edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+
+        if edge_ev_in < edge_ev_out:
+            pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
+            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+
+        if edge_ev_in > edge_ev_out:
+            pmf_in, range_in = trim_pmf_general(edge_ev_out, pmf_in)
+
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+
+        if edge_ev_in == edge_ev_out:
+            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 15:
 
@@ -621,46 +639,11 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
         joint_samples = joint_dist
 
-    # =======================================================================
-
-    # print()
-    # print('out_samples')
-    # for each in out_samples:
-    #     print(each)
-    #
-    # print()
-    # print('in_samples')
-    # for each in in_samples:
-    #     print(each)
-    #
-    # print()
-    # print('joint_samples')
-    # for each in joint_samples:
-    #     print(each)
-    # print()
-    # quit()
-
-    # =======================================================================
-
     return in_samples, out_samples, joint_samples
 
 
-# def generate_network_plots(mod_i, edge_t, edge_l):
-#
-#     edges = []
-#     for each in edge_l:
-#         edges.append(('S'+str(each[0]), 'S'+str(each[1])))
-#
-#     graph = pydot.Dot(graph_type="digraph", layout="neato")
-#     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-#     for each in edges:
-#         graph.add_edge(pydot.Edge(each[0], each[1]))
-#
-#     graph.write_png("graph_" + str(mod_i) + ".png")
-
-
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg,
-                       mass_violating_reactions, edge_type, reaction_type):
+                       mass_violating_reactions, edge_type):  #, reaction_type):
 
     in_nodes_count = []
     if bool(in_samples):
@@ -691,14 +674,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
     if not bool(joint_samples):
         random.shuffle(in_nodes_count)
         random.shuffle(out_nodes_count)
-
-    # print(in_nodes_list)
-    # print(out_nodes_list)
-    # print()
-    #
-    # print(in_nodes_count)
-    # print(out_nodes_count)
-    # quit()
 
     reaction_list = []
     reaction_list2 = []
@@ -769,9 +744,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
-                if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                    pick_continued += 1
-                    continue
+                # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                #     pick_continued += 1
+                #     continue
 
                 mod_species = random.sample(nodes_list, mod_num)
                 reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -815,9 +790,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
-                if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                    pick_continued += 1
-                    continue
+                # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                #     pick_continued += 1
+                #     continue
 
                 mod_species = random.sample(nodes_list, mod_num)
                 reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -859,9 +834,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
-                if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                    pick_continued += 1
-                    continue
+                # if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                #     pick_continued += 1
+                #     continue
 
                 mod_species = random.sample(nodes_list, mod_num)
                 reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1039,9 +1014,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1054,50 +1029,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     edge_list.append((reactant1, product))
                     edge_list.append((reactant2, product))
 
-                # if graph_type == 'hybrid':
-                #
-                #     if max(in_nodes_count) < (1 + mod_num):
-                #         pick_continued += 1
-                #         continue
-                #
-                #     sum_in = sum(in_nodes_count)
-                #     prob_in = [x / sum_in for x in in_nodes_count]
-                #     product = random.choices(in_nodes_list, prob_in)[0]
-                #
-                #     reactant1 = random.choice(in_nodes_list)
-                #     reactant2 = random.choice(in_nodes_list)
-                #
-                #     if in_nodes_count[product] < (1 + mod_num):
-                #         while len({reactant1, reactant2, product}) == len([reactant1, reactant2, product]):
-                #             reactant1 = random.choice(in_nodes_list)
-                #             reactant2 = random.choice(in_nodes_list)
-                #
-                #     if [[reactant1, reactant2], [product]] in reaction_list2:
-                #         pick_continued += 1
-                #         continue
-                #
-                #     if not mass_violating_reactions and product in {reactant1, reactant2}:
-                #         pick_continued += 1
-                #         continue
-                #
-                #     mod_species = random.sample(nodes_list, mod_num)
-                #     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
-                #     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-                #
-                #     if len({reactant1, reactant2, product}) == len([reactant1, reactant2, product]):
-                #         in_nodes_count[product] -= (2 + mod_num)
-                #     if reactant1 == reactant2 and reactant1 != product:
-                #         in_nodes_count[product] -= (1 + mod_num)
-                #     if reactant1 != reactant2 and reactant1 == product:
-                #         in_nodes_count[reactant2] -= (1 + mod_num)
-                #     if reactant1 != reactant2 and reactant2 == product:
-                #         in_nodes_count[reactant1] -= (1 + mod_num)
-                #     if len({reactant1, reactant2, product}) == 1:
-                #         in_nodes_count[reactant1] -= (1 + mod_num)
-                #
-                #     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
-                #     reaction_list2.append([[reactant1, reactant2], [product]])
-                        
                 if edge_type == 'metabolic':
 
                     reactant1 = random.choice(in_nodes_list)
@@ -1109,7 +1040,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                     if in_nodes_count[product] == 1:
                         reactant2 = deepcopy(reactant1)
-                    
+
                     if [[reactant1, reactant2], [product]] in reaction_list2:
                         pick_continued += 1
                         continue
@@ -1118,10 +1049,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
-                    
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
+
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
@@ -1148,45 +1079,45 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             if rt == TReactionType.UNIBI:
 
                 if edge_type == 'generic':
-                    
+
                     if sum(1 for each in in_nodes_count if each >= (1 + mod_num)) < 2 \
                             and max(in_nodes_count) < (2 + 2 * mod_num):
                         pick_continued += 1
                         continue
-    
+
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
                     while in_nodes_count[product1] < (1 + mod_num):
                         product1 = random.choices(in_nodes_list, prob_in)[0]
-    
+
                     in_nodes_count_copy = deepcopy(in_nodes_count)
                     in_nodes_count_copy[product1] -= (1 + mod_num)
                     sum_in_copy = sum(in_nodes_count_copy)
                     prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
-    
+
                     product2 = random.choices(in_nodes_list, prob_in_copy)[0]
                     while in_nodes_count_copy[product2] < (1 + mod_num):
                         product2 = random.choices(in_nodes_list, prob_in_copy)[0]
-    
+
                     reactant = random.choice(in_nodes_list)
-    
+
                     if [[reactant], [product1, product2]] in reaction_list2:
                         pick_continued += 1
                         continue
-    
+
                     if not mass_violating_reactions and reactant in {product1, product2}:
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-    
+
                     in_nodes_count[product1] -= (1 + mod_num)
                     in_nodes_count[product2] -= (1 + mod_num)
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
@@ -1194,22 +1125,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                     edge_list.append((reactant, product1))
                     edge_list.append((reactant, product2))
-
-                # if graph_type == 'hybrid':
-                #
-                #     if max(in_nodes_count) < (1 + mod_num):
-                #         pick_continued += 1
-                #         continue
-                #
-                #     sum_in = sum(in_nodes_count)
-                #     prob_in = [x / sum_in for x in in_nodes_count]
-                #     product1 = random.choices(in_nodes_list, prob_in)[0]
-                #
-                #     in_nodes_count_copy = deepcopy(in_nodes_count)
-                #     in_nodes_count_copy[product1] -= (1 + mod_num)
-                #     if max(in_nodes_count_copy[product1]) < (1 + mod_num):
-                #         product2 = deepcopy(product1)
-                #     else:
 
                 if edge_type == 'metabolic':
 
@@ -1237,9 +1152,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1297,9 +1212,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1375,9 +1290,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1570,9 +1485,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -1603,7 +1518,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     edge_list.append((reactant2, product))
 
                 if edge_type == 'metabolic':
-                    
+
                     sum_out = sum(out_nodes_count)
                     prob_out = [x / sum_out for x in out_nodes_count]
                     reactant1 = random.choices(out_nodes_list, prob_out)[0]
@@ -1611,7 +1526,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     out_nodes_count_copy = deepcopy(out_nodes_count)
                     out_nodes_count_copy[reactant1] -= 1
                     sum_out_copy = sum(out_nodes_count_copy)
-                    
+
                     if sum_out_copy == 0:
                         reactant2 = deepcopy(reactant1)
                     else:
@@ -1619,7 +1534,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
 
                     product = random.choice(nodes_list)
-                    
+
                     if [[reactant1, reactant2], [product]] in reaction_list2:
                         pick_continued += 1
                         continue
@@ -1628,14 +1543,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
-                    
+
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
                         edge_list.append((reactant1, product))
                         edge_list.append((reactant2, product))
@@ -1687,9 +1602,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -1722,7 +1637,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     edge_list.append((reactant, product2))
 
                 if edge_type == 'metabolic':
-                    
+
                     product1 = random.choice(out_nodes_list)
                     product2 = random.choice(out_nodes_list)
 
@@ -1741,9 +1656,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1765,7 +1680,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
-                    
+
             # -----------------------------------------------------------------
 
             if rt == TReactionType.BIBI:
@@ -1810,14 +1725,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic':
-
-                        if {reactant1, reactant2} & {product1, product2}:
-                            pick_continued += 1
-                            continue
-                        if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
-                            pick_continued += 1
-                            continue
+                    # if reaction_type == 'metabolic':
+                    #
+                    #     if {reactant1, reactant2} & {product1, product2}:
+                    #         pick_continued += 1
+                    #         continue
+                    #     if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
+                    #         pick_continued += 1
+                    #         continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -1853,7 +1768,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     edge_list.append((reactant2, product2))
 
                 if edge_type == 'metabolic':
-                    
+
                     reactant1 = random.choice(out_nodes_list)
                     reactant2 = random.choice(out_nodes_list)
 
@@ -1911,14 +1826,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic':
-
-                        if {reactant1, reactant2} & {product1, product2}:
-                            pick_continued += 1
-                            continue
-                        if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
-                            pick_continued += 1
-                            continue
+                    # if reaction_type == 'metabolic':
+                    #
+                    #     if {reactant1, reactant2} & {product1, product2}:
+                    #         pick_continued += 1
+                    #         continue
+                    #     if len({reactant1, reactant2}) == 1 and len({product1, product2}) == 1:
+                    #         pick_continued += 1
+                    #         continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2132,9 +2047,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -2193,9 +2108,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and product in {reactant1, reactant2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2271,9 +2186,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -2335,9 +2250,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and reactant in {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2424,9 +2339,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = []
                     if mod_num > 0:
@@ -2568,9 +2483,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
-                        pick_continued += 1
-                        continue
+                    # if reaction_type == 'metabolic' and {reactant1, reactant2} & {product1, product2}:
+                    #     pick_continued += 1
+                    #     continue
 
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2871,9 +2786,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     def reversibility(rxn_type):
 
         rev1 = False
-        if rev_prob and isinstance(rev_prob, list):
-            rev1 = random.choices([True, False], [rev_prob[rxn_type], 1.0 - rev_prob[rxn_type]])[0]
-        if isinstance(rev_prob, float) or isinstance(rev_prob, int):
+        if rev_prob == 0:
+            pass
+        elif rev_prob == 1:
+            rev1 = True
+        else:
             rev1 = random.choices([True, False], [rev_prob, 1 - rev_prob])[0]
 
         return rev1
@@ -2995,8 +2912,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             if kinetics[1] == 'uniform':
 
                 for each in kf:
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0], 
-                                        scale=kinetics[3][kinetics[2].index('kf')][1] 
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
+                                        scale=kinetics[3][kinetics[2].index('kf')][1]
                                         - kinetics[3][kinetics[2].index('kf')][0])
                     ant_str += each + ' = ' + str(const) + '\n'
 
@@ -4320,28 +4237,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 parameter_index += 1
         ant_str += '\n'
-
-        # todo: Save this later. Allow for different distributions types depending on parameter type
-        # if kinetics[1] == 'uniform':
-        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
-        #                         scale=kinetics[3][kinetics[2].index('rc')][1]
-        #                         - kinetics[3][kinetics[2].index('rc')][0])
-        #     ant_str += each + ' = ' + str(const) + '\n'
-        #
-        # if kinetics[1] == 'loguniform':
-        #     const = uniform.rvs(kinetics[3][kinetics[2].index('rc')][0],
-        #                         kinetics[3][kinetics[2].index('rc')][1])
-        #     ant_str += each + ' = ' + str(const) + '\n'
-        #
-        # if kinetics[1] == 'normal':
-        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
-        #                         scale=kinetics[3][kinetics[2].index('rc')][1])
-        #     ant_str += each + ' = ' + str(const) + '\n'
-        #
-        # if kinetics[1] == 'lognormal':
-        #     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
-        #                         scale=kinetics[3][kinetics[2].index('v')][1])
-        #     ant_str += each + ' = ' + str(const) + '\n'
 
     if 'modular' in kinetics[0]:
 
