@@ -121,8 +121,8 @@ Note that ``in_dist`` is defined explicitly but ``out_dist`` is a wrapper around
 
 In the above example 10 models will be produced, each with 100 species; the in-edge and out-edge distributions will both follow a power law but with different exxponents; the distributions will be trucated such that every degree bin will have a minimum expected node count of 1; and the models will be split into 4 groups to be processed in parallel. Below are examples of the resulting distributions and a network.
 
-.. image:: extended_example_6_out_in.png
+.. image:: dist_fig_0.png
 
-.. image:: extended_example_6.png
+.. image:: net_fig_0.png
 
 Additional examples can be found on the :doc:`usage` page, and detailed information regarding the methods can be found on the :doc:`methods` page.
