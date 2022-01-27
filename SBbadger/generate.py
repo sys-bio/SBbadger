@@ -232,7 +232,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
-    :param rxn_prob: Describes the reaction probabilities. Ultimately defaults to
+    :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
@@ -535,7 +535,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                         "Please revise these frequency distributions.")
 
     num_existing_models = 0
-    path = os.path.join(output_dir, 'models', group_name)
+    path = os.path.join(output_dir, group_name)
+
     if overwrite:
         if os.path.exists(path):
             shutil.rmtree(path)
@@ -675,7 +676,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
-    :param rxn_prob: Describes the reaction probabilities. Ultimately defaults to
+    :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param net_plots: Generate network plots.
@@ -812,15 +813,15 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param directory: Directory where files are read and stored.
     :param group_name: Name of the group the models belong too and the directory they will be placed in.
     :param overwrite: Overwrite the models in output_dir/models/group_name.
-    :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
+    :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
-    :param rxn_prob: Describes the reaction probabilities. Ultimately defaults to
+    :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
-    :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
+    :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
     
@@ -984,12 +985,12 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param overwrite: Overwrite the models in output_dir/models/group_name.
     :param n_models: Number of models to produce.
     :param n_species: Number of species per model.
-    :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
+    :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
-    :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
+    :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
@@ -1145,12 +1146,12 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param max_species: Maximum number of species per cycle.
     :param n_cycles: Number of cycles per model.
     :param n_models: Number of models to produce.
-    :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
+    :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
-    :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
+    :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
@@ -1309,12 +1310,12 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param path_probs: list of probabilities that govern the rate of branching and converging. Defaults to 
         [branch, grow, combine] = [0.1, 0.8, 0.1].
     :param tips: Confines branching, growth, and converging to the tip of the stems.  
-    :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
+    :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
-    :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
+    :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """

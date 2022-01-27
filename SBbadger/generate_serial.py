@@ -118,7 +118,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                         "Please revise these frequency distributions.")
 
     num_existing_models = 0
-    path = os.path.join(output_dir, 'models', group_name, '')
+    path = os.path.join(output_dir, group_name, '')
     if overwrite:
         if os.path.exists(path):
             shutil.rmtree(path)
@@ -426,7 +426,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                         "Please revise these frequency distributions.")
 
     num_existing_models = 0
-    path = os.path.join(output_dir, 'models', group_name)
+    path = os.path.join(output_dir, group_name)
     if overwrite:
         if os.path.exists(path):
             shutil.rmtree(path)
