@@ -15,4 +15,6 @@ formats:
   - pdf
   - epub
 
-requirements_file: path/to/requirements.txt
+python:
+   install:
+   - requirements: docs/requirements.txt
