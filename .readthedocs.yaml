@@ -10,8 +10,9 @@ python:
   install:
     - method: pip
       path: .
-      requirements_file: docs/requirements.txt
 
 formats:
   - pdf
   - epub
+
+requirements_file: path/to/requirements.txt
