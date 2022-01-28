@@ -914,6 +914,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
     # -----------------------------------------------------------------
 
     if not bool(out_samples) and bool(in_samples):
+
         pick_continued = 0
 
         while True:

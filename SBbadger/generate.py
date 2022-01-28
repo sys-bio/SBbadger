@@ -661,7 +661,7 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
-             mass_violating_reactions=True, edge_type='generic', mod_reg=None, rxn_prob=None, rev_prob=0, 
+             mass_violating_reactions=True, edge_type='generic', mod_reg=None, rxn_prob=None,
              net_plots=True, n_cpus=1):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
@@ -678,7 +678,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
-    :param rev_prob: Describes the probability that a reaction is reversible.
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
@@ -703,11 +702,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
-
-    if rev_prob < 0 or rev_prob > 1:
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Your reversibility probability is not between 0 and 1')
 
     net_files = []
     if overwrite:
