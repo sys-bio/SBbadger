@@ -717,15 +717,19 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                 reaction_list2.append([[reactant], [product]])
 
-                node_set.add(reactant)
-                node_set.add(product)
-                node_set.update(mod_species)
+                # node_set.add(reactant)
+                # node_set.add(product)
+                # node_set.update(mod_species)
 
                 if edge_type == 'generic':
                     edge_list.append((reactant, product))
+                    node_set.add(reactant)
+                    node_set.add(product)
+                    node_set.update(mod_species)
                 if edge_type == 'metabolic':
-                    if reactant != product:
-                        edge_list.append((reactant, product))
+                    edge_list.append((reactant, product))
+                    node_set.add(reactant)
+                    node_set.add(product)
 
             if rt == TReactionType.BIUNI:
 
@@ -752,20 +756,30 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                 reaction_list2.append([[reactant1, reactant2], [product]])
 
-                node_set.add(reactant1)
-                node_set.add(reactant2)
-                node_set.add(product)
-                node_set.update(mod_species)
+                # node_set.add(reactant1)
+                # node_set.add(reactant2)
+                # node_set.add(product)
+                # node_set.update(mod_species)
 
                 if edge_type == 'generic':
                     edge_list.append((reactant1, product))
                     edge_list.append((reactant2, product))
+                    node_set.add(reactant1)
+                    node_set.add(reactant2)
+                    node_set.add(product)
+                    node_set.update(mod_species)
+
                 if edge_type == 'metabolic':
                     if reactant1 != reactant2 and reactant1 != product and reactant2 != product:
                         edge_list.append((reactant1, product))
                         edge_list.append((reactant2, product))
+                        node_set.add(reactant1)
+                        node_set.add(reactant2)
+                        node_set.add(product)
                     if reactant1 == reactant2 and reactant1 != product:
                         edge_list.append((reactant1, product))
+                        node_set.add(reactant1)
+                        node_set.add(product)
                     if reactant1 != reactant2 and reactant1 == product:
                         edge_list.append((reactant2, 'deg'))
                     if reactant1 != reactant2 and reactant2 == product:
@@ -798,20 +812,30 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                 reaction_list2.append([[reactant], [product1, product2]])
 
-                node_set.add(reactant)
-                node_set.add(product1)
-                node_set.add(product2)
-                node_set.update(mod_species)
+                # node_set.add(reactant)
+                # node_set.add(product1)
+                # node_set.add(product2)
+                # node_set.update(mod_species)
 
                 if edge_type == 'generic':
                     edge_list.append((reactant, product1))
                     edge_list.append((reactant, product2))
+                    node_set.add(reactant)
+                    node_set.add(product1)
+                    node_set.add(product2)
+                    node_set.update(mod_species)
+
                 if edge_type == 'metabolic':
                     if reactant != product1 and reactant != product2 and product1 != product2:
                         edge_list.append((reactant, product1))
                         edge_list.append((reactant, product2))
+                        node_set.add(reactant)
+                        node_set.add(product1)
+                        node_set.add(product2)
                     if reactant != product1 and product1 == product2:
                         edge_list.append((reactant, product1))
+                        node_set.add(reactant)
+                        node_set.add(product1)
                     if reactant == product1 and product1 != product2:
                         edge_list.append(('syn', product2))
                     if reactant == product2 and product1 != product2:
@@ -843,17 +867,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     [rt, [reactant1, reactant2], [product1, product2], mod_species, reg_signs, reg_type])
                 reaction_list2.append([[reactant1, reactant2], [product1, product2]])
 
-                node_set.add(reactant1)
-                node_set.add(reactant2)
-                node_set.add(product1)
-                node_set.add(product2)
-                node_set.update(mod_species)
+                # node_set.add(reactant1)
+                # node_set.add(reactant2)
+                # node_set.add(product1)
+                # node_set.add(product2)
+                # node_set.update(mod_species)
 
                 if edge_type == 'generic':
                     edge_list.append((reactant1, product1))
                     edge_list.append((reactant2, product1))
                     edge_list.append((reactant1, product2))
                     edge_list.append((reactant2, product2))
+                    node_set.add(reactant1)
+                    node_set.add(reactant2)
+                    node_set.add(product1)
+                    node_set.add(product2)
+                    node_set.update(mod_species)
+
                 if edge_type == 'metabolic':
 
                     if len({reactant1, reactant2, product1, product2}) \
@@ -862,47 +892,75 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         edge_list.append((reactant1, product2))
                         edge_list.append((reactant2, product1))
                         edge_list.append((reactant2, product2))
+                        node_set.add(reactant1)
+                        node_set.add(reactant2)
+                        node_set.add(product1)
+                        node_set.add(product2)
 
                     if reactant1 == reactant2 and \
                             len({reactant1, product1, product2}) == len([reactant1, product1, product2]):
                         edge_list.append((reactant1, product1))
                         edge_list.append((reactant1, product2))
+                        node_set.add(reactant1)
+                        node_set.add(product1)
+                        node_set.add(product2)
 
                     if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
                         edge_list.append((reactant1, product1))
+                        node_set.add(reactant1)
+                        node_set.add(product1)
 
                     if product1 == product2 and \
                             len({reactant1, reactant2, product1}) == len([reactant1, reactant2, product1]):
                         edge_list.append((reactant1, product1))
                         edge_list.append((reactant2, product1))
+                        node_set.add(reactant1)
+                        node_set.add(reactant2)
+                        node_set.add(product1)
 
                     # ------------------------
 
                     if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
                         edge_list.append((reactant2, product2))
+                        node_set.add(reactant2)
+                        node_set.add(product2)
 
                     if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
                         edge_list.append((reactant2, product1))
+                        node_set.add(reactant2)
+                        node_set.add(product1)
 
                     if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
                         edge_list.append((reactant1, product2))
+                        node_set.add(reactant1)
+                        node_set.add(product2)
 
                     if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
                         edge_list.append((reactant1, product1))
+                        node_set.add(reactant1)
+                        node_set.add(product1)
 
                     # ------------------------
 
                     if reactant1 != reactant2 and len({reactant1, product1, product2}) == 1:
                         edge_list.append((reactant2, product2))
+                        node_set.add(reactant2)
+                        node_set.add(product2)
                     if reactant1 != reactant2 and len({reactant2, product1, product2}) == 1:
                         edge_list.append((reactant1, product1))
+                        node_set.add(reactant1)
+                        node_set.add(product1)
 
                     # ------------------------
 
                     if product1 != product2 and len({reactant1, reactant2, product1}) == 1:
                         edge_list.append((reactant2, product2))
+                        node_set.add(reactant2)
+                        node_set.add(product2)
                     if product1 != product2 and len({reactant1, reactant2, product2}) == 1:
                         edge_list.append((reactant1, product1))
+                        node_set.add(reactant1)
+                        node_set.add(product1)
 
             if n_reactions:
                 if len(node_set) >= n_species and len(reaction_list) >= n_reactions:
@@ -919,6 +977,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
         while True:
 
+            print(in_nodes_list)
+            print(in_nodes_count)
+
             if pick_continued == 1000:
                 return [None], [out_samples, in_samples, joint_samples]
 
@@ -926,6 +987,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 rt = _pick_reaction_type(rxn_prob)
             else:
                 rt = _pick_reaction_type()
+
+            print(rt)
+            print()
 
             mod_num = 0
             if mod_reg:
@@ -1029,15 +1093,18 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
-                    reactant1 = random.choice(in_nodes_list)
-                    reactant2 = random.choice(in_nodes_list)
+                    if max(in_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
+                    while in_nodes_count[product] < 2:
+                        product = random.choices(in_nodes_list, prob_in)[0]
 
-                    if in_nodes_count[product] == 1:
-                        reactant2 = deepcopy(reactant1)
+                    reactant1 = random.choice(in_nodes_list)
+                    reactant2 = random.choice(in_nodes_list)
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
                         pick_continued += 1
@@ -1126,21 +1193,27 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
+                    if sum(1 for each in in_nodes_count if each >= 1) < 2 \
+                            and max(in_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
+
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
+                    while in_nodes_count[product1] < 1:
+                        product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
                     in_nodes_count_copy[product1] -= 1
                     sum_in_copy = sum(in_nodes_count_copy)
+                    prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
-                    if sum_in_copy == 0:
-                        product2 = deepcopy(product1)
-                    else:
-                        prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
+                    product2 = random.choices(in_nodes_list, prob_in_copy)[0]
+                    while in_nodes_count_copy[product2] < 1:
                         product2 = random.choices(in_nodes_list, prob_in_copy)[0]
 
-                    reactant = random.choice(nodes_list)
+                    reactant = random.choice(in_nodes_list)
 
                     if [[reactant], [product1, product2]] in reaction_list2:
                         pick_continued += 1
@@ -1231,57 +1304,28 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
-                    product1 = random.choice(in_nodes_list)
-                    product2 = random.choice(in_nodes_list)
+                    if sum(1 for each in in_nodes_count if each >= 2) < 2 \
+                            and max(in_nodes_count) < 4:
+                        pick_continued += 1
+                        continue
 
-                    while (in_nodes_count[product1] + in_nodes_count[product2]) == 0:
+                    sum_in = sum(in_nodes_count)
+                    prob_in = [x / sum_in for x in in_nodes_count]
+                    product1 = random.choices(in_nodes_list, prob_in)[0]
+                    while in_nodes_count[product1] < 2:
+                        product1 = random.choices(in_nodes_list, prob_in)[0]
 
-                        product1 = random.choice(in_nodes_list)
-                        product2 = random.choice(in_nodes_list)
+                    in_nodes_count_copy = deepcopy(in_nodes_count)
+                    in_nodes_count_copy[product1] -= 2
+                    sum_in_copy = sum(in_nodes_count_copy)
+                    prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
+
+                    product2 = random.choices(in_nodes_list, prob_in_copy)[0]
+                    while in_nodes_count_copy[product2] < 2:
+                        product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     reactant1 = random.choice(in_nodes_list)
                     reactant2 = random.choice(in_nodes_list)
-
-                    while True:
-
-                        p1_count = None
-                        p2_count = None
-
-                        if len({reactant1, reactant2, product1, product2}) == 4:
-                            p1_count = 2
-                            p2_count = 2
-                        if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                            p1_count = 1
-                            p2_count = 1
-                        if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                            p1_count = 1
-                            p2_count = 1
-                        if product1 == product2 and len({reactant1, reactant2, product1}) == 3:
-                            p1_count = 2
-                            p2_count = 2
-                        if reactant1 == product1 or reactant2 == product1 and \
-                                len({reactant1, reactant2, product1, product2}) == 3:
-                            p1_count = 0
-                            p2_count = 1
-                        if reactant1 == product2 or reactant2 == product2 and \
-                                len({reactant1, reactant2, product1, product2}) == 3:
-                            p1_count = 1
-                            p2_count = 0
-                        if product1 == product2 and len({reactant1, reactant2, product1, product2}) == 2:
-                            p1_count = 1
-                            p2_count = 1
-                        if reactant1 == reactant2 and reactant1 == product1 and reactant1 != product2:
-                            p1_count = 0
-                            p2_count = 1
-                        if reactant1 == reactant2 and reactant1 == product2 and reactant1 != product1:
-                            p1_count = 1
-                            p2_count = 0
-
-                        if p1_count <= in_nodes_count[product1] and p2_count <= in_nodes_count[product2]:
-                            break
-
-                        reactant1 = random.choice(in_nodes_list)
-                        reactant2 = random.choice(in_nodes_list)
 
                     if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
                             or {reactant1, reactant2} == {product1, product2}:
@@ -1379,6 +1423,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            print(out_nodes_list)
+            print(out_nodes_count)
+            print(rt)
+            print()
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -1446,7 +1495,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
                     reg_type = [random.choices(['a', 's'], [mod_reg[2], 1 - mod_reg[2]])[0] for _ in mod_species]
 
-                    out_nodes_count[product] -= 1
+                    out_nodes_count[reactant] -= 1
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
@@ -1517,6 +1566,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
+                    if sum(out_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
+
                     sum_out = sum(out_nodes_count)
                     prob_out = [x / sum_out for x in out_nodes_count]
                     reactant1 = random.choices(out_nodes_list, prob_out)[0]
@@ -1524,14 +1577,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     out_nodes_count_copy = deepcopy(out_nodes_count)
                     out_nodes_count_copy[reactant1] -= 1
                     sum_out_copy = sum(out_nodes_count_copy)
+                    prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+                    reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
 
-                    if sum_out_copy == 0:
-                        reactant2 = deepcopy(reactant1)
-                    else:
-                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
-                        reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
-
-                    product = random.choice(nodes_list)
+                    product = random.choice(out_nodes_list)
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
                         pick_continued += 1
@@ -1636,15 +1685,24 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
-                    product1 = random.choice(out_nodes_list)
-                    product2 = random.choice(out_nodes_list)
+                    cont = False
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 1:
+                        cont = True
+                    if sum(1 for each in out_nodes_count if each >= 2) >= -1 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 1:
+                        cont = True
+                    if not cont:
+                        pick_continued += 1
+                        continue
 
                     sum_out = sum(out_nodes_count)
                     prob_out = [x / sum_out for x in out_nodes_count]
                     reactant = random.choices(out_nodes_list, prob_out)[0]
+                    while out_nodes_count[reactant] < 2:
+                        reactant = random.choices(out_nodes_list, prob_out)[0]
 
-                    if out_nodes_count[reactant] == 1:
-                        product2 = deepcopy(product1)
+                    product1 = random.choice(out_nodes_list)
+                    product2 = random.choice(out_nodes_list)
 
                     if [[reactant], [product1, product2]] in reaction_list2:
                         pick_continued += 1
@@ -1767,57 +1825,38 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
-                    reactant1 = random.choice(out_nodes_list)
-                    reactant2 = random.choice(out_nodes_list)
+                    cont = False
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 2:
+                        cont = True
 
-                    while (out_nodes_count[reactant1] + out_nodes_count[reactant2]) == 0:
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 0 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 1:
+                        cont = True
 
-                        reactant1 = random.choice(out_nodes_list)
-                        reactant2 = random.choice(out_nodes_list)
+                    if sum(1 for each in out_nodes_count if each >= 2) >= -2 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 2:
+                        cont = True
+
+                    if not cont:
+                        pick_continued += 1
+                        continue
+
+                    sum_out = sum(out_nodes_count)
+                    prob_out = [x / sum_out for x in out_nodes_count]
+                    reactant1 = random.choices(out_nodes_list, prob_out)[0]
+                    while out_nodes_count[reactant1] < 2:
+                        reactant1 = random.choices(out_nodes_list, prob_out)[0]
+
+                    out_nodes_count_copy = deepcopy(out_nodes_count)
+                    out_nodes_count_copy[reactant1] -= 2
+                    sum_out_copy = sum(out_nodes_count_copy)
+                    prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+                    reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
+                    while out_nodes_count_copy[reactant2] < 2:
+                        reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
 
                     product1 = random.choice(out_nodes_list)
                     product2 = random.choice(out_nodes_list)
-
-                    while True:
-
-                        r1_count = None
-                        r2_count = None
-
-                        if len({reactant1, reactant2, product1, product2}) == 4:
-                            r1_count = 2
-                            r2_count = 2
-                        if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                            r1_count = 2
-                            r2_count = 2
-                        if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                            r1_count = 1
-                            r2_count = 1
-                        if product1 == product2 and len({reactant1, reactant2, product1}) == 3:
-                            r1_count = 1
-                            r2_count = 1
-                        if reactant1 == product1 or reactant1 == product2 and \
-                                len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 0
-                            r2_count = 1
-                        if reactant2 == product1 or reactant2 == product2 and \
-                                len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 1
-                            r2_count = 0
-                        if product1 == product2 and product1 == reactant1 and product1 != reactant2:
-                            r1_count = 0
-                            r2_count = 1
-                        if product1 == product2 and product1 != reactant1 and product1 == reactant2:
-                            r1_count = 1
-                            r2_count = 0
-                        if reactant1 == reactant2 and len({reactant1, reactant2, product1, product2}) == 2:
-                            r1_count = 1
-                            r2_count = 1
-
-                        if r1_count <= out_nodes_count[reactant1] and r2_count <= out_nodes_count[reactant2]:
-                            break
-
-                        product1 = random.choice(out_nodes_list)
-                        product2 = random.choice(out_nodes_list)
 
                     if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
                             or {reactant1, reactant2} == {product1, product2}:
@@ -1922,6 +1961,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            print(out_nodes_list)
+            print(out_nodes_count)
+            print(rt)
+            print()
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -2080,6 +2124,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
+                    if sum(out_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
+
+                    if max(in_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
+
                     sum_out = sum(out_nodes_count)
                     prob_out = [x / sum_out for x in out_nodes_count]
                     reactant1 = random.choices(out_nodes_list, prob_out)[0]
@@ -2087,16 +2139,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     out_nodes_count_copy = deepcopy(out_nodes_count)
                     out_nodes_count_copy[reactant1] -= 1
                     sum_out_copy = sum(out_nodes_count_copy)
+                    prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+                    reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
-
-                    if sum_out_copy == 0 or in_nodes_count[product] == 1:
-                        reactant2 = deepcopy(reactant1)
-                    else:
-                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
-                        reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
+                    while in_nodes_count[product] < 2:
+                        product = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
                         pick_continued += 1
@@ -2222,23 +2272,41 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
+                    cont = False
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 1:
+                        cont = True
+                    if sum(1 for each in out_nodes_count if each >= 2) >= -1 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 1:
+                        cont = True
+                    if not cont:
+                        pick_continued += 1
+                        continue
+
+                    if sum(1 for each in in_nodes_count if each >= 1) < 2 \
+                            and max(in_nodes_count) < 2:
+                        pick_continued += 1
+                        continue
+
                     sum_out = sum(out_nodes_count)
                     prob_out = [x / sum_out for x in out_nodes_count]
                     reactant = random.choices(out_nodes_list, prob_out)[0]
+                    while out_nodes_count[reactant] < 2:
+                        reactant = random.choices(out_nodes_list, prob_out)[0]
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
+                    while in_nodes_count[product1] < 1:
+                        product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
                     in_nodes_count_copy[product1] -= 1
                     sum_in_copy = sum(in_nodes_count_copy)
+                    prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
-                    if sum_in_copy == 0 or out_nodes_count[reactant] == 1:
-                        product2 = deepcopy(product1)
-                    else:
-                        prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
-                        product2 = random.choices(in_nodes_list, prob_in_copy)[0]
+                    product2 = random.choices(in_nodes_list, prob_in_copy)[0]
+                    while in_nodes_count_copy[product2] < 1:
+                        product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant], [product1, product2]] in reaction_list2:
                         pick_continued += 1
@@ -2378,103 +2446,55 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'metabolic':
 
-                    reactant1 = random.choice(out_nodes_list)
-                    reactant2 = random.choice(out_nodes_list)
+                    cont = False
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 2:
+                        cont = True
 
-                    product1 = random.choice(in_nodes_list)
-                    product2 = random.choice(in_nodes_list)
+                    if sum(1 for each in out_nodes_count if each >= 2) >= 0 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 1:
+                        cont = True
 
-                    # todo: must be a more efficient way to do this
-                    while (out_nodes_count[reactant1] + out_nodes_count[reactant2]) == 0:
+                    if sum(1 for each in out_nodes_count if each >= 2) >= -2 \
+                            and sum(1 for each in out_nodes_count if each >= 4) >= 2:
+                        cont = True
 
-                        reactant1 = random.choice(out_nodes_list)
-                        reactant2 = random.choice(out_nodes_list)
+                    if not cont:
+                        pick_continued += 1
+                        continue
 
-                    while (in_nodes_count[product1] + in_nodes_count[product2]) == 0:
+                    if sum(1 for each in in_nodes_count if each >= 2) < 2 \
+                            and max(in_nodes_count) < 4:
+                        pick_continued += 1
+                        continue
 
-                        product1 = random.choice(in_nodes_list)
-                        product2 = random.choice(in_nodes_list)
+                    sum_out = sum(out_nodes_count)
+                    prob_out = [x / sum_out for x in out_nodes_count]
+                    reactant1 = random.choices(out_nodes_list, prob_out)[0]
+                    while out_nodes_count[reactant1] < 2:
+                        reactant1 = random.choices(out_nodes_list, prob_out)[0]
 
-                    while True:
+                    out_nodes_count_copy = deepcopy(out_nodes_count)
+                    out_nodes_count_copy[reactant1] -= 2
+                    sum_out_copy = sum(out_nodes_count_copy)
+                    prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+                    reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
+                    while out_nodes_count_copy[reactant2] < 2:
+                        reactant2 = random.choices(out_nodes_list, prob_out_copy)[0]
 
-                        r1_count = None
-                        r2_count = None
+                    sum_in = sum(in_nodes_count)
+                    prob_in = [x / sum_in for x in in_nodes_count]
+                    product1 = random.choices(in_nodes_list, prob_in)[0]
+                    while in_nodes_count[product1] < 2:
+                        product1 = random.choices(in_nodes_list, prob_in)[0]
 
-                        p1_count = None
-                        p2_count = None
+                    in_nodes_count_copy = deepcopy(in_nodes_count)
+                    in_nodes_count_copy[product1] -= 2
+                    sum_in_copy = sum(in_nodes_count_copy)
+                    prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
-                        if len({reactant1, reactant2, product1, product2}) == 4:
-                            r1_count = 2
-                            r2_count = 2
-                            p1_count = 2
-                            p2_count = 2
-                        if reactant1 == reactant2 and len({reactant1, product1, product2}) == 3:
-                            r1_count = 2
-                            r2_count = 2
-                            p1_count = 1
-                            p2_count = 1
-                        if reactant1 == reactant2 and product1 == product2 and reactant1 != product1:
-                            r1_count = 1
-                            r2_count = 1
-                            p1_count = 1
-                            p2_count = 1
-                        if product1 == product2 and len({reactant1, reactant2, product1}) == 3:
-                            r1_count = 1
-                            r2_count = 1
-                            p1_count = 2
-                            p2_count = 2
-                        if reactant1 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 0
-                            r2_count = 1
-                            p1_count = 0
-                            p2_count = 1
-                        if reactant1 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 0
-                            r2_count = 1
-                            p1_count = 1
-                            p2_count = 0
-                        if reactant2 == product1 and len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 1
-                            r2_count = 0
-                            p1_count = 0
-                            p2_count = 1
-                        if reactant2 == product2 and len({reactant1, reactant2, product1, product2}) == 3:
-                            r1_count = 1
-                            r2_count = 0
-                            p1_count = 1
-                            p2_count = 0
-                        if product1 == product2 and product1 == reactant1 and product1 != reactant2:
-                            r1_count = 0
-                            r2_count = 1
-                            p1_count = 1
-                            p2_count = 1
-                        if product1 == product2 and product1 != reactant1 and product1 == reactant2:
-                            r1_count = 1
-                            r2_count = 0
-                            p1_count = 1
-                            p2_count = 1
-                        if reactant1 == reactant2 and reactant1 == product1 and reactant1 != product2:
-                            r1_count = 1
-                            r2_count = 1
-                            p1_count = 0
-                            p2_count = 1
-                        if reactant1 == reactant2 and reactant1 != product1 and reactant1 == product2:
-                            r1_count = 1
-                            r2_count = 1
-                            p1_count = 1
-                            p2_count = 0
-
-                        if r1_count <= out_nodes_count[reactant1] and r2_count <= out_nodes_count[reactant2] and \
-                                p1_count <= in_nodes_count[product1] and p2_count <= in_nodes_count[product2]:
-                            break
-
-                        while (out_nodes_list[reactant1] + out_nodes_list[reactant2]) == 0:
-                            reactant1 = random.choice(out_nodes_list)
-                            reactant2 = random.choice(out_nodes_list)
-
-                        while (in_nodes_count[product1] + in_nodes_count[product2]) == 0:
-                            product1 = random.choice(in_nodes_list)
-                            product2 = random.choice(in_nodes_list)
+                    product2 = random.choices(in_nodes_list, prob_in_copy)[0]
+                    while in_nodes_count_copy[product2] < 2:
+                        product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
                             or {reactant1, reactant2} == {product1, product2}:

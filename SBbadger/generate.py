@@ -81,7 +81,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.cvs')
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -350,7 +350,7 @@ def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_d
     in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
         n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
 
-    dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.cvs')
+    dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
 
     with open(dist_dir, 'w') as f:
         f.write('out distribution\n')
@@ -598,14 +598,21 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                 joint_dist = False
 
     n_species = 0
+    out_species = 0
+    in_species = 0
+
     if out_samples and not n_species:
         for each in out_samples:
-            n_species += each[1]
+            out_species += each[1]
+
     if in_samples and not n_species:
-        for each in out_samples:
-            n_species += each[1]
+        for each in in_samples:
+            in_species += each[1]
+
+    n_species = max(out_species, in_species)
+
     if joint_samples and not n_species:
-        for each in out_samples:
+        for each in joint_samples:
             n_species += each[1]
 
     rl = [None]
@@ -727,9 +734,11 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
+
     path = os.path.join(directory, group_name, 'distributions')
     dist_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'csv']
     dists_list = []
+
     for item in dist_files:
         dists_list.append([int(item.split('_')[-1].split('.')[0]), item])
     dists_list.sort()

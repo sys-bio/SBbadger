@@ -670,14 +670,21 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                             joint_dist = False
 
                 n_species = 0
+                out_species = 0
+                in_species = 0
+
                 if out_samples and not n_species:
                     for each in out_samples:
-                        n_species += each[1]
+                        out_species += each[1]
+
                 if in_samples and not n_species:
-                    for each in out_samples:
-                        n_species += each[1]
+                    for each in in_samples:
+                        in_species += each[1]
+
+                n_species = max(out_species, in_species)
+
                 if joint_samples and not n_species:
-                    for each in out_samples:
+                    for each in joint_samples:
                         n_species += each[1]
 
                 rl = [None]
