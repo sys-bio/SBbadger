@@ -977,9 +977,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
         while True:
 
-            print(in_nodes_list)
-            print(in_nodes_count)
-
             if pick_continued == 1000:
                 return [None], [out_samples, in_samples, joint_samples]
 
@@ -987,9 +984,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 rt = _pick_reaction_type(rxn_prob)
             else:
                 rt = _pick_reaction_type()
-
-            print(rt)
-            print()
 
             mod_num = 0
             if mod_reg:
@@ -1422,11 +1416,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 rt = _pick_reaction_type(rxn_prob)
             else:
                 rt = _pick_reaction_type()
-
-            print(out_nodes_list)
-            print(out_nodes_count)
-            print(rt)
-            print()
 
             mod_num = 0
             if mod_reg:
@@ -1960,11 +1949,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 rt = _pick_reaction_type(rxn_prob)
             else:
                 rt = _pick_reaction_type()
-
-            print(out_nodes_list)
-            print(out_nodes_count)
-            print(rt)
-            print()
 
             mod_num = 0
             if mod_reg:
@@ -5792,7 +5776,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     kr.add('kr_' + str(reaction_index))
 
             ant_str += '\n'
-        ant_str += '\n'
 
         parameter_index = None
         if 'deg' in kinetics[2]:

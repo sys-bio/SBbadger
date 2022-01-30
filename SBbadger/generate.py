@@ -58,7 +58,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                                 if m == 0:
                                     f.write(str(every))
                                 else:
-                                    f.write(',' + str(every))
+                                    f.write(':' + str(every))
                             f.write(']')
                 f.write('\n')
 
@@ -651,7 +651,7 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                 if m == 0:
                                     f.write(str(every))
                                 else:
-                                    f.write(',' + str(every))
+                                    f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
 
@@ -752,7 +752,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     pool.close()
 
 
-def generate_rate_laws(i, nets_list, group_name, add_enzyme, kinetics, rev_prob, ic_params, directory):
+def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params):
 
     reg_check = False
     with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
@@ -827,7 +827,14 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
-    
+
+    if kinetics and kinetics[1] != 'uniform' and kinetics[1] != 'loguniform' \
+            and kinetics[1] != 'normal' and kinetics[1] != 'lognormal':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please specify the parameter distribution as "uniform", "loguniform", "normal", '
+                        'or "lognormal".')
+
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
 
@@ -911,8 +918,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         nets_list.append([int(item.split('_')[-1].split('.')[0]), item])
     nets_list.sort()
 
-    args_list = [(net[0], nets_list, group_name, add_enzyme, kinetics, rxn_prob, rev_prob, ic_params,
-                  mod_reg, directory) for net in nets_list if net not in anti_inds]
+    args_list = [(net[0], nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params)
+                 for net in nets_list if net not in anti_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_rate_laws, args_list)

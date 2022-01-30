@@ -763,6 +763,13 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
     """
 
+    if kinetics and kinetics[1] != 'uniform' and kinetics[1] != 'loguniform' \
+            and kinetics[1] != 'normal' and kinetics[1] != 'lognormal':
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Please specify the parameter distribution as "uniform", "loguniform", "normal", '
+                        'or "lognormal".')
+
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
 
