@@ -730,7 +730,7 @@ The default number of species is 10 so the output here looks like
 
 .. image:: linear.png
 
-Please see0000 :doc:`methods` for additional options.
+Please see :doc:`methods` for additional options.
 
 ~~~~~~
 Cyclic
@@ -756,6 +756,8 @@ Branched
 ~~~~~~~~
 
 Branching networks can be constructed with
+
+.. code-block:: console
 
     generate.branched(
         seeds=3,
