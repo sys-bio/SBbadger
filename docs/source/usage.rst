@@ -712,19 +712,61 @@ optionally silenced with ``dist_plots=False`` and ``net_plots=False`` arguments.
 Standard Networks
 -----------------
 
+There are three standard networks that can be generated. These do not make use of degree distributions but instead
+make use of specific topological generative algorithms. All three use only UNI-UNI reactions but can be adorned
+with any of the available rate-laws.
+
 ~~~~~~
 Linear
 ~~~~~~
 
+The simplest of the standard networks is linear and can be called with
 
+.. code-block:: console
+
+    generate.linear()
+
+The default number of species is 10 so the output here looks like
+
+.. image:: linear.png
+
+Please see0000 :doc:`methods` for additional options.
 
 ~~~~~~
 Cyclic
 ~~~~~~
 
+Cyclic networks can be constructed with
 
+.. code-block:: console
+
+    generate.cyclic(
+        n_cycles=3,
+        min_species=10,
+        max_species=20,)
+
+Three special arguments are available for cyclic models. ``n_cycles`` controls the number of cycles in the network.
+``min_species`` and ``max_species`` control the minimum and maximum number of nodes per cycle. The algorithm will
+randomly sample from this range. The example below is a network with the above settings.
+
+.. image:: cyclic.png
 
 ~~~~~~~~
 Branched
 ~~~~~~~~
 
+Branching networks can be constructed with
+
+    generate.branched(
+        seeds=3,
+        path_probs=[.1, .8, .1],
+        tips=True,
+    )
+
+Three special arguments are also available form branched networks. ``seeds`` is the number of starting nodes that
+either split in two, grow linearly, or combine with another branch. ``path_probs`` is the probability of each of those
+events happening at per iteration. And ``tips=True`` confines those events to the tips of the branches, i.e. the last
+nodes in the growing branch(s) if grow or combine are chosen and the second to last node in one of the branches if
+split is chosen. The example below is a network with the above settings.
+
+.. image:: branched.png

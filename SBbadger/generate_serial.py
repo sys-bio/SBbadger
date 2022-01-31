@@ -1197,7 +1197,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
                 graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                            format='neato')
+                            format='dot')
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 

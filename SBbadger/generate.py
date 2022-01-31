@@ -1126,7 +1126,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
             graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                        format='neato')
+                        format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
