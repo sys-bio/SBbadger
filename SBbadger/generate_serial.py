@@ -8,7 +8,6 @@ import antimony
 import matplotlib.pyplot as plt
 import numpy as np
 import pydot
-import io
 
 
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 

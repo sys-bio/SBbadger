@@ -7,7 +7,7 @@ import glob
 import antimony
 import matplotlib.pyplot as plt
 import numpy as np
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 import pydot
 
 
