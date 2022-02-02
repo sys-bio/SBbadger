@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='SBbadger',  # How you named your package folder (MyLib)
     packages=['SBbadger'],  # Chose the same as "name"
-    version='0.1.10',
+    version='0.1.10.1',
     license='Apache',
     description='Synthetic biochemical reaction networks with definable degree distributions.',  # Give a short description about your library
     author='YOUR NAME',  # Type in your name
@@ -23,7 +23,7 @@ setup(
         # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
         'Intended Audience :: Developers',  # Define that your audience are developers
         'Topic :: Software Development :: Build Tools',
-        'License :: OSI Approved :: MIT License',  # Again, pick a license
+        'License :: OSI Approved :: Apache Software License',  # Again, pick a license
         'Programming Language :: Python :: 3',  # Specify which pyhton versions that you want to support
         'Programming Language :: Python :: 3.6',
     ],

@@ -1,6 +1,6 @@
 
 import sys
-import buildNetworks
+from SBbadger import buildNetworks
 import os
 import shutil
 import glob
