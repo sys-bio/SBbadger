@@ -3,13 +3,13 @@ from distutils.core import setup
 setup(
     name='SBbadger',
     packages=['SBbadger'],
-    version='1.0.0',
+    version='1.0.1',
     license='Apache',
     description='Synthetic biochemical reaction networks with definable degree distributions.',
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0-beta.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.1-beta.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',
