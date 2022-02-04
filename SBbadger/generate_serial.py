@@ -13,7 +13,8 @@ import pydot
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, edge_type='generic', kinetics=None, 
-           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=True, net_plots=True):
+           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, 
+           net_plots=False):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
     truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
@@ -216,8 +217,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 graph.add_edge(pydot.Edge(each[0], each[1]))
                 
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'), 
-                        format='dot')
+            # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
             # KEEP THIS FOR NOW
             # output graph to Dot object
@@ -349,7 +350,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
 
 def distributions(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1,
                   n_species=10, out_dist='random', in_dist='random', joint_dist=None, in_range=None, out_range=None,
-                  joint_range=None, min_freq=1.0, dist_plots=True):
+                  joint_range=None, min_freq=1.0, dist_plots=False):
     """
     Generates a collection of frequency distributions from function or bound discrete probabilities.
     Outputs include distribution data and figures.
@@ -562,7 +563,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, edge_type='generic', mod_reg=None, rxn_prob=None,
-             net_plots=True):
+             net_plots=False):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -738,8 +739,8 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                         graph.add_edge(pydot.Edge(each[0], each[1]))
                     graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind)
                                                  + '.png'))
-                    graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind) + '.dot'),
-                                format='dot')
+                    # graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind) + '.dot'),
+                    #             format='dot')
 
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
@@ -910,7 +911,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
 
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
-           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=True):
+           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False):
     """
     Generates a collection of linear models.
 
@@ -1043,8 +1044,8 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) 
                                              + '.png'))
-                graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                            format='dot')
+                # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                #             format='dot')
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1062,7 +1063,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
            max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=True):
+           net_plots=False):
     """
     Generates a collection of cyclic models.
 
@@ -1195,8 +1196,8 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-                graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                            format='dot')
+                # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                #             format='dot')
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1214,7 +1215,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1,
              n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0,
-             ic_params=None, net_plots=True):
+             ic_params=None, net_plots=False):
     """
     Generates a collection of branching/converging models from a set of seed nodes.
 
@@ -1355,8 +1356,8 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-                graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                            format='dot')
+                # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+                #             format='dot')
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 

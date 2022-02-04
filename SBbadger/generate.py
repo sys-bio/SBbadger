@@ -73,8 +73,8 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                 graph.add_edge(pydot.Edge(each[0], each[1]))
 
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
@@ -199,7 +199,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, edge_type='generic', kinetics=None, 
-           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=True, net_plots=True, 
+           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, 
            n_cpus=1):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
@@ -458,7 +458,7 @@ def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_d
 
 def distributions(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1,
                   n_species=10, out_dist='random', in_dist='random', joint_dist=None, in_range=None, out_range=None,
-                  joint_range=None, min_freq=1.0, dist_plots=True, n_cpus=1):
+                  joint_range=None, min_freq=1.0, dist_plots=False, n_cpus=1):
     """
     Generates a collection of frequency distributions from function or bound discrete probabilities.
     Outputs include distribution data and figures.
@@ -664,12 +664,12 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
         for each in edges:
             graph.add_edge(pydot.Edge(each[0], each[1]))
         graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-        graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'), format='dot')
+        # graph.write(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'), format='dot')
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, edge_type='generic', mod_reg=None, rxn_prob=None,
-             net_plots=True, n_cpus=1):
+             net_plots=False, n_cpus=1):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -967,8 +967,8 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -985,7 +985,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
 
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
-           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=True, n_cpus=1):
+           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, n_cpus=1):
     """
     Generates a collection of UNI-UNI linear models.
 
@@ -1125,8 +1125,8 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1144,7 +1144,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
            max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=True, n_cpus=1):
+           net_plots=False, n_cpus=1):
     """
     Generates a collection of UNI-UNI cyclic models.
 
@@ -1287,8 +1287,8 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            # graph.write(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1306,7 +1306,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1, 
              n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0, 
-             ic_params=None, net_plots=True, n_cpus=1):
+             ic_params=None, net_plots=False, n_cpus=1):
     """
     Generates a collection of UNI-UNI branched models from a set of seed nodes.
 

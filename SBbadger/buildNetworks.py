@@ -640,7 +640,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, min_node_deg, in_
 
 
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg,
-                       mass_violating_reactions, edge_type):  #, reaction_type):
+                       mass_violating_reactions, edge_type):
 
     in_nodes_count = []
     if bool(in_samples):
@@ -1939,6 +1939,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
     # -----------------------------------------------------------------
 
     if (bool(out_samples) and bool(in_samples)) or bool(joint_samples):
+
         pick_continued = 0
         while True:
 
@@ -2685,6 +2686,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     # Remove the first entry in the list which is the number of species
     reaction_list_copy.pop(0)
     st = np.zeros((n_species, len(reaction_list_copy)))
+    mass_violators = []
 
     for index, r in enumerate(reaction_list_copy):
         if r[0] == TReactionType.UNIUNI:
@@ -2693,6 +2695,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[reactant, index] = -1
             product = reaction_list_copy[index][2][0]
             st[product, index] = 1
+            if reactant == product:
+                mass_violators.append(reactant)
 
         if r[0] == TReactionType.BIUNI:
             # BiUni
@@ -2702,15 +2706,23 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[reactant2, index] += -1
             product = reaction_list_copy[index][2][0]
             st[product, index] = 1
+            if reactant1 == product:
+                mass_violators.append(reactant1)
+            if reactant2 == product:
+                mass_violators.append(reactant2)
 
         if r[0] == TReactionType.UNIBI:
             # UniBi
-            reactant1 = reaction_list_copy[index][1][0]
-            st[reactant1, index] = -1
+            reactant = reaction_list_copy[index][1][0]
+            st[reactant, index] += -1
             product1 = reaction_list_copy[index][2][0]
             st[product1, index] += 1
             product2 = reaction_list_copy[index][2][1]
             st[product2, index] += 1
+            if reactant == product1:
+                mass_violators.append(reactant)
+            if reactant == product2:
+                mass_violators.append(reactant)
 
         if r[0] == TReactionType.BIBI:
             # BiBi
@@ -2722,6 +2734,14 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[product1, index] += 1
             product2 = reaction_list_copy[index][2][1]
             st[product2, index] += 1
+            if reactant1 == product1:
+                mass_violators.append(reactant1)
+            if reactant1 == product2:
+                mass_violators.append(reactant1)
+            if reactant2 == product1:
+                mass_violators.append(reactant2)
+            if reactant2 == product2:
+                mass_violators.append(reactant2)
 
     dims = st.shape
 
@@ -2740,7 +2760,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 minus_coeff = minus_coeff + 1
             if st[r, c] > 0:
                 plus_coeff = plus_coeff + 1
-        if plus_coeff == 0 and minus_coeff == 0:
+        if plus_coeff == 0 and minus_coeff == 0 and r not in mass_violators:
             # No reaction attached to this species
             orphan_species.append(r)
         if plus_coeff == 0 and minus_coeff != 0:
@@ -2785,7 +2805,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         ant_str += '\n'
     ant_str += '\n'
 
-    def reversibility(rxn_type):
+    def reversibility():
 
         rev1 = False
         if rev_prob == 0:
@@ -2815,7 +2835,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' -> '
                     ant_str += 'S' + str(r[2][0])
 
-                    rev = reversibility(0)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
@@ -2834,7 +2854,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' -> '
                     ant_str += 'S' + str(r[2][0])
 
-                    rev = reversibility(1)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
@@ -2855,7 +2875,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' + '
                     ant_str += 'S' + str(r[2][1])
 
-                    rev = reversibility(2)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
@@ -2877,7 +2897,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' + '
                     ant_str += 'S' + str(r[2][1])
 
-                    rev = reversibility(3)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
@@ -3050,7 +3070,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' -> '
                     ant_str += 'S' + str(r[2][0])
 
-                    rev = reversibility(0)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc0_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc0.append('kc0_' + str(reaction_index))
@@ -3069,7 +3089,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' -> '
                     ant_str += 'S' + str(r[2][0])
 
-                    rev = reversibility(1)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc1_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
@@ -3090,7 +3110,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' + '
                     ant_str += 'S' + str(r[2][1])
 
-                    rev = reversibility(2)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc2_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc2.append('kc2_' + str(reaction_index))
@@ -3112,7 +3132,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ant_str += ' + '
                     ant_str += 'S' + str(r[2][1])
 
-                    rev = reversibility(3)
+                    rev = reversibility()
                     if not rev:
                         ant_str += '; ' + enzyme + 'kc3_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
@@ -3517,7 +3537,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' -> '
                 ant_str += 'S' + str(r[2][0])
 
-                rev = reversibility(0)
+                rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
@@ -3563,7 +3583,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' -> '
                 ant_str += 'S' + str(r[2][0])
 
-                rev = reversibility(1)
+                rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
@@ -3633,7 +3653,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' + '
                 ant_str += 'S' + str(r[2][1])
 
-                rev = reversibility(2)
+                rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
@@ -3693,7 +3713,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' + '
                 ant_str += 'S' + str(r[2][1])
 
-                rev = reversibility(3)
+                rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
@@ -4019,7 +4039,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
                 ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
-                rev = reversibility(0)
+                rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
@@ -4048,7 +4068,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
                 ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
-                rev = reversibility(1)
+                rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
@@ -4085,7 +4105,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
                 ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
-                rev = reversibility(2)
+                rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
@@ -4124,7 +4144,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
                 ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
-                rev = reversibility(3)
+                rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
@@ -4262,7 +4282,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' -> '
                 ant_str += 'S' + str(r[2][0])
 
-                rev = reversibility(0)
+                rev = reversibility()
 
                 if not rev:
                     ant_str += '; ' + enzyme
@@ -4624,7 +4644,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' -> '
                 ant_str += 'S' + str(r[2][0])
 
-                rev = reversibility(1)
+                rev = reversibility()
 
                 if not rev:
                     ant_str += '; ' + enzyme
@@ -5011,7 +5031,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' + '
                 ant_str += 'S' + str(r[2][1])
 
-                rev = reversibility(2)
+                rev = reversibility()
 
                 if not rev:
                     ant_str += '; ' + enzyme
@@ -5386,7 +5406,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 ant_str += ' + '
                 ant_str += 'S' + str(r[2][1])
 
-                rev = reversibility(3)
+                rev = reversibility()
 
                 if not rev:
                     ant_str += '; ' + enzyme

@@ -1,17 +1,17 @@
 from distutils.core import setup
 
 setup(
-    name='SBbadger',  # How you named your package folder (MyLib)
-    packages=['SBbadger'],  # Chose the same as "name"
-    version='0.1.11',
+    name='SBbadger',
+    packages=['SBbadger'],
+    version='1.0.0',
     license='Apache',
-    description='Synthetic biochemical reaction networks with definable degree distributions.',  # Give a short description about your library
-    author='YOUR NAME',  # Type in your name
-    author_email='kochenma@uw.edu',  # Type in your E-Mail
-    url='https://github.com/sys-bio/SBbadger',  # Provide either the link to your github or to your website
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v0.1.11-alpha.tar.gz',  # I explain this later on
-    keywords=['Systems biology', 'Benchmark Models'],  # Keywords that define your package best
-    install_requires=[  # I get to this in a second
+    description='Synthetic biochemical reaction networks with definable degree distributions.',
+    author='Michael Kochen',
+    author_email='kochenma@uw.edu',
+    url='https://github.com/sys-bio/SBbadger',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.tar.gz',
+    keywords=['Systems biology', 'Benchmark Models'],
+    install_requires=[
         'numpy',
         'scipy',
         'antimony',
@@ -21,10 +21,10 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
-        'Intended Audience :: Developers',  # Define that your audience are developers
+        'Intended Audience :: Developers',
         'Topic :: Software Development :: Build Tools',
-        'License :: OSI Approved :: Apache Software License',  # Again, pick a license
-        'Programming Language :: Python :: 3',  # Specify which pyhton versions that you want to support
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
     ],
 )
