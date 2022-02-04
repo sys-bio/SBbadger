@@ -9,7 +9,7 @@ setup(
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0-beta.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',
@@ -19,7 +19,7 @@ setup(
         'pydot',
     ],
     classifiers=[
-        'Development Status :: 4 - Alpha',
+        'Development Status :: 4 - Beta',
         # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable" as the current state of your package
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Build Tools',
