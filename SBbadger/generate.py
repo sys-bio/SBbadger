@@ -253,7 +253,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     if ic_params is None:
         ic_params = ['uniform', 0, 10]
 
-    if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
+    if joint_dist and (in_dist != 'random' or out_dist != 'random'):
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception("You have provided both a joint distribution "
@@ -483,7 +483,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
-    if joint_dist and (in_dist is not 'random' or out_dist is not 'random'):
+    if joint_dist and (in_dist != 'random' or out_dist != 'random'):
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception("You have provided both a joint distribution "
@@ -689,11 +689,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
-    if directory is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a directory.')
-
     if rxn_prob:
         if round(sum(rxn_prob), 10) != 1:
             if not verbose_exceptions:
@@ -846,11 +841,6 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
 
     if ic_params is None:
         ic_params = ['uniform', 0, 10]
-
-    if directory is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a directory.')
 
     if rxn_prob:
         if round(sum(rxn_prob), 10) != 1:
@@ -1329,11 +1319,6 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
-    
-    if output_dir is '':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please provide a output_dir.')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]

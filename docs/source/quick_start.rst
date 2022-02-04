@@ -4,7 +4,8 @@ Quick Start
 Installation
 ------------
 
-Supported versions of Python are 3.6, 3.7, 3.8, and 3.9. 
+Supported versions of Python are 3.6, 3.7, 3.8, and 3.9. Python dependencies include numpy, scipy, antimony, matplotlib,
+and pydot. An additional dependency for pydot is a system installation of Graphviz.
 
 SBbadger can be installed using pip:
 
