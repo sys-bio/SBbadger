@@ -45,7 +45,7 @@ chosen more than once in a reaction, for example A + A -> B is a valid reaction.
 will continue to be added to the network until all 10 species have included. Below is the 
 depiction of a sample network and an Antimony string describing the associated model:
 
-![](docs/source/test.png)
+![](https://github.com/sys-bio/SBbadger/blob/main/docs/source/test.png)
 
 ```
 var S0, S1, S9
