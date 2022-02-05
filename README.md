@@ -122,6 +122,6 @@ Note that ``in_dist`` is defined explicitly but ``out_dist`` is a wrapper around
 
 In the above example 10 models will be produced, each with 100 species; the in-edge and out-edge distributions will both follow a power law but with different exponents; the distributions will be truncated such that every degree bin will have a minimum expected node count of 1; and the models will be split into 4 groups to be processed in parallel. Below are examples of the resulting distributions and a network.
 
-![](docs/source/dist_fig_0.png)
+![](https://github.com/sys-bio/SBbadger/blob/main/docs/source/dist_fig_0.png)
 
-![](docs/source/net_fig_0.png)
+![](https://github.com/sys-bio/SBbadger/blob/main/docs/source/net_fig_0.png)

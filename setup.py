@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name='SBbadger',
     packages=['SBbadger'],
-    version='1.0.0.4',
+    version='1.0.0.5',
     license='Apache',
     description='Synthetic biochemical reaction networks with definable degree distributions.',
     long_description=long_description,
@@ -14,7 +14,7 @@ setup(
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.4.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.5.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',
