@@ -1,15 +1,18 @@
 from distutils.core import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='SBbadger',
     packages=['SBbadger'],
-    version='1.0.0.1',
+    version='1.0.0.2',
     license='Apache',
     description='Synthetic biochemical reaction networks with definable degree distributions.',
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.1.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.0.2.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',
