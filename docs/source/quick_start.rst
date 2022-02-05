@@ -5,7 +5,8 @@ Installation
 ------------
 
 Supported versions of Python are 3.7, 3.8, and 3.9. Python dependencies include numpy, scipy, antimony, matplotlib,
-and pydot. An additional dependency for pydot is a system installation of Graphviz.
+and pydot. An additional dependency for pydot is either a system installation of Graphviz or pydot installation
+via conda.
 
 SBbadger can be installed using pip:
 
@@ -79,14 +80,14 @@ depiction of a sample network and an Antimony string describing the associated m
 ``var`` and ``ext`` denote floating and boundary species respectively. The default 
 rate law is mass action with all parameters randomly selected from a log-uniform 
 distribution with a range from 0.001 to 100. Initial conditions are randomly selected
-from a uniform distribution with a range from 0 to 10. By default the reactions are 
+from a uniform distribution with a range from 0 to 10. By default, the reactions are
 irreversible.
 
 Expanded Example
 ----------------
 
 Now suppose we want to create many models, and with more defined properties. The following python
-script will do just that. 
+script will do just that.
 
 .. code-block::
 
