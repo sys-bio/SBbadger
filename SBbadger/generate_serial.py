@@ -7,7 +7,13 @@ import glob
 import antimony
 import matplotlib.pyplot as plt
 import numpy as np
-import pydot
+import importlib
+
+pydot_spec = importlib.util.find_spec("pydot")
+found_pydot = pydot_spec is not None
+
+if found_pydot:
+    import pydot
 
 
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
@@ -200,7 +206,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                             f.write(']')
                 f.write('\n')
 
-        if net_plots:
+        if net_plots and found_pydot:
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -724,7 +730,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                                         f.write(']')
                             f.write('\n')
 
-                if net_plots:
+                if net_plots and found_pydot:
                     edges = []
                     for each in el:
                         edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1022,7 +1028,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
                                 f.write(')')
                     f.write('\n')
 
-            if net_plots:
+            if net_plots and found_pydot:
                 edges = []
                 for each in el:
                     edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1175,7 +1181,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                                 f.write(')')
                     f.write('\n')
 
-            if net_plots:
+            if net_plots and found_pydot:
                 edges = []
                 for each in el:
                     edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1330,7 +1336,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                                 f.write(')')
                     f.write('\n')
 
-            if net_plots:
+            if net_plots and found_pydot:
                 edges = []
                 for each in el:
                     edges.append(('S' + str(each[0]), 'S' + str(each[1])))

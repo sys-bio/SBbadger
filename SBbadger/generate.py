@@ -8,7 +8,13 @@ import antimony
 import matplotlib.pyplot as plt
 import numpy as np
 from multiprocessing import Pool
-import pydot
+import importlib
+
+pydot_spec = importlib.util.find_spec("pydot")
+found_pydot = pydot_spec is not None
+
+if found_pydot:
+    import pydot
 
 
 def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
@@ -62,7 +68,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                             f.write(']')
                 f.write('\n')
 
-        if net_plots:
+        if net_plots and found_pydot:
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -655,7 +661,7 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                             f.write(')')
                 f.write('\n')
 
-    if net_plots:
+    if net_plots and found_pydot:
         edges = []
         for each in el:
             edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -947,7 +953,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                             f.write(')')
                 f.write('\n')
 
-        if net_plots:
+        if net_plots and found_pydot:
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1105,7 +1111,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                             f.write(')')
                 f.write('\n')
 
-        if net_plots:
+        if net_plots and found_pydot:
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1267,7 +1273,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                             f.write(')')
                 f.write('\n')
 
-        if net_plots:
+        if net_plots and found_pydot:
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
