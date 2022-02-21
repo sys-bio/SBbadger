@@ -660,13 +660,19 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 out_nodes_count.append(each[0])
                 in_nodes_count.append(each[1])
 
-    in_nodes_list = []
-    for i, each in enumerate(in_nodes_count):
-        in_nodes_list.append(i)
+    max_count = max(len(in_nodes_count), len(out_nodes_count))
 
+    in_nodes_list = []
     out_nodes_list = []
-    for i, each in enumerate(out_nodes_count):
+    for i in range(max_count):
+        in_nodes_list.append(i)
         out_nodes_list.append(i)
+
+    while len(out_nodes_count) < len(in_nodes_count):
+        out_nodes_count.append(0)
+
+    while len(in_nodes_count) < len(out_nodes_count):
+        in_nodes_count.append(0)
 
     if not bool(joint_samples):
         random.shuffle(in_nodes_count)
