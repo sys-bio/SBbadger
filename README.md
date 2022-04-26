@@ -2,6 +2,10 @@
 **SBbadger** is a Python library for the generation of synthetic, directed, reaction networks that conform to 
 user-defined degree distributions. 
 
+**Documentation**
+
+ https://SBbadger.readthedocs.io
+ 
 Quick Start
 ===========
 
