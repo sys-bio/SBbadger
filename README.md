@@ -2,6 +2,10 @@
 **SBbadger** is a Python library for the generation of synthetic, directed, reaction networks that conform to 
 user-defined degree distributions. 
 
+# Documentation
+
+ https://SBbadger.readthedocs.io
+ 
 Quick Start
 ===========
 
@@ -28,6 +32,17 @@ random network using the following commands in the python interpreter:
 >>> from SBbadger import generate
 >>> generate.models()
 ```
+
+Note to Windows users. Currently the above won't work on windows in a script file. To use the package on windows in a script file you must use:
+
+```
+from SBbadger import generate
+
+if __name__ == "__main__":
+   generate.models()
+```
+
+This will be fixed in a future version.
 
 In this case, SBbadger will randomly select reactions from 4 possible reaction types
 and randomly select the reactants and products for those reactions from the 10 species.
