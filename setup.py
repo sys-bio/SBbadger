@@ -33,7 +33,7 @@ setup(
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.0.2.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.1.0.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',
