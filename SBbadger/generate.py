@@ -23,10 +23,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False,
           str_format='ant'):
     """
-    Generates a collection of models. This function runs the complete workflow for model generation including
-    truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
-    imposition of rate-laws. Outputs include distribution data and figures, network data and figures, and the
-    final models in Antimony and SBML formats.
+    Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
+    generation including truncation and re-normalization of the distributions, reaction selection and construction of
+    the network, and the imposition of rate-laws. Outputs include distribution data and figure, network data and
+    figure, and the final model in Antimony and SBML formats.
 
     :param verbose_exceptions: Traceback for input errors are suppressed.
     :param output_dir: Output directory.
