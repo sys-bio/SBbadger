@@ -61,6 +61,9 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param str_format: Determines the format of the output string, antimony or sbml. Defaults to ant.
     """
 
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
+
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
 
@@ -167,7 +170,6 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     # pool.close()
 
     i = num_existing_models
-    print(i)
 
     while i < num_existing_models + 1:
 
@@ -432,9 +434,6 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
             graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
                         format='dot')
 
-        if net_plots and not found_pydot:
-            print('The pydot package was not found and plots will not be produced')
-
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
@@ -599,6 +598,9 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
+
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
@@ -1027,8 +1029,6 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
             graph.add_edge(pydot.Edge(each[0], each[1]))
         graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
         graph.write(os.path.join(directory, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'), format='dot')
-    if net_plots and not found_pydot:
-        print('The pydot package was not found and plots will not be produced')
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
@@ -1052,6 +1052,9 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
+
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
 
     if rxn_prob:
         if round(sum(rxn_prob), 10) != 1:
@@ -1330,8 +1333,6 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
             graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
                         format='dot')
-        if net_plots and not found_pydot:
-            print('The pydot package was not found and plots will not be produced')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1367,6 +1368,9 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
+
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
@@ -1502,8 +1506,6 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
             graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
                         format='dot')
-        if net_plots and not found_pydot:
-            print('The pydot package was not found and plots will not be produced')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1542,6 +1544,9 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
+
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
@@ -1678,8 +1683,6 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
             graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
                         format='dot')
-        if net_plots and not found_pydot:
-            print('The pydot package was not found and plots will not be produced')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1720,6 +1723,9 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param net_plots: Generate network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
+
+    if net_plots and not found_pydot:
+        print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
