@@ -19,12 +19,14 @@ Simple Example
 --------------
 
 In the simplest possible case SBbadger can generate a single, 10 species, 
-random network using the following commands in the python interpreter:
+random network and return an Antimony (default) or SBML string variable
+using the following commands in the python interpreter:
 
 .. code-block:: console
 
-   >>> from SBbadger import generate
-   >>> generate.models()
+    >>> from SBbadger import generate
+    >>> if __name__ == "__main__":
+    ...     model_str = generate.model()
 
 In this case, SBbadger will randomly select reactions from 4 possible reaction types
 and randomly select the reactants and products for those reactions from the 10 species.
@@ -81,7 +83,7 @@ depiction of a sample network and an Antimony string describing the associated m
 rate law is mass action with all parameters randomly selected from a log-uniform 
 distribution with a range from 0.001 to 100. Initial conditions are randomly selected
 from a uniform distribution with a range from 0 to 10. By default, the reactions are
-irreversible.
+irreversible. Note that the antimony and SBML files will also be stored as files.
 
 Expanded Example
 ----------------

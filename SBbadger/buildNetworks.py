@@ -35,12 +35,12 @@ class Settings:
          UniUni = 0.35
          BiUni = 0.3
          UniBi = 0.3
-         BiBI  = 0.05
+         BiBi  = 0.05
          """
         UniUni = 0.35
         BiUni = 0.3
         UniBi = 0.3
-        BiBI = 0.05
+        BiBi = 0.05
 
 
 def _get_mmr_rate_law(k, s1, s2):
@@ -803,6 +803,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
+                if [[reactant], [product2, product1]] in reaction_list2:
+                    pick_continued += 1
+                    continue
+
                 if not mass_violating_reactions and reactant in {product1, product2}:
                     pick_continued += 1
                     continue
@@ -856,8 +860,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reactant1 = random.choice(nodes_list)
                 reactant2 = random.choice(nodes_list)
 
-                if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                        or {reactant1, reactant2} == {product1, product2}:
+                if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                    pick_continued += 1
+                    continue
+
+                if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                    pick_continued += 1
+                    continue
+
+                if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                    pick_continued += 1
+                    continue
+
+                if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                    pick_continued += 1
+                    continue
+
+                if {reactant1, reactant2} == {product1, product2}:
                     pick_continued += 1
                     continue
 
@@ -1072,6 +1091,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
                     if not mass_violating_reactions and product in {reactant1, reactant2}:
                         pick_continued += 1
                         continue
@@ -1107,6 +1130,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reactant2 = random.choice(in_nodes_list)
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -1171,6 +1198,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if [[reactant], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
                     if not mass_violating_reactions and reactant in {product1, product2}:
                         pick_continued += 1
                         continue
@@ -1216,6 +1247,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reactant = random.choice(in_nodes_list)
 
                     if [[reactant], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant], [product2, product1]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -1278,8 +1313,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reactant1 = random.choice(in_nodes_list)
                     reactant2 = random.choice(in_nodes_list)
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 
@@ -1327,8 +1377,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reactant1 = random.choice(in_nodes_list)
                     reactant2 = random.choice(in_nodes_list)
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 
@@ -1523,6 +1588,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
                     if not mass_violating_reactions and product in {reactant1, reactant2}:
                         pick_continued += 1
                         continue
@@ -1578,6 +1647,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     product = random.choice(out_nodes_list)
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -1637,6 +1710,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     product2 = random.choice(out_nodes_list)
 
                     if [[reactant], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant], [product2, product1]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -1700,6 +1777,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     product2 = random.choice(out_nodes_list)
 
                     if [[reactant], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant], [product2, product1]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -1771,8 +1852,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     product1 = random.choice(out_nodes_list)
                     product2 = random.choice(out_nodes_list)
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 
@@ -1853,8 +1949,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     product1 = random.choice(out_nodes_list)
                     product2 = random.choice(out_nodes_list)
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 
@@ -2076,6 +2187,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
                     if not mass_violating_reactions and product in {reactant1, reactant2}:
                         pick_continued += 1
                         continue
@@ -2140,6 +2255,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         product = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -2218,6 +2337,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant], [product2, product1]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -2300,6 +2423,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant], [product2, product1]] in reaction_list2:
                         pick_continued += 1
                         continue
 
@@ -2391,8 +2518,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     while in_nodes_count_copy[product2] < (2 + mod_num):
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 
@@ -2487,8 +2629,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     while in_nodes_count_copy[product2] < 2:
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
-                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2 \
-                            or {reactant1, reactant2} == {product1, product2}:
+                    if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product1, product2]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant1, reactant2], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if [[reactant2, reactant1], [product2, product1]] in reaction_list2:
+                        pick_continued += 1
+                        continue
+
+                    if {reactant1, reactant2} == {product1, product2}:
                         pick_continued += 1
                         continue
 

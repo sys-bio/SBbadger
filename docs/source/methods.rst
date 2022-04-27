@@ -1,6 +1,11 @@
 Methods
 =======
 
+Generating a singular model (as a string variable)
+--------------------------------------------------
+
+.. autofunction:: SBbadger.generate.model
+
 Generating Models
 -----------------
 
