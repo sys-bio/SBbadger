@@ -1,10 +1,6 @@
 Methods
 =======
 
-Note: all the following methods, aside from ``generate.model``, use python multiprocessing to generate models or their
-components in parallel. To generate them serially use ``generate_serial.<method>``. The only difference is the absence
-of the ``n_cpus`` argument.
-
 Generating a singular model (as a string variable)
 --------------------------------------------------
 
@@ -50,3 +46,7 @@ Branched
 ~~~~~~~~
 
 .. autofunction:: SBbadger.generate.branched
+
+Note: all the above methods, aside from ``generate.model``, use python multiprocessing to generate models or their
+components in parallel. To generate them serially use ``generate_serial.<method>``. The only difference is the absence
+of the ``n_cpus`` argument.
