@@ -2,6 +2,7 @@
 import sys
 from SBbadger import buildNetworks
 import os
+from os import cpu_count
 import shutil
 import glob
 import antimony
@@ -17,11 +18,58 @@ if found_pydot:
     import pydot
 
 
+def reaction_network_fig(net_path, fig_path, layout):
+
+    if layout == 'default':
+        layout = 'dot'
+    graph = pydot.Dot(graph_type="digraph")
+    graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+    ind = 0
+    r_nodes = []
+    with open(net_path, 'r') as network:
+        lines = network.readlines()
+        for i, line in enumerate(lines):
+            if i > 0:
+                # print(line[:-1])
+                if line:
+                    ls = line.split(',')
+                    ls1 = ls[1][1:-1].split(':')
+                    ls2 = ls[2][1:-1].split(':')
+                    # print(ls1)
+                    if ls[0] == '0':
+                        graph.add_edge(pydot.Edge(ls1[0], ls2[0]))
+                    if ls[0] == '1':
+                        graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
+                                                  shape='point', width='0.1', height='0.1'))
+                        graph.add_edge(pydot.Edge(ls1[0], 'R' + str(ind), arrowhead='none'))
+                        graph.add_edge(pydot.Edge(ls1[1], 'R' + str(ind), arrowhead='none'))
+                        graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
+                    if ls[0] == '2':
+                        graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
+                                                  shape='point', width='0.1', height='0.1'))
+                        graph.add_edge(pydot.Edge(ls1[0], 'R' + str(ind), arrowhead='none'))
+                        graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
+                        graph.add_edge(pydot.Edge('R' + str(ind), ls2[1]))
+
+                    if ls[0] == '3':
+                        graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
+                                                  shape='point', width='0.1', height='0.1'))
+                        graph.add_edge(pydot.Edge(ls1[0], 'R' + str(ind), arrowhead='none'))
+                        graph.add_edge(pydot.Edge(ls1[1], 'R' + str(ind), arrowhead='none'))
+                        graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
+                        graph.add_edge(pydot.Edge('R' + str(ind), ls2[1]))
+                    r_nodes.append('R' + str(ind))
+                    ind += 1
+
+    graph.write_png(fig_path, prog=layout)
+
+
 def model(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_species=10,
           n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None,
-          joint_range=None, min_freq=1.0, mass_violating_reactions=True, edge_type='generic', kinetics=None,
-          add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False,
-          str_format='ant'):
+          joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
+          kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
+          ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
+          mass_balanced=False):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
     generation including truncation and re-normalization of the distributions, reaction selection and construction of
@@ -51,14 +99,19 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
-    :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
+    :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
+    :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
+    :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param dist_plots: Generate distribution charts.
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param str_format: Determines the format of the output string, antimony or sbml. Defaults to ant.
+    :param mass_balanced: Enforces consistency of the stoichiometric matrix
+    :param connected: Forces networks to be fully connected
     """
 
     if net_plots and not found_pydot:
@@ -67,10 +120,30 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
 
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
+
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'gma' not in kinetics[0] and gma_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to gma kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'saturating' not in kinetics[0] and sc_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
     if ic_params is None:
@@ -97,6 +170,26 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if gma_reg:
+        if round(sum(gma_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {gma_reg[0]} and they do not add to 1.")
+        if gma_reg[1] < 0 or gma_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {gma_reg[1]} is not between 0 and 1.")
+
+    if sc_reg:
+        if round(sum(sc_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {sc_reg[0]} and they do not add to 1.")
+        if sc_reg[1] < 0 or sc_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -135,7 +228,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -143,7 +236,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -155,19 +248,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
-
-    # args_list = [(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
-    #               rxn_prob, rev_prob, joint_dist, in_range, out_range, joint_range, min_freq, ic_params,
-    #               mod_reg, mass_violating_reactions, dist_plots, net_plots, edge_type, str_format)
-    #              for i in range(num_existing_models, num_existing_models + 1)]
-    #
-    # pool = Pool(1)
-    # pool.starmap(generate_model, args_list)
-    # pool.close()
 
     i = num_existing_models
 
@@ -182,6 +266,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
         rl_failed_count = -1
 
+        input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in = \
+            buildNetworks.generate_distributions(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
+                                                 out_range, joint_range)
+
         while not rl[0]:
 
             rl_failed_count += 1
@@ -193,17 +281,20 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 break
 
             in_samples, out_samples, joint_samples = \
-                buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range,
-                                               joint_range)
+                buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
+                                               pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+
+            # in_samples, out_samples, joint_samples = \
+            #     buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
+            #                                    out_range, joint_range)
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                      rxn_prob, mod_reg, mass_violating_reactions, edge_type)
+                                                      rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
+                                                      edge_type, mass_balanced, connected)
 
         if not rl[0]:
             i += 1
             continue
-
-    # if rl[0]:
 
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
@@ -215,16 +306,23 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                         if k == 0:
                             f.write(str(item))
                         else:
-                            f.write(',[')
+                            f.write(',(')
                             for m, every in enumerate(item):
                                 if m == 0:
                                     f.write(str(every))
                                 else:
                                     f.write(':' + str(every))
-                            f.write(']')
+                            f.write(')')
                 f.write('\n')
 
-        if net_plots and found_pydot:
+        if net_plots == 'reaction' and found_pydot:
+            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
+                                 os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                 net_layout)
+
+        if net_plots == 'edge' and found_pydot:
+            if net_layout == 'default':
+                net_layout = 'dot'
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -234,12 +332,13 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
 
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                            prog=net_layout)
+            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
-        if net_plots and not found_pydot:
-            print('The pydot package was not found and plots will not be produced')
+        # if net_plots and not found_pydot:
+        #     print('The pydot package was not found and plots will not be produced')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
@@ -369,9 +468,11 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         return output_str
 
 
-def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
-                    rxn_prob, rev_prob, joint_dist, in_range, out_range, joint_range, min_freq, ic_params, mod_reg,
-                    mass_violating_reactions, dist_plots, net_plots, edge_type):
+def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist,
+                    output_dir, rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg,
+                    mass_violating_reactions, connected, dist_plots, net_plots, net_layout, edge_type,
+                    mass_balanced, input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out,
+                    edge_ev_in):
 
     in_samples = []
     out_samples = []
@@ -385,7 +486,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
     while not rl[0]:
 
         rl_failed_count += 1
-        if rl_failed_count == 100:
+        if rl_failed_count == 10 * n_models:
             ant_str = "Network construction failed on this attempt, consider revising your settings."
             anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
@@ -393,11 +494,16 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
             break
 
         in_samples, out_samples, joint_samples = \
-            buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range,
-                                           joint_range)
+            buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
+                                           pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+
+        # in_samples, out_samples, joint_samples = \
+        #     buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range,
+        #                                    joint_range)
 
         rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                  rxn_prob, mod_reg, mass_violating_reactions, edge_type)
+                                                  rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
+                                                  edge_type, mass_balanced, connected)
 
     if rl[0]:
 
@@ -411,28 +517,39 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                         if k == 0:
                             f.write(str(item))
                         else:
-                            f.write(',[')
+                            f.write(',(')
                             for m, every in enumerate(item):
                                 if m == 0:
                                     f.write(str(every))
                                 else:
                                     f.write(':' + str(every))
-                            f.write(']')
+                            f.write(')')
                 f.write('\n')
 
-        if net_plots and found_pydot:
-            edges = []
-            for each in el:
-                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+        if net_plots:
 
-            graph = pydot.Dot(graph_type="digraph")
-            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-            for each in edges:
-                graph.add_edge(pydot.Edge(each[0], each[1]))
+            if net_plots == 'edge' and found_pydot:
+                if net_layout == 'default':
+                    net_layout = 'dot'
+                edges = []
+                for each in el:
+                    edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+                graph = pydot.Dot(graph_type="digraph")
+                graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                for each in edges:
+                    graph.add_edge(pydot.Edge(each[0], each[1]))
+
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                prog=net_layout)
+                # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+                #             format='dot')
+            else:
+                if found_pydot:
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
+                                                      + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
+                                                                              group_name + '_' + str(i) + '.png'),
+                                         net_layout)
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
@@ -510,7 +627,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 
                 x = np.arange(len(x0))
 
-                width = 0.25
+                width = 0.4
                 fig, ax = plt.subplots()
                 ax.bar(x-width/2, y1, width, label='outdegree')
                 ax.bar(x+width/2, y2, width, label='indegree')
@@ -553,12 +670,24 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
             f.write(sbml)
         antimony.clearPreviousLoads()
 
+        # al = Autolayout()
+        # al.loadSBMLFile(sbml_dir)
+        # print ('Num of Nodes = ', al.getNumNodes())
+        # print ('Num reactions = ', al.getNumReactions())
+        # al.doAutolayout()
+        # sbmlstr = al.getSBMLWithLayout()
+        # # te.saveToFile('testWithLayout.xml', sbmlstr)
+        # #
+        # sd = SBMLDiagrams.load(sbmlstr)
+        # sd.draw(output_fileName="test_" + str(i) + ".png")
+
 
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
-           joint_range=None, min_freq=1.0, mass_violating_reactions=True, edge_type='generic', kinetics=None, 
-           add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, 
-           n_cpus=1):
+           joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
+           kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
+           ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
+           mass_balanced=False):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
     truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
@@ -589,14 +718,19 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
-    :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
+    :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
+    :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
+    :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param dist_plots: Generate distribution charts.
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param mass_balanced: Enforces consistency of the stoichiometric matrix
+    :param connected: Forces networks to be fully connected
     """
 
     if net_plots and not found_pydot:
@@ -605,10 +739,30 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
 
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
+
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'gma' not in kinetics[0] and gma_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to gma kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'saturating' not in kinetics[0] and sc_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
     if ic_params is None:
@@ -635,6 +789,26 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if gma_reg:
+        if round(sum(gma_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {gma_reg[0]} and they do not add to 1.")
+        if gma_reg[1] < 0 or gma_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {gma_reg[1]} is not between 0 and 1.")
+
+    if sc_reg:
+        if round(sum(sc_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {sc_reg[0]} and they do not add to 1.")
+        if sc_reg[1] < 0 or sc_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -673,7 +847,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -681,7 +855,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -693,14 +867,19 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            os.makedirs(os.path.join(path, 'dot_files'))
+            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
 
-    args_list = [(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
-                  rxn_prob, rev_prob, joint_dist, in_range, out_range, joint_range, min_freq, ic_params,
-                  mod_reg, mass_violating_reactions, dist_plots, net_plots, edge_type)
+    input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in = \
+        buildNetworks.generate_distributions(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
+                                             out_range, joint_range)
+
+    args_list = [(i, n_models, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
+                  rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
+                  connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out,
+                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
@@ -708,11 +887,15 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     pool.close()
 
 
-def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, in_range, out_range,
-                           joint_range, min_freq, dist_plots):
+def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, dist_plots,
+                           input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in):
 
-    in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
-        n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
+    in_samples, out_samples, joint_samples = \
+        buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
+                                       pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+
+    # in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
+    #     n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
 
     dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
 
@@ -822,7 +1005,7 @@ def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_d
 
 def distributions(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1,
                   n_species=10, out_dist='random', in_dist='random', joint_dist=None, in_range=None, out_range=None,
-                  joint_range=None, min_freq=1.0, dist_plots=False, n_cpus=1):
+                  joint_range=None, min_freq=1.0, dist_plots=False, n_cpus=cpu_count()-1):
     """
     Generates a collection of frequency distributions from function or bound discrete probabilities.
     Outputs include distribution data and figures.
@@ -920,16 +1103,21 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
             if dist_plots:
                 os.makedirs(os.path.join(path, 'dist_figs'))
 
-    args_list = [(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, in_range, out_range,
-                  joint_range, min_freq, dist_plots) for i in range(num_existing_models, n_models)]
+    input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in = \
+        buildNetworks.generate_distributions(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
+                                             out_range, joint_range)
+
+    args_list = [(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, dist_plots,
+                  input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+                 for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_distributions, args_list)
     pool.close()
 
 
-def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, mass_violating_reactions,
-                      edge_type, net_plots):
+def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
+                      mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced):
 
     out_dist = False
     in_dist = False
@@ -987,11 +1175,12 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
     while not rl[0]:
 
         rl_failed_count += 1
-        if rl_failed_count == 100:
+        if rl_failed_count == 10 * len(dists_list):
             break
 
         rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                  rxn_prob, mod_reg, mass_violating_reactions, edge_type)
+                                                  rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
+                                                  edge_type, mass_balanced, connected)
 
     if not rl[0]:
 
@@ -1019,7 +1208,14 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                             f.write(')')
                 f.write('\n')
 
-    if net_plots and found_pydot:
+    if net_plots == 'reaction' and found_pydot:
+        reaction_network_fig(os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
+                             os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                             net_layout)
+
+    if net_plots == 'edge' and found_pydot:
+        if net_layout == 'default':
+            net_layout = 'dot'
         edges = []
         for each in el:
             edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1027,13 +1223,16 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
         graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
         for each in edges:
             graph.add_edge(pydot.Edge(each[0], each[1]))
-        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-        graph.write(os.path.join(directory, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'), format='dot')
+        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                        prog=net_layout)
+        # graph.write(os.path.join(directory, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+        #                          format='dot')
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
-             mass_violating_reactions=True, edge_type='generic', mod_reg=None, rxn_prob=None,
-             net_plots=False, n_cpus=1):
+             mass_violating_reactions=True, connected=True, edge_type='generic', mod_reg=None, gma_reg=None,
+             sc_reg=None, rxn_prob=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
+             mass_balanced=False):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -1046,11 +1245,16 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mass_violating_reactions: Allow apparent mass violating reactions such as A + B -> A.
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
-    :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
+    :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
+    :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
+    :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param mass_balanced: Enforces consistency of the stoichiometric matrix
+    :param connected: Forces networks to be fully connected
     """
 
     if net_plots and not found_pydot:
@@ -1072,6 +1276,26 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
 
+    if gma_reg:
+        if round(sum(gma_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {gma_reg[0]} and they do not add to 1.")
+        if gma_reg[1] < 0 or gma_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {gma_reg[1]} is not between 0 and 1.")
+
+    if sc_reg:
+        if round(sum(sc_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {sc_reg[0]} and they do not add to 1.")
+        if sc_reg[1] < 0 or sc_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
+
     net_files = []
     if overwrite:
         if os.path.exists(os.path.join(directory, group_name, 'networks')):
@@ -1086,11 +1310,11 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         else:
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(directory, group_name, 'dot_files')):
-            shutil.rmtree(os.path.join(directory, group_name, 'dot_files'))
-            os.makedirs(os.path.join(directory, group_name, 'dot_files'))
-        else:
-            os.makedirs(os.path.join(directory, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(directory, group_name, 'dot_files')):
+        #     shutil.rmtree(os.path.join(directory, group_name, 'dot_files'))
+        #     os.makedirs(os.path.join(directory, group_name, 'dot_files'))
+        # else:
+        #     os.makedirs(os.path.join(directory, group_name, 'dot_files'))
 
     else:
         if os.path.exists(os.path.join(directory, group_name, 'networks')):
@@ -1100,7 +1324,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         else:
             os.makedirs(os.path.join(directory, group_name, 'networks'))
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
-            os.makedirs(os.path.join(directory, group_name, 'dot_files'))
+            # os.makedirs(os.path.join(directory, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
 
@@ -1112,8 +1336,8 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         dists_list.append([int(item.split('_')[-1].split('.')[0]), item])
     dists_list.sort()
 
-    args_list = [(dist[0], dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg,
-                  mass_violating_reactions, edge_type, net_plots)
+    args_list = [(dist[0], dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
+                  mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced)
                  for dist in dists_list if dist not in net_inds]
 
     pool = Pool(n_cpus)
@@ -1123,21 +1347,48 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
 def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params):
 
-    reg_check = False
-    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
-        if 'a' in f.read():
-            reg_check = True
-    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
-        if 's' in f.read():
-            reg_check = True
+    reg_check = True
 
-    if reg_check and 'modular' not in kinetics[0]:
+    mod_check = False
+    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
+        if 'a' in f.read() and 'gma' not in f.read() and 'sc' not in f.read():
+            mod_check = True
+    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
+        if 's' in f.read() and 'sc' not in f.read():
+            mod_check = True
+
+    if mod_check and 'modular' not in kinetics[0]:
+        reg_check = False
         ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
         anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
-    else:
+    gma_check = False
+    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
+        if 'gma' in f.read():
+            gma_check = True
+
+    if gma_check and kinetics[0] != 'gma':
+        reg_check = False
+        ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+    sc_check = False
+    with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as f:
+        if 'sc' in f.read():
+            sc_check = True
+
+    if sc_check and kinetics[0] != 'saturating_cooperative':
+        reg_check = False
+        ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+    if reg_check:
         rl = []
         with open(os.path.join(directory, group_name, 'networks', nets_list[i][1])) as nl:
             for j, line in enumerate(nl):
@@ -1177,7 +1428,8 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
 
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
-              add_enzyme=False, mod_reg=None, rxn_prob=None, rev_prob=0, ic_params=None, n_cpus=1):
+              add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
+              n_cpus=cpu_count()-1):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1189,7 +1441,9 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
-    :param mod_reg: Describes the modifiers. Only valid for modular rate-laws.
+    :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
+    :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
+    :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1197,20 +1451,40 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
-    if kinetics and kinetics[1] != 'uniform' and kinetics[1] != 'loguniform' \
-            and kinetics[1] != 'normal' and kinetics[1] != 'lognormal':
-        if not verbose_exceptions:
-            sys.tracebacklimit = 0
-        raise Exception('Please specify the parameter distribution as "uniform", "loguniform", "normal", '
-                        'or "lognormal".')
+    # if kinetics and kinetics[1] != 'uniform' and kinetics[1] != 'loguniform' \
+    #         and kinetics[1] != 'normal' and kinetics[1] != 'lognormal':
+    #     if not verbose_exceptions:
+    #         sys.tracebacklimit = 0
+    #     raise Exception('Please specify the parameter distribution as "uniform", "loguniform", "normal", '
+    #                     'or "lognormal".')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
 
     if 'modular' not in kinetics[0] and mod_reg is not None:
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to modular kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'gma' not in kinetics[0] and gma_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to gma kinetics.\n'
+                        'Please reset the run with appropriate parameters.')
+
+    if 'saturating' not in kinetics[0] and sc_reg is not None:
+        if not verbose_exceptions:
+            sys.tracebacklimit = 0
+        raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
 
     if ic_params is None:
@@ -1231,6 +1505,26 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {mod_reg[1]} is not between 0 and 1.")
+
+    if gma_reg:
+        if round(sum(gma_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {gma_reg[0]} and they do not add to 1.")
+        if gma_reg[1] < 0 or gma_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {gma_reg[1]} is not between 0 and 1.")
+
+    if sc_reg:
+        if round(sum(sc_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {sc_reg[0]} and they do not add to 1.")
+        if sc_reg[1] < 0 or sc_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -1290,7 +1584,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     pool.close()
 
 
-def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots):
+def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
+                    net_layout):
 
     rl, el = buildNetworks.generate_simple_linear(n_species)
 
@@ -1317,11 +1612,18 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                                 if m == 0:
                                     f.write(str(every))
                                 else:
-                                    f.write(',' + str(every))
+                                    f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
 
-        if net_plots and found_pydot:
+        if net_plots == 'reaction' and found_pydot:
+            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
+                                 os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                 net_layout)
+
+        if net_plots == 'edge' and found_pydot:
+            if net_layout == 'default':
+                net_layout = 'dot'
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1330,9 +1632,10 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
             graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                            prog=net_layout)
+            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1349,7 +1652,8 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
 
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
-           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, n_cpus=1):
+           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, net_layout='default',
+           n_cpus=cpu_count()-1):
     """
     Generates a collection of UNI-UNI linear models.
 
@@ -1366,6 +1670,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
@@ -1374,6 +1679,14 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -1408,11 +1721,11 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
@@ -1439,11 +1752,11 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-                         if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
+        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
@@ -1455,8 +1768,8 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         raise Exception("There exists a discrepancy between the network, antimony, and sbml files.\n"
                         "Consider starting over and overwriting them all.")
 
-    args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots)
-                 for i in range(n_models) if i not in net_inds]
+    args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
+                  net_layout) for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_linear, args_list)
@@ -1464,7 +1777,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
 
 def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycles, kinetics, rev_prob, ic_params,
-                    output_dir, net_plots):
+                    output_dir, net_plots, net_layout):
 
     rl, el = buildNetworks.generate_simple_cyclic(min_species, max_species, n_cycles)
 
@@ -1490,11 +1803,18 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                                 if m == 0:
                                     f.write(str(every))
                                 else:
-                                    f.write(',' + str(every))
+                                    f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
 
-        if net_plots and found_pydot:
+        if net_plots == 'reaction' and found_pydot:
+            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
+                                 os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                 net_layout)
+
+        if net_plots == 'edge' and found_pydot:
+            if net_layout == 'default':
+                net_layout = 'dot'
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1503,9 +1823,10 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
             graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                            prog=net_layout)
+            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1523,7 +1844,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
            max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=False, n_cpus=1):
+           net_plots=False, net_layout='default', n_cpus=cpu_count()-1):
     """
     Generates a collection of UNI-UNI cyclic models.
 
@@ -1542,6 +1863,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
@@ -1550,6 +1872,14 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -1584,11 +1914,11 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
@@ -1615,11 +1945,11 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-                         if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
+        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
@@ -1632,15 +1962,15 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                         "Consider starting over and overwriting them all.")
 
     args_list = [(i, group_name, add_enzyme, min_species, max_species, n_cycles, kinetics, rev_prob,
-                  ic_params, output_dir, net_plots) for i in range(n_models) if i not in net_inds]
+                  ic_params, output_dir, net_plots, net_layout) for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_cyclic, args_list)
     pool.close()
 
 
-def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots, seeds,
-                      path_probs, tips):
+def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
+                      net_layout, seeds, path_probs, tips):
 
     rl, el = buildNetworks.generate_simple_branched(n_species, seeds, path_probs, tips)
 
@@ -1667,11 +1997,18 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                                 if m == 0:
                                     f.write(str(every))
                                 else:
-                                    f.write(',' + str(every))
+                                    f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
 
-        if net_plots and found_pydot:
+        if net_plots == 'reaction' and found_pydot:
+            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
+                                 os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                 net_layout)
+
+        if net_plots == 'edge' and found_pydot:
+            if net_layout == 'default':
+                net_layout = 'dot'
             edges = []
             for each in el:
                 edges.append(('S' + str(each[0]), 'S' + str(each[1])))
@@ -1680,9 +2017,10 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
             graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
             for each in edges:
                 graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'))
-            graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                        format='dot')
+            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                            prog=net_layout)
+            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1700,7 +2038,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1, 
              n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0, 
-             ic_params=None, net_plots=False, n_cpus=1):
+             ic_params=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1):
     """
     Generates a collection of UNI-UNI branched models from a set of seed nodes.
 
@@ -1721,6 +2059,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
 
@@ -1729,6 +2068,14 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+
+    valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
+                      'modular_PM', 'gma', 'saturating_cooperative']
+    if kinetics:
+        if kinetics[0] not in valid_kinetics:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('Stated kinetics, {' + kinetics[0] + '}, are not supported.')
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -1766,11 +2113,11 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
@@ -1797,11 +2144,11 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-            net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-                         if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        else:
-            os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
+        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
+        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
+        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
+        # else:
+        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
@@ -1814,7 +2161,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                         "Consider starting over and overwriting them all.")
 
     args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
-                  seeds, path_probs, tips) for i in range(n_models) if i not in net_inds]
+                  net_layout, seeds, path_probs, tips) for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_branched, args_list)
