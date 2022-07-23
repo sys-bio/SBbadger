@@ -1171,7 +1171,9 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
     el = [[]]
 
     rl_failed_count = -1
-
+    print()
+    print(10 * len(dists_list))
+    print(in_samples)
     while not rl[0]:
 
         rl_failed_count += 1

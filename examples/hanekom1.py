@@ -2,11 +2,14 @@
 from SBbadger import generate_serial
 from scipy.special import zeta
 
+
 def in_dist(k):
     return k ** (-2) / zeta(2)
 
+
 def out_dist(k):
     return k ** (-2) / zeta(2)
+
 
 if __name__ == "__main__":
 

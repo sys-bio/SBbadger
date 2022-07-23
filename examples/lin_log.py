@@ -1,5 +1,5 @@
 
-import generate_serial
+from SBbadger import generate_serial
 from scipy.stats import zipf
 
 
@@ -29,5 +29,4 @@ if __name__ == "__main__":
         ic_params=['uniform', 0, 10],
         dist_plots=True,
         net_plots=True
-
     )

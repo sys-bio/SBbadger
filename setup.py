@@ -7,17 +7,20 @@ with open("README.md", "r") as fh:
 
 # The following two methods were copied from
 # https://packaging.python.org/guides/single-sourcing-package-version/#single-sourcing-the-version
+
+
 def read(rel_path):
     here = os.path.abspath(os.path.dirname(__file__))
     with codecs.open(os.path.join(here, rel_path), 'r') as fp:
         return fp.read()
 
+
 def get_version(rel_path):
     for line in read(rel_path).splitlines():
         if line.startswith('__version__'):
-            print (line)
+            print(line)
             delim = '"' if '"' in line else "'"
-            print ('delim = ', delim)
+            print('delim = ', delim)
             return line.split(delim)[1]
     else:
         raise RuntimeError("Unable to find version string.")
@@ -33,7 +36,7 @@ setup(
     author='Michael Kochen',
     author_email='kochenma@uw.edu',
     url='https://github.com/sys-bio/SBbadger',
-    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.2.0.tar.gz',
+    download_url='https://github.com/sys-bio/SBbadger/archive/refs/tags/v1.2.1.tar.gz',
     keywords=['Systems biology', 'Benchmark Models'],
     install_requires=[
         'numpy',

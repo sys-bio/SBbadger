@@ -18,3 +18,4 @@ Contents
    quick_start
    usage
    methods
+   examples

@@ -88,7 +88,7 @@ irreversible. Note that the antimony and SBML files will also be stored as files
 Expanded Example
 ----------------
 
-Now suppose we want to create many models, and with more defined properties. The following python
+Now suppose we want to create many models, and with defined properties. The following python
 script will do just that.
 
 .. code-block::
@@ -129,4 +129,5 @@ In the above example 10 models will be produced, each with 100 species; the in-e
 
 .. image:: net_fig_0.png
 
-Additional examples can be found on the :doc:`usage` page, and detailed information regarding the methods can be found on the :doc:`methods` page.
+Additional examples can be found on the :doc:`usage` and :doc:`examples` pages.
+Detailed information regarding the methods can be found on the :doc:`methods` page.

@@ -38,5 +38,4 @@ if __name__ == "__main__":
         ic_params=['uniform', 0, 10],
         dist_plots=True,
         net_plots=True
-
     )

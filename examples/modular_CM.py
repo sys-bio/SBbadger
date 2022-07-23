@@ -1,5 +1,5 @@
 
-from SBbadger import generate_serial
+from SBbadger import generate
 from scipy.special import zeta
 
 
@@ -13,7 +13,7 @@ def out_dist(k):
 
 if __name__ == "__main__":
 
-    model = generate_serial.models(
+    model = generate.models(
 
         group_name='modular_CM',
         n_models=1,
@@ -33,5 +33,4 @@ if __name__ == "__main__":
         ic_params=['uniform', 0, 10],
         dist_plots=True,
         net_plots=True
-
     )

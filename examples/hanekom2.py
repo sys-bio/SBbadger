@@ -1,5 +1,5 @@
 
-import generate_serial
+from SBbadger import generate_serial
 from scipy.special import zeta
 
 
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         out_dist=out_dist,
         in_dist=in_dist,
         rxn_prob=[.35, .30, .30, .05],
-        kinetics=['hanekom', ['loguniform', 'uniform', 'uniform', 'loguniform'],
+        kinetics=['hanekom', ['loguniform', 'uniform', 'loguniform'],
                                  ['v', 'k', 'keq'],
                                  [[0.01, 100], [0.0, 10], [0.01, 100]]],
         overwrite=True,
