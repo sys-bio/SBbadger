@@ -1273,10 +1273,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
         pick_continued = 0
 
         while True:
-            print(reaction_list)
-            print(in_nodes_count)
+
             if pick_continued == n_species:
-                print('FAIL')
                 return [None], [out_samples, in_samples, joint_samples]
 
             if rxn_prob:

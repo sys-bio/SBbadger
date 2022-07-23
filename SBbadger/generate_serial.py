@@ -28,12 +28,11 @@ def reaction_network_fig(net_path, fig_path, layout):
         lines = network.readlines()
         for i, line in enumerate(lines):
             if i > 0:
-                print(line[:-1])
                 if line:
                     ls = line.split(',')
                     ls1 = ls[1][1:-1].split(':')
                     ls2 = ls[2][1:-1].split(':')
-                    print(ls1)
+
                     if ls[0] == '0':
                         graph.add_edge(pydot.Edge(ls1[0], ls2[0]))
                     if ls[0] == '1':
