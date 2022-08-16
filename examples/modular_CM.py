@@ -13,7 +13,7 @@ def out_dist(k):
 
 if __name__ == "__main__":
 
-    model = generate.models(
+    generate.models(
 
         group_name='modular_CM',
         n_models=1,

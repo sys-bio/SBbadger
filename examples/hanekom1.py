@@ -13,7 +13,7 @@ def out_dist(k):
 
 if __name__ == "__main__":
 
-    model = generate_serial.models(
+    generate_serial.models(
 
         group_name='hanekom1',
         n_models=1,
