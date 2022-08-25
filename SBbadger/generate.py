@@ -314,30 +314,30 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                             f.write(')')
                 f.write('\n')
 
-        if net_plots == 'reaction' and found_pydot:
-            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
-                                 os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                                 net_layout)
+        if net_plots:
 
-        if net_plots == 'edge' and found_pydot:
-            if net_layout == 'default':
-                net_layout = 'dot'
-            edges = []
-            for each in el:
-                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+            if net_plots == 'edge' and found_pydot:
+                if net_layout == 'default':
+                    net_layout = 'dot'
+                edges = []
+                for each in el:
+                    edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-            graph = pydot.Dot(graph_type="digraph")
-            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-            for each in edges:
-                graph.add_edge(pydot.Edge(each[0], each[1]))
+                graph = pydot.Dot(graph_type="digraph")
+                graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                for each in edges:
+                    graph.add_edge(pydot.Edge(each[0], each[1]))
 
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                            prog=net_layout)
-            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-            #             format='dot')
-
-        # if net_plots and not found_pydot:
-        #     print('The pydot package was not found and plots will not be produced')
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                                prog=net_layout)
+                # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
+                #             format='dot')
+            else:
+                if found_pydot:
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
+                                                      + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
+                                                                              group_name + '_' + str(i) + '.png'),
+                                         net_layout)
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
