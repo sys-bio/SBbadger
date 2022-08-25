@@ -1207,25 +1207,29 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                             f.write(')')
                 f.write('\n')
 
-    if net_plots == 'reaction' and found_pydot:
-        reaction_network_fig(os.path.join(directory, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
-                             os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                             net_layout)
+    if net_plots:
 
-    if net_plots == 'edge' and found_pydot:
-        if net_layout == 'default':
-            net_layout = 'dot'
-        edges = []
-        for each in el:
-            edges.append(('S' + str(each[0]), 'S' + str(each[1])))
-        graph = pydot.Dot(graph_type="digraph")
-        graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-        for each in edges:
-            graph.add_edge(pydot.Edge(each[0], each[1]))
-        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                        prog=net_layout)
-        # graph.write(os.path.join(directory, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-        #                          format='dot')
+        if net_plots == 'edge' and found_pydot:
+            if net_layout == 'default':
+                net_layout = 'dot'
+            edges = []
+            for each in el:
+                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+
+            graph = pydot.Dot(graph_type="digraph")
+            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+            for each in edges:
+                graph.add_edge(pydot.Edge(each[0], each[1]))
+
+            graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(i)
+                                         + '.png'), prog=net_layout)
+        else:
+            if found_pydot:
+                reaction_network_fig(
+                    os.path.join(directory, group_name, 'networks', group_name + '_' + str(i)
+                                 + '.csv'), os.path.join(directory, group_name, 'net_figs',
+                                                         group_name + '_' + str(i) + '.png'),
+                    net_layout)
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
