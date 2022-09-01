@@ -488,7 +488,7 @@ def generate_distributions(n_species, in_dist, out_dist, joint_dist, min_node_de
 
 
 def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out, pmf_in, pmf_joint,
-                     range_out, range_in, edge_ev_out, edge_ev_in):
+                     range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling):
 
     in_samples = []
     out_samples = []
@@ -519,6 +519,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
 
         num_tries = 0
         while True:
+            print(num_tries)
 
             samples1t = [0 for _ in pmf01]
 
@@ -560,6 +561,28 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
                                 + "times.\n" "Consider revising these distributions.")
 
         return samples1, samples2
+
+    def indep_sample_both_pmfs(pmf_o, range_o, pmf_i, range_i):
+
+        num_tries = 0
+        while True:
+            num_tries += 1
+            out_samp = sample_single_pmf(pmf_o, range_o)
+            in_samp = sample_single_pmf(pmf_i, range_i)
+            out_edge_count = 0
+            in_edge_count = 0
+            for each in out_samp:
+                out_edge_count += each[0] * each[1]
+            for each in in_samp:
+                in_edge_count += each[0] * each[1]
+            if out_edge_count == in_edge_count:
+                break
+
+            if num_tries == 10*n_species:
+                raise Exception("\nReconciliation of the input and output distributions was attempted" + str(n_species)
+                                + "times.\n" "Consider revising these distributions.")
+
+        return out_samp, in_samp
 
     def find_edge_count(dist):
 
@@ -637,19 +660,25 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
 
     if input_case == 9:
 
-        in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
-        if in_or_out:
-            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+        if not independent_sampling:
+            in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+            if in_or_out:
+                in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+            else:
+                out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
         else:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 10:
 
-        in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
-        if in_or_out:
-            in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+        if not independent_sampling:
+            in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+            if in_or_out:
+                in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+            else:
+                out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
         else:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 11:
 
@@ -660,7 +689,14 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            if not independent_sampling:
+                in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+                if in_or_out:
+                    in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+                else:
+                    out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            else:
+                out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 12:
 
@@ -671,7 +707,14 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            if not independent_sampling:
+                in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+                if in_or_out:
+                    in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+                else:
+                    out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            else:
+                out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 13:
 
@@ -682,7 +725,14 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            if not independent_sampling:
+                in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+                if in_or_out:
+                    in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+                else:
+                    out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            else:
+                out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 14:
 
@@ -693,7 +743,14 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
             out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
         if edge_ev_in == edge_ev_out:
-            out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            if not independent_sampling:
+                in_or_out = random.randint(0, 1)  # choose which distribution is guaranteed n_species
+                if in_or_out:
+                    in_samples, out_samples = sample_both_pmfs(pmf_in, range_in, pmf_out, range_out)
+                else:
+                    out_samples, in_samples = sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
+            else:
+                out_samples, in_samples = indep_sample_both_pmfs(pmf_out, range_out, pmf_in, range_in)
 
     if input_case == 15:
 
@@ -728,6 +785,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
         joint_samples = joint_dist
 
     return in_samples, out_samples, joint_samples
+
 
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg, gma_reg, 
                        sc_reg, mass_violating_reactions, edge_type, mass_balanced, connected):

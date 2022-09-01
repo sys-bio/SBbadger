@@ -68,7 +68,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
           joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
           kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
           ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
-          mass_balanced=False):
+          mass_balanced=False, independent_sampling=True):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
     generation including truncation and re-normalization of the distributions, reaction selection and construction of
@@ -109,8 +109,9 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param str_format: Determines the format of the output string, antimony or sbml. Defaults to ant.
-    :param mass_balanced: Enforces consistency of the stoichiometric matrix
-    :param connected: Forces networks to be fully connected
+    :param mass_balanced: Enforces consistency of the stoichiometric matrix.
+    :param connected: Forces networks to be fully connected.
+    :param independent_sampling: (default) Forces both distributions to be sampled independently.
     """
 
     if net_plots and not found_pydot:
@@ -227,7 +228,6 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -235,7 +235,6 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -247,7 +246,6 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -281,11 +279,8 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
             in_samples, out_samples, joint_samples = \
                 buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
-                                               pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
-
-            # in_samples, out_samples, joint_samples = \
-            #     buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
-            #                                    out_range, joint_range)
+                                               pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                                               independent_sampling)
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                       rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
@@ -330,8 +325,6 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                                 prog=net_layout)
-                # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                #             format='dot')
             else:
                 if found_pydot:
                     reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
@@ -471,7 +464,7 @@ def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions,
                     output_dir, rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg,
                     mass_violating_reactions, connected, dist_plots, net_plots, net_layout, edge_type,
                     mass_balanced, input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out,
-                    edge_ev_in):
+                    edge_ev_in, independent_sampling):
 
     in_samples = []
     out_samples = []
@@ -494,11 +487,8 @@ def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions,
 
         in_samples, out_samples, joint_samples = \
             buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
-                                           pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
-
-        # in_samples, out_samples, joint_samples = \
-        #     buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range,
-        #                                    joint_range)
+                                           pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                                           independent_sampling)
 
         rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                   rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
@@ -541,8 +531,6 @@ def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions,
 
                 graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                                 prog=net_layout)
-                # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-                #             format='dot')
             else:
                 if found_pydot:
                     reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
@@ -669,24 +657,13 @@ def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions,
             f.write(sbml)
         antimony.clearPreviousLoads()
 
-        # al = Autolayout()
-        # al.loadSBMLFile(sbml_dir)
-        # print ('Num of Nodes = ', al.getNumNodes())
-        # print ('Num reactions = ', al.getNumReactions())
-        # al.doAutolayout()
-        # sbmlstr = al.getSBMLWithLayout()
-        # # te.saveToFile('testWithLayout.xml', sbmlstr)
-        # #
-        # sd = SBMLDiagrams.load(sbmlstr)
-        # sd.draw(output_fileName="test_" + str(i) + ".png")
-
 
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
            kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
            ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
-           mass_balanced=False):
+           mass_balanced=False, independent_sampling=True):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
     truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
@@ -728,8 +705,9 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
-    :param mass_balanced: Enforces consistency of the stoichiometric matrix
-    :param connected: Forces networks to be fully connected
+    :param mass_balanced: Enforces consistency of the stoichiometric matrix.
+    :param connected: Forces networks to be fully connected.
+    :param independent_sampling: (default) Forces both distributions to be sampled independently.
     """
 
     if net_plots and not found_pydot:
@@ -846,7 +824,6 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -854,7 +831,6 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -866,7 +842,6 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             os.makedirs(os.path.join(path, 'antimony'))
             os.makedirs(os.path.join(path, 'networks'))
             os.makedirs(os.path.join(path, 'net_figs'))
-            # os.makedirs(os.path.join(path, 'dot_files'))
             os.makedirs(os.path.join(path, 'distributions'))
             os.makedirs(os.path.join(path, 'sbml'))
             os.makedirs(os.path.join(path, 'dist_figs'))
@@ -878,7 +853,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     args_list = [(i, n_models, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
                   rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
                   connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out,
-                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
@@ -887,14 +862,13 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
 
 
 def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, dist_plots,
-                           input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in):
+                           input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                           independent_sampling):
 
     in_samples, out_samples, joint_samples = \
         buildNetworks.generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out,
-                                       pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
-
-    # in_samples, out_samples, joint_samples = buildNetworks.generate_samples(
-    #     n_species, in_dist, out_dist, joint_dist, min_freq, in_range, out_range, joint_range)
+                                       pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                                       independent_sampling)
 
     dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
 
@@ -1004,7 +978,7 @@ def generate_distributions(i, group_name, n_species, in_dist, out_dist, output_d
 
 def distributions(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1,
                   n_species=10, out_dist='random', in_dist='random', joint_dist=None, in_range=None, out_range=None,
-                  joint_range=None, min_freq=1.0, dist_plots=False, n_cpus=cpu_count()-1):
+                  joint_range=None, min_freq=1.0, dist_plots=False, n_cpus=cpu_count()-1, independent_sampling=True):
     """
     Generates a collection of frequency distributions from function or bound discrete probabilities.
     Outputs include distribution data and figures.
@@ -1027,6 +1001,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
     :param min_freq: Sets the minimum number (expected value) of nodes (species) that must be in each degree bin.
     :param dist_plots: Generate distribution charts.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param independent_sampling: (default) Forces both distributions to be sampled independently.
     """
 
     if joint_dist and (in_dist != 'random' or out_dist != 'random'):
@@ -1107,7 +1082,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                                              out_range, joint_range)
 
     args_list = [(i, group_name, n_species, in_dist, out_dist, output_dir, joint_dist, dist_plots,
-                  input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in)
+                  input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                  independent_sampling)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
@@ -1313,12 +1289,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         else:
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
 
-        # if os.path.exists(os.path.join(directory, group_name, 'dot_files')):
-        #     shutil.rmtree(os.path.join(directory, group_name, 'dot_files'))
-        #     os.makedirs(os.path.join(directory, group_name, 'dot_files'))
-        # else:
-        #     os.makedirs(os.path.join(directory, group_name, 'dot_files'))
-
     else:
         if os.path.exists(os.path.join(directory, group_name, 'networks')):
             net_files = [f for f in os.listdir(os.path.join(directory, group_name, 'networks'))
@@ -1327,7 +1297,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         else:
             os.makedirs(os.path.join(directory, group_name, 'networks'))
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
-            # os.makedirs(os.path.join(directory, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
 
@@ -1453,13 +1422,6 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param n_cpus: Provides the number of cores to be used in parallel.
     """
-
-    # if kinetics and kinetics[1] != 'uniform' and kinetics[1] != 'loguniform' \
-    #         and kinetics[1] != 'normal' and kinetics[1] != 'lognormal':
-    #     if not verbose_exceptions:
-    #         sys.tracebacklimit = 0
-    #     raise Exception('Please specify the parameter distribution as "uniform", "loguniform", "normal", '
-    #                     'or "lognormal".')
 
     if kinetics is None:
         kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
@@ -1637,8 +1599,6 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
-            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1724,12 +1684,6 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
             anti_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'antimony'))
@@ -1754,12 +1708,6 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
                          if os.path.isfile(os.path.join(output_dir, group_name, 'net_figs', f))]
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
-
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
@@ -1828,8 +1776,6 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
-            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -1917,12 +1863,6 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
             anti_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'antimony'))
@@ -1947,12 +1887,6 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                          if os.path.isfile(os.path.join(output_dir, group_name, 'net_figs', f))]
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
-
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
@@ -2022,8 +1956,6 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                 graph.add_edge(pydot.Edge(each[0], each[1]))
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
-            # graph.write(os.path.join(output_dir, group_name, 'dot_files', group_name + '_' + str(i) + '.dot'),
-            #             format='dot')
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
 
@@ -2116,12 +2048,6 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
 
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     shutil.rmtree(os.path.join(output_dir, group_name, 'dot_files'))
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
-
     else:
         if os.path.exists(os.path.join(output_dir, group_name, 'antimony')):
             anti_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'antimony'))
@@ -2146,12 +2072,6 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                          if os.path.isfile(os.path.join(output_dir, group_name, 'net_figs', f))]
         else:
             os.makedirs(os.path.join(output_dir, group_name, 'net_figs'))
-
-        # if os.path.exists(os.path.join(output_dir, group_name, 'dot_files')):
-        #     net_files = [f for f in os.listdir(os.path.join(output_dir, group_name, 'dot_files'))
-        #                  if os.path.isfile(os.path.join(output_dir, group_name, 'dot_files', f))]
-        # else:
-        #     os.makedirs(os.path.join(output_dir, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     anti_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in anti_files]
