@@ -396,8 +396,8 @@ def generate_distributions(n_species, in_dist, out_dist, joint_dist, min_node_de
         pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
         pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
 
-        edge_ev_out = find_edges_expected_value(pmf_out, out_range)
-        edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+        edge_ev_out = find_edges_expected_value(pmf_out, range_out)
+        edge_ev_in = find_edges_expected_value(pmf_in, range_in)
 
         if edge_ev_in < edge_ev_out:
             pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
@@ -410,8 +410,8 @@ def generate_distributions(n_species, in_dist, out_dist, joint_dist, min_node_de
         pmf_out, range_out = single_unbounded_pmf(out_dist)
         pmf_in, range_in = single_unbounded_pmf(in_dist)
 
-        edge_ev_out = find_edges_expected_value(pmf_out, out_range)
-        edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+        edge_ev_out = find_edges_expected_value(pmf_out, range_out)
+        edge_ev_in = find_edges_expected_value(pmf_in, range_in)
 
         if edge_ev_in < edge_ev_out:
             pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
@@ -438,8 +438,8 @@ def generate_distributions(n_species, in_dist, out_dist, joint_dist, min_node_de
         pmf_out, range_out = single_bounded_pmf(out_dist, out_range)
         pmf_in, range_in = single_bounded_pmf(in_dist, in_range)
 
-        edge_ev_out = find_edges_expected_value(pmf_out, out_range)
-        edge_ev_in = find_edges_expected_value(pmf_in, in_range)
+        edge_ev_out = find_edges_expected_value(pmf_out, range_out)
+        edge_ev_in = find_edges_expected_value(pmf_in, range_in)
 
         if edge_ev_in < edge_ev_out:
             pmf_out, range_out = trim_pmf_general(edge_ev_in, pmf_out)
