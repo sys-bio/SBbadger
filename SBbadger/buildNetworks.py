@@ -4268,7 +4268,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             ant_str += ', ' + 'S' + str(index)
         ant_str += '\n'
 
-    if 'modular' in kinetics[0]:
+    if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative':
         for each in reaction_list_copy:
             for item in each[3]:
                 if item not in boundary_ids and item not in floating_ids:
