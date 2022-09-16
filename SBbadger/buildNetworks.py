@@ -488,7 +488,7 @@ def generate_distributions(n_species, in_dist, out_dist, joint_dist, min_node_de
 
 
 def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_out, pmf_in, pmf_joint,
-                     range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling):
+                     range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, distribution_attempts):
 
     in_samples = []
     out_samples = []
@@ -556,7 +556,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
                         samples2.append((drange2[j], samples2t[j]))
                 break
 
-            if num_tries == n_species:
+            if num_tries == distribution_attempts:
                 raise Exception("\nReconciliation of the input and output distributions was attempted" + str(n_species)
                                 + "times.\n" "Consider revising these distributions.")
 
@@ -578,7 +578,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
             if out_edge_count == in_edge_count:
                 break
 
-            if num_tries == 10*n_species:
+            if num_tries == distribution_attempts:
                 raise Exception("\nReconciliation of the input and output distributions was attempted" + str(n_species)
                                 + "times.\n" "Consider revising these distributions.")
 
@@ -621,7 +621,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
 
                 return samples
 
-            if count == n_species:
+            if count == distribution_attempts:
                 raise Exception("\nYour joint distribution was sampled" + str(n_species) + "times.\n"
                                 "Reconciliation of the outgoing and incoming edges was not achieved.\n"
                                 "Consider revising this distribution.")
@@ -4154,7 +4154,7 @@ def remove_boundary_nodes(st):
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
 
 
-def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme):
+def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme, source, sink):
 
     n_species = reaction_list[0]
     reaction_list_copy = deepcopy(reaction_list)
@@ -4227,6 +4227,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     indexes = []
     orphan_species = []
     count_boundary_species = 0
+
+    original_source_nodes = []
+    original_sink_nodes = []
+    count_boundary_species = 0
+
     for r in range(n_species):
         # Scan across the columns, count + and - coefficients
         plus_coeff = 0
@@ -4241,32 +4246,21 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             orphan_species.append(r)
         if plus_coeff == 0 and minus_coeff != 0:
             # Species is a source
+
+            original_source_nodes.append(r)
+
             indexes.append(r)
             count_boundary_species = count_boundary_species + 1
         if minus_coeff == 0 and plus_coeff != 0:
             # Species is a sink
+
+            original_sink_nodes.append(r)
+
             indexes.append(r)
             count_boundary_species = count_boundary_species + 1
 
     floating_ids = np.delete(species_ids, indexes + orphan_species, axis=0)
     boundary_ids = indexes
-
-    enzyme = ''
-    enzyme_end = ''
-    if add_enzyme:
-        enzyme = 'E*('
-        enzyme_end = ')'
-
-    # Remove the first element which is the n_species
-    reaction_list_copy = deepcopy(reaction_list)
-    reaction_list_copy.pop(0)
-
-    ant_str = ''
-    if len(floating_ids) > 0:
-        ant_str += 'var ' + 'S' + str(floating_ids[0])
-        for index in floating_ids[1:]:
-            ant_str += ', ' + 'S' + str(index)
-        ant_str += '\n'
 
     if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative':
         for each in reaction_list_copy:
@@ -4274,12 +4268,88 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if item not in boundary_ids and item not in floating_ids:
                     boundary_ids.append(item)
 
-    if len(boundary_ids) > 0:
-        ant_str += 'ext ' + 'S' + str(boundary_ids[0])
-        for index in boundary_ids[1:]:
-            ant_str += ', ' + 'S' + str(index)
-        ant_str += '\n'
-    ant_str += '\n'
+    print()
+    print('boundary', boundary_ids)
+    print('float   ', list(floating_ids))
+    print()
+    print('original_source', original_source_nodes)
+    print('original_sink  ', original_sink_nodes)
+    print()
+
+    # quit()
+
+    # source_nodes = None
+    # sink_nodes = None
+
+    # if source is not None:
+    if len(original_source_nodes) >= source[0]:
+        source_nodes = original_source_nodes
+    else:
+        source_nodes = original_source_nodes + random.sample(list(floating_ids),
+                                                             source[0] - len(original_source_nodes))
+
+
+    # if sink is not None:
+    if len(original_sink_nodes) >= sink[0]:
+        sink_nodes = original_sink_nodes
+    else:
+        sink_nodes = original_sink_nodes + random.sample(list(floating_ids), sink[0] - len(original_sink_nodes))
+
+    print('source_nodes', source_nodes)
+    print('sink_nodes', sink_nodes)
+
+    source_nodes.sort()
+    sink_nodes.sort()
+
+    # quit()
+    # if source_nodes and sink_nodes:
+    #     floating_ids = np.delete(species_ids, orphan_species, axis=0)
+    #     boundary_ids = []
+    #
+    # if not source_nodes and sink_nodes:
+    #     floating_ids = np.delete(species_ids, original_source_nodes + orphan_species, axis=0)
+    #     boundary_ids = original_source_nodes
+    #
+    # if source_nodes and not sink_nodes:
+    #     floating_ids = np.delete(species_ids, original_sink_nodes + orphan_species, axis=0)
+    #     boundary_ids = original_sink_nodes
+
+    boundary_ids = []
+    floating_ids = [i for i in range(n_species)]
+
+    print()
+    print('boundary', boundary_ids)
+    print('float', floating_ids)
+    print()
+    print('------------------------------------------------------')
+    print()
+
+    # quit()
+
+    enzyme = ''
+    enzyme_end = ''
+
+    # Remove the first element which is the n_species
+    reaction_list_copy = deepcopy(reaction_list)
+    reaction_list_copy.pop(0)
+    
+    # ant_str = ''
+    # if len(floating_ids) > 0:
+    #     ant_str += 'var ' + 'S' + str(floating_ids[0])
+    #     for index in floating_ids[1:]:
+    #         ant_str += ', ' + 'S' + str(index)
+    #     ant_str += '\n'
+    #
+    # if len(boundary_ids) > 0:
+    #     ant_str += 'ext ' + 'S' + str(boundary_ids[0])
+    #     for index in boundary_ids[1:]:
+    #         ant_str += ', ' + 'S' + str(index)
+    #     ant_str += '\n'
+    # ant_str += '\n'
+
+    rxn_str = ''
+    param_str = ''
+    ic_str = ''
 
     def reversibility():
 
@@ -4293,6 +4363,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
         return rev1
 
+    reaction_index = None
+    
     # ================================================================================
 
     if kinetics[0] == 'saturating_cooperative':
@@ -4303,44 +4375,47 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         nr = []
         nr_sign = []
 
-        reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
 
-            ant_str += 'J' + str(reaction_index) + ': '
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            rxn_str += 'J' + str(reaction_index) + ': '
 
             if r[0] == TReactionType.UNIUNI:
                 # UniUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0])
                     
                     v.append('v' + str(reaction_index))
                     n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
                     
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
                     
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
                     k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
                     
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
                     
-                    ant_str += ')'
+                    rxn_str += ')'
 
                 else:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[2][0]) + ')'
                     
@@ -4349,11 +4424,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
                     
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
                     
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
@@ -4361,24 +4436,24 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
                     
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
                         
-                    ant_str += ')'
+                    rxn_str += ')'
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][1])
 
@@ -4387,11 +4462,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
@@ -4399,14 +4474,14 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
 
                 else:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[2][0]) + ')'
@@ -4417,11 +4492,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + ' * ' + '(k' \
@@ -4432,48 +4507,48 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
             # -------------------------------------------------------------------------
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0])
 
                     v.append('v' + str(reaction_index))
                     n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
                     k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
 
                 else:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[2][1]) + ')'
@@ -4484,11 +4559,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ' * ' + '(k' \
@@ -4499,28 +4574,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
 
             # -------------------------------------------------------------------------
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][1])
 
@@ -4529,11 +4604,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
@@ -4541,14 +4616,14 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
 
                 else:
-                    ant_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
                                str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
@@ -4561,11 +4636,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
                         nr.append('nr_' + str(reaction_index) + '_' + str(reg))
                         nr_sign.append(r[4][i])
 
-                    ant_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
                                + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
                                + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) + '^n_' \
                                + str(reaction_index) + '_' + str(r[1][1]) + ')' + ' * ' + '(k' + str(reaction_index) \
@@ -4579,94 +4654,84 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
                                    + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
                         k.append('k' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += ')'
+                    rxn_str += ')'
 
             # -------------------------------------------------------------------------
 
-            ant_str += '\n'
-
-        ant_str += '\n'
-        parameter_index = None
-        if 'deg' in kinetics[2]:
-            reaction_index += 1
-            parameter_index = reaction_index
-            for sp in floating_ids:
-                ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) + '*' \
-                           + 'S' + str(sp) + '\n'
-                reaction_index += 1
-            ant_str += '\n'
+            rxn_str += '\n'
+        rxn_str += '\n'
 
         for each in n:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('n')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('n')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
                                         scale=kinetics[3][kinetics[2].index('n')][1]
                                         - kinetics[3][kinetics[2].index('n')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('n')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
                                            kinetics[3][kinetics[2].index('n')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('n')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
                                          scale=kinetics[3][kinetics[2].index('n')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('n')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
                                         s=kinetics[3][kinetics[2].index('n')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
                                     scale=kinetics[3][kinetics[2].index('n')][1]
                                     - kinetics[3][kinetics[2].index('n')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
                                        kinetics[3][kinetics[2].index('n')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
                                      scale=kinetics[3][kinetics[2].index('n')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
                                     s=kinetics[3][kinetics[2].index('n')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if n:
-            ant_str += '\n'
+            param_str += '\n'
 
         for i, each in enumerate(nr):
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('nr')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('nr')] == 'uniform':
 
@@ -4675,16 +4740,16 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                             scale=kinetics[3][kinetics[2].index('nr')][1]
                                             - kinetics[3][kinetics[2].index('nr')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     else:
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                             scale=kinetics[3][kinetics[2].index('nr')][1]
                                             - kinetics[3][kinetics[2].index('nr')][0])
                         if nr_sign[i] < 0:
-                            ant_str += each + ' = -' + str(const) + '\n'
+                            param_str += each + ' = -' + str(const) + '\n'
                         else:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('nr')] == 'loguniform':
 
@@ -4692,28 +4757,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                         scale=kinetics[3][kinetics[2].index('nr')][1]
                                         - kinetics[3][kinetics[2].index('nr')][0])
                     if nr_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('nr')] == 'normal':
 
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                      scale=kinetics[3][kinetics[2].index('nr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('nr')] == 'lognormal':
 
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
                                         s=kinetics[3][kinetics[2].index('nr')][1])
                     if nr_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
 
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
 
@@ -4722,16 +4787,16 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                         scale=kinetics[3][kinetics[2].index('nr')][1]
                                         - kinetics[3][kinetics[2].index('nr')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 else:
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                         scale=kinetics[3][kinetics[2].index('nr')][1]
                                         - kinetics[3][kinetics[2].index('nr')][0])
                     if nr_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
 
@@ -4739,213 +4804,149 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                     scale=kinetics[3][kinetics[2].index('nr')][1]
                                     - kinetics[3][kinetics[2].index('nr')][0])
                 if nr_sign[i] < 0:
-                    ant_str += each + ' = -' + str(const) + '\n'
+                    param_str += each + ' = -' + str(const) + '\n'
                 else:
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
 
                 const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
                                  scale=kinetics[3][kinetics[2].index('nr')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'lognormal':
 
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
                                     s=kinetics[3][kinetics[2].index('nr')][1])
                 if nr_sign[i] < 0:
-                    ant_str += each + ' = -' + str(const) + '\n'
+                    param_str += each + ' = -' + str(const) + '\n'
                 else:
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
         if nr:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in v:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('v')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                         scale=kinetics[3][kinetics[2].index('v')][1]
                                         - kinetics[3][kinetics[2].index('v')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                            kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                          scale=kinetics[3][kinetics[2].index('v')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('v')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                         s=kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                     scale=kinetics[3][kinetics[2].index('v')][1]
                                     - kinetics[3][kinetics[2].index('v')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                        kinetics[3][kinetics[2].index('v')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                      scale=kinetics[3][kinetics[2].index('v')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                     s=kinetics[3][kinetics[2].index('v')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if v:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in k:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('k')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                         scale=kinetics[3][kinetics[2].index('k')][1]
                                         - kinetics[3][kinetics[2].index('k')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
                                            kinetics[3][kinetics[2].index('k')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                          scale=kinetics[3][kinetics[2].index('k')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('k')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
                                         s=kinetics[3][kinetics[2].index('k')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                     scale=kinetics[3][kinetics[2].index('k')][1]
                                     - kinetics[3][kinetics[2].index('k')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
                                        kinetics[3][kinetics[2].index('k')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                      scale=kinetics[3][kinetics[2].index('k')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
                                     s=kinetics[3][kinetics[2].index('k')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if k:
-            ant_str += '\n'
-
-        if 'deg' in kinetics[2]:
-
-            for _ in floating_ids:
-
-                if type(kinetics[1]) is list:
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'trivial':
-                    ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                        scale=kinetics[3][kinetics[2].index('deg')][1]
-                                        - kinetics[3][kinetics[2].index('deg')][0])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                           kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                         scale=kinetics[3][kinetics[2].index('deg')][1])
-                        if const >= 0:
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                        s=kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                parameter_index += 1
-
-            ant_str += '\n'
+            param_str += '\n'
 
     if kinetics[0] == 'gma':
 
@@ -4956,36 +4957,39 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         kor = []
         kor_sign = []
 
-        reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
 
-            ant_str += 'J' + str(reaction_index) + ': '
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            rxn_str += 'J' + str(reaction_index) + ': '
 
             if r[0] == TReactionType.UNIUNI:
                 # UniUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0])
                     kc.append('kc' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
                     ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
                 else:
-                    ant_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
                                + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
                     kf.append('kf' + str(reaction_index))
                     kr.append('kr' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
                     ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
@@ -4995,22 +4999,22 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][1])
                     kc.append('kc' + str(reaction_index))
 
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
 
@@ -5018,14 +5022,14 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
 
                 else:
-                    ant_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
                                + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
                     kf.append('kf' + str(reaction_index))
                     kr.append('kr' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
 
@@ -5037,32 +5041,32 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0])
                     kc.append('kc' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
                     ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
                 else:
-                    ant_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
                                + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
                                + str(r[2][1]) + '^ko_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
                     kf.append('kf' + str(reaction_index))
                     kr.append('kr' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
                     ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
@@ -5073,30 +5077,30 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                    str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
                                    str(reaction_index) + '_' + str(r[1][1])
                         kc.append('kc' + str(reaction_index))
 
                         for i, reg in enumerate(r[3]):
-                            ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                            rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                             kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                             kor_sign.append(r[4][i])
 
                 else:
-                    ant_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
                                str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
                                + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
@@ -5104,7 +5108,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     kf.append('kf' + str(reaction_index))
                     kr.append('kr' + str(reaction_index))
                     for i, reg in enumerate(r[3]):
-                        ant_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
                         kor.append('kor_' + str(reaction_index) + '_' + str(reg))
                         kor_sign.append(r[4][i])
 
@@ -5115,86 +5119,76 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             # -------------------------------------------------------------------------
 
-            ant_str += '\n'
-
-        ant_str += '\n'
-        parameter_index = None
-        if 'deg' in kinetics[2]:
-            reaction_index += 1
-            parameter_index = reaction_index
-            for sp in floating_ids:
-                ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) + '*' \
-                           + 'S' + str(sp) + '\n'
-                reaction_index += 1
-            ant_str += '\n'
+            rxn_str += '\n'
+        rxn_str += '\n'
 
         for each in ko:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('ko')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('ko')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
                                         scale=kinetics[3][kinetics[2].index('ko')][1]
                                         - kinetics[3][kinetics[2].index('ko')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ko')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
                                            kinetics[3][kinetics[2].index('ko')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ko')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
                                          scale=kinetics[3][kinetics[2].index('ko')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('ko')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
                                         s=kinetics[3][kinetics[2].index('ko')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
                                     scale=kinetics[3][kinetics[2].index('ko')][1]
                                     - kinetics[3][kinetics[2].index('ko')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
                                        kinetics[3][kinetics[2].index('ko')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
                                      scale=kinetics[3][kinetics[2].index('ko')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
                                     s=kinetics[3][kinetics[2].index('ko')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if ko:
-            ant_str += '\n'
+            param_str += '\n'
 
         for i, each in enumerate(kor):
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kor')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kor')] == 'uniform':
 
@@ -5203,16 +5197,16 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                             scale=kinetics[3][kinetics[2].index('kor')][1]
                                             - kinetics[3][kinetics[2].index('kor')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     else:
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                             scale=kinetics[3][kinetics[2].index('kor')][1]
                                             - kinetics[3][kinetics[2].index('kor')][0])
                         if kor_sign[i] < 0:
-                            ant_str += each + ' = -' + str(const) + '\n'
+                            param_str += each + ' = -' + str(const) + '\n'
                         else:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kor')] == 'loguniform':
 
@@ -5220,28 +5214,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                         scale=kinetics[3][kinetics[2].index('kor')][1]
                                         - kinetics[3][kinetics[2].index('kor')][0])
                     if kor_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kor')] == 'normal':
 
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                      scale=kinetics[3][kinetics[2].index('kor')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kor')] == 'lognormal':
 
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
                                         s=kinetics[3][kinetics[2].index('kor')][1])
                     if kor_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
 
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
 
@@ -5250,16 +5244,16 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                         scale=kinetics[3][kinetics[2].index('kor')][1]
                                         - kinetics[3][kinetics[2].index('kor')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 else:
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                         scale=kinetics[3][kinetics[2].index('kor')][1]
                                         - kinetics[3][kinetics[2].index('kor')][0])
                     if kor_sign[i] < 0:
-                        ant_str += each + ' = -' + str(const) + '\n'
+                        param_str += each + ' = -' + str(const) + '\n'
                     else:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
 
@@ -5267,274 +5261,210 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                     scale=kinetics[3][kinetics[2].index('kor')][1]
                                     - kinetics[3][kinetics[2].index('kor')][0])
                 if kor_sign[i] < 0:
-                    ant_str += each + ' = -' + str(const) + '\n'
+                    param_str += each + ' = -' + str(const) + '\n'
                 else:
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
 
                 const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
                                  scale=kinetics[3][kinetics[2].index('kor')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'lognormal':
 
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
                                     s=kinetics[3][kinetics[2].index('kor')][1])
                 if kor_sign[i] < 0:
-                    ant_str += each + ' = -' + str(const) + '\n'
+                    param_str += each + ' = -' + str(const) + '\n'
                 else:
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
         if kor:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kf:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kf')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                         scale=kinetics[3][kinetics[2].index('kf')][1]
                                         - kinetics[3][kinetics[2].index('kf')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                            kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                          scale=kinetics[3][kinetics[2].index('kf')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kf')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                         s=kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                     scale=kinetics[3][kinetics[2].index('kf')][1]
                                     - kinetics[3][kinetics[2].index('kf')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                        kinetics[3][kinetics[2].index('kf')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                      scale=kinetics[3][kinetics[2].index('kf')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                     s=kinetics[3][kinetics[2].index('kf')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kf:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kr:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kr')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                         scale=kinetics[3][kinetics[2].index('kr')][1]
                                         - kinetics[3][kinetics[2].index('kr')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                            kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                          scale=kinetics[3][kinetics[2].index('kr')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kr')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                         s=kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                     scale=kinetics[3][kinetics[2].index('kr')][1]
                                     - kinetics[3][kinetics[2].index('kr')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                        kinetics[3][kinetics[2].index('kr')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                      scale=kinetics[3][kinetics[2].index('kr')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                     s=kinetics[3][kinetics[2].index('kr')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kr:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kc:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kc')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kc')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                         scale=kinetics[3][kinetics[2].index('kc')][1]
                                         - kinetics[3][kinetics[2].index('kc')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kc')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
                                            kinetics[3][kinetics[2].index('kc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kc')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                          scale=kinetics[3][kinetics[2].index('kc')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kc')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
                                         s=kinetics[3][kinetics[2].index('kc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                     scale=kinetics[3][kinetics[2].index('kc')][1]
                                     - kinetics[3][kinetics[2].index('kc')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
                                        kinetics[3][kinetics[2].index('kc')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                      scale=kinetics[3][kinetics[2].index('kc')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
                                     s=kinetics[3][kinetics[2].index('kc')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kc:
-            ant_str += '\n'
-
-        if 'deg' in kinetics[2]:
-
-            for _ in floating_ids:
-
-                if type(kinetics[1]) is list:
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'trivial':
-                    ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                        scale=kinetics[3][kinetics[2].index('deg')][1]
-                                        - kinetics[3][kinetics[2].index('deg')][0])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                           kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                         scale=kinetics[3][kinetics[2].index('deg')][1])
-                        if const >= 0:
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                        s=kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                parameter_index += 1
-
-            ant_str += '\n'
+            param_str += '\n'
 
     if kinetics[0] == 'mass_action':
 
@@ -5544,351 +5474,280 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             kr = []
             kc = []
 
-            reaction_index = None
             for reaction_index, r in enumerate(reaction_list_copy):
 
-                ant_str += 'J' + str(reaction_index) + ': '
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+
+                rxn_str += 'J' + str(reaction_index) + ': '
                 if r[0] == TReactionType.UNIUNI:
                     # UniUni
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + ' - kr' + str(reaction_index) + '*S' + str(r[2][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + ' - kr' + str(reaction_index) + '*S' + str(r[2][0]) + enzyme_end
                         kf.append('kf' + str(reaction_index))
                         kr.append('kr' + str(reaction_index))
 
                 if r[0] == TReactionType.BIUNI:
                     # BiUni
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[1][1])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[1][1])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
 
                     rev = reversibility()
 
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + '*S' + str(r[1][1]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + '*S' + str(r[1][1]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + '*S' + str(r[1][1]) + ' - kr' + str(reaction_index) + '*S' \
-                                 + str(r[2][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + '*S' + str(r[1][1]) + ' - kr' + str(reaction_index) + '*S' \
+                                   + str(r[2][0]) + enzyme_end
                         kf.append('kf' + str(reaction_index))
                         kr.append('kr' + str(reaction_index))
 
                 if r[0] == TReactionType.UNIBI:
                     # UniBi
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[2][1])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[2][1])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + ' - kr' + str(reaction_index) + '*S' + str(r[2][0]) \
-                                 + '*S' + str(r[2][1]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + ' - kr' + str(reaction_index) + '*S' + str(r[2][0]) \
+                                   + '*S' + str(r[2][1]) + enzyme_end
                         kf.append('kf' + str(reaction_index))
                         kr.append('kr' + str(reaction_index))
 
                 if r[0] == TReactionType.BIBI:
                     # BiBi
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[1][1])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[2][1])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[1][1])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[2][1])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + '*S' + str(r[1][1]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + '*S' + str(r[1][1]) + enzyme_end
                         kc.append('kc' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
-                                 + '*S' + str(r[1][1]) + ' - kr' + str(reaction_index) + '*S' \
-                                 + str(r[2][0]) + '*S' + str(r[2][1]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kf' + str(reaction_index) + '*S' + str(r[1][0]) \
+                                   + '*S' + str(r[1][1]) + ' - kr' + str(reaction_index) + '*S' \
+                                   + str(r[2][0]) + '*S' + str(r[2][1]) + enzyme_end
                         kf.append('kf' + str(reaction_index))
                         kr.append('kr' + str(reaction_index))
 
-                ant_str += '\n'
-
-            parameter_index = None
-            if 'deg' in kinetics[2]:
-                reaction_index += 1
-                parameter_index = reaction_index
-                for sp in floating_ids:
-                    ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' \
-                              + str(reaction_index) + '*' + 'S' + str(sp) + '\n'
-                    reaction_index += 1
-                    
-            ant_str += '\n'
+                rxn_str += '\n'
+            rxn_str += '\n'
 
             for each in kf:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kf')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kf')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                             scale=kinetics[3][kinetics[2].index('kf')][1]
-                                            - kinetics[3][kinetics[2].index('kf')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                                                  - kinetics[3][kinetics[2].index('kf')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                                kinetics[3][kinetics[2].index('kf')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                              scale=kinetics[3][kinetics[2].index('kf')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kf')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                             s=kinetics[3][kinetics[2].index('kf')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                         scale=kinetics[3][kinetics[2].index('kf')][1]
-                                        - kinetics[3][kinetics[2].index('kf')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                                              - kinetics[3][kinetics[2].index('kf')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                            kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                          scale=kinetics[3][kinetics[2].index('kf')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                         s=kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kf:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kr:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kr')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kr')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                             scale=kinetics[3][kinetics[2].index('kr')][1]
-                                            - kinetics[3][kinetics[2].index('kr')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                                                  - kinetics[3][kinetics[2].index('kr')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                                kinetics[3][kinetics[2].index('kr')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                              scale=kinetics[3][kinetics[2].index('kr')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kr')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                             s=kinetics[3][kinetics[2].index('kr')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                         scale=kinetics[3][kinetics[2].index('kr')][1]
-                                        - kinetics[3][kinetics[2].index('kr')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                                              - kinetics[3][kinetics[2].index('kr')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                            kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                          scale=kinetics[3][kinetics[2].index('kr')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                         s=kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kr:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kc:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kc')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kc')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                             scale=kinetics[3][kinetics[2].index('kc')][1]
-                                            - kinetics[3][kinetics[2].index('kc')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                                                  - kinetics[3][kinetics[2].index('kc')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
                                                kinetics[3][kinetics[2].index('kc')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                              scale=kinetics[3][kinetics[2].index('kc')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kc')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
                                             s=kinetics[3][kinetics[2].index('kc')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                         scale=kinetics[3][kinetics[2].index('kc')][1]
-                                        - kinetics[3][kinetics[2].index('kc')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                                              - kinetics[3][kinetics[2].index('kc')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
                                            kinetics[3][kinetics[2].index('kc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                          scale=kinetics[3][kinetics[2].index('kc')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
                                         s=kinetics[3][kinetics[2].index('kc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kc:
-                ant_str += '\n'
-
-            if 'deg' in kinetics[2]:
-
-                for _ in floating_ids:
-
-                    if type(kinetics[1]) is list:
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                            ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                            const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                                scale=kinetics[3][kinetics[2].index('deg')][1]
-                                                - kinetics[3][kinetics[2].index('deg')][0])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                            const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                                   kinetics[3][kinetics[2].index('deg')][1])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                            while True:
-                                const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                                 scale=kinetics[3][kinetics[2].index('deg')][1])
-                                if const >= 0:
-                                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                    break
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                            const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                                s=kinetics[3][kinetics[2].index('deg')][1])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    parameter_index += 1
-
-                ant_str += '\n'
+                param_str += '\n'
 
         if len(kinetics[2]) == 12 or len(kinetics[2]) == 13:
 
@@ -5905,43 +5764,46 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             kr3 = []
             kc3 = []
 
-            reaction_index = None
             for reaction_index, r in enumerate(reaction_list_copy):
 
-                ant_str += 'J' + str(reaction_index) + ': '
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+
+                rxn_str += 'J' + str(reaction_index) + ': '
                 if r[0] == TReactionType.UNIUNI:
                     # UniUni
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc0_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc0_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc0.append('kc0_' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf0_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kf0_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + ' - kr0_' + str(reaction_index) + '*S' + str(r[2][0]) + enzyme_end
                         kf0.append('kf0_' + str(reaction_index))
                         kr0.append('kr0_' + str(reaction_index))
 
                 if r[0] == TReactionType.BIUNI:
                     # BiUni
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[1][1])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[1][1])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc1_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kc1_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
                         kc1.append('kc1_' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf1_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kf1_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + ' - kr1_' + str(reaction_index) + '*S' \
                                  + str(r[2][0]) + enzyme_end
                         kf1.append('kf1_' + str(reaction_index))
@@ -5949,19 +5811,19 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 if r[0] == TReactionType.UNIBI:
                     # UniBi
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[2][1])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[2][1])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc2_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
+                        rxn_str += '; ' + enzyme + 'kc2_' + str(reaction_index) + '*S' + str(r[1][0]) + enzyme_end
                         kc2.append('kc2_' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf2_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kf2_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + ' - kr2_' + str(reaction_index) + '*S' + str(r[2][0]) \
                                  + '*S' + str(r[2][1]) + enzyme_end
                         kf2.append('kf2_' + str(reaction_index))
@@ -5969,835 +5831,761 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 if r[0] == TReactionType.BIBI:
                     # BiBi
-                    ant_str += 'S' + str(r[1][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[1][1])
-                    ant_str += ' -> '
-                    ant_str += 'S' + str(r[2][0])
-                    ant_str += ' + '
-                    ant_str += 'S' + str(r[2][1])
+                    rxn_str += 'S' + str(r[1][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[1][1])
+                    rxn_str += ' -> '
+                    rxn_str += 'S' + str(r[2][0])
+                    rxn_str += ' + '
+                    rxn_str += 'S' + str(r[2][1])
 
                     rev = reversibility()
                     if not rev:
-                        ant_str += '; ' + enzyme + 'kc3_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kc3_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + enzyme_end
                         kc3.append('kc3_' + str(reaction_index))
 
                     else:
-                        ant_str += '; ' + enzyme + 'kf3_' + str(reaction_index) + '*S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'kf3_' + str(reaction_index) + '*S' + str(r[1][0]) \
                                  + '*S' + str(r[1][1]) + ' - kr3_' + str(reaction_index) + '*S' \
                                  + str(r[2][0]) + '*S' + str(r[2][1]) + enzyme_end
                         kf3.append('kf3_' + str(reaction_index))
                         kr3.append('kr3_' + str(reaction_index))
 
-                ant_str += '\n'
-            ant_str += '\n'
-
-            parameter_index = None
-            if 'deg' in kinetics[2]:
-                reaction_index += 1
-                parameter_index = reaction_index
-                for sp in floating_ids:
-                    ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) \
-                               + '*' + 'S' + str(sp) + '\n'
-                    reaction_index += 1
-            ant_str += '\n'
+                rxn_str += '\n'
+            rxn_str += '\n'
 
             for each in kf0:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kf0')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kf0')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf0')][0],
                                             scale=kinetics[3][kinetics[2].index('kf0')][1]
                                             - kinetics[3][kinetics[2].index('kf0')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf0')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kf0')][0],
                                                kinetics[3][kinetics[2].index('kf0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf0')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf0')][0],
                                              scale=kinetics[3][kinetics[2].index('kf0')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kf0')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf0')][0],
                                             s=kinetics[3][kinetics[2].index('kf0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf0')][0],
                                         scale=kinetics[3][kinetics[2].index('kf0')][1]
                                         - kinetics[3][kinetics[2].index('kf0')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf0')][0],
                                            kinetics[3][kinetics[2].index('kf0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf0')][0],
                                          scale=kinetics[3][kinetics[2].index('kf0')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf0')][0],
                                         s=kinetics[3][kinetics[2].index('kf0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kf0:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kf1:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kf1')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kf1')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf1')][0],
                                             scale=kinetics[3][kinetics[2].index('kf1')][1]
                                             - kinetics[3][kinetics[2].index('kf1')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf1')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kf1')][0],
                                                kinetics[3][kinetics[2].index('kf1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf1')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf1')][0],
                                              scale=kinetics[3][kinetics[2].index('kf1')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kf1')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf1')][0],
                                             s=kinetics[3][kinetics[2].index('kf1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf1')][0],
                                         scale=kinetics[3][kinetics[2].index('kf1')][1]
                                         - kinetics[3][kinetics[2].index('kf1')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf1')][0],
                                            kinetics[3][kinetics[2].index('kf1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf1')][0],
                                          scale=kinetics[3][kinetics[2].index('kf1')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf1')][0],
                                         s=kinetics[3][kinetics[2].index('kf1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kf1:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kf2:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kf2')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kf2')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf2')][0],
                                             scale=kinetics[3][kinetics[2].index('kf2')][1]
                                             - kinetics[3][kinetics[2].index('kf2')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf2')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kf2')][0],
                                                kinetics[3][kinetics[2].index('kf2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf2')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf2')][0],
                                              scale=kinetics[3][kinetics[2].index('kf2')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kf2')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf2')][0],
                                             s=kinetics[3][kinetics[2].index('kf2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf2')][0],
                                         scale=kinetics[3][kinetics[2].index('kf2')][1]
                                         - kinetics[3][kinetics[2].index('kf2')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf2')][0],
                                            kinetics[3][kinetics[2].index('kf2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf2')][0],
                                          scale=kinetics[3][kinetics[2].index('kf2')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf2')][0],
                                         s=kinetics[3][kinetics[2].index('kf2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kf2:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kf3:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kf3')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kf3')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf3')][0],
                                             scale=kinetics[3][kinetics[2].index('kf3')][1]
                                             - kinetics[3][kinetics[2].index('kf3')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf3')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kf3')][0],
                                                kinetics[3][kinetics[2].index('kf3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf3')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf3')][0],
                                              scale=kinetics[3][kinetics[2].index('kf3')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kf3')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf3')][0],
                                             s=kinetics[3][kinetics[2].index('kf3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf3')][0],
                                         scale=kinetics[3][kinetics[2].index('kf3')][1]
                                         - kinetics[3][kinetics[2].index('kf3')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf3')][0],
                                            kinetics[3][kinetics[2].index('kf3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf3')][0],
                                          scale=kinetics[3][kinetics[2].index('kf3')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf3')][0],
                                         s=kinetics[3][kinetics[2].index('kf3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kf3:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kr0:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kr0')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kr0')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr0')][0],
                                             scale=kinetics[3][kinetics[2].index('kr0')][1]
                                             - kinetics[3][kinetics[2].index('kr0')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr0')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kr0')][0],
                                                kinetics[3][kinetics[2].index('kr0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr0')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr0')][0],
                                              scale=kinetics[3][kinetics[2].index('kr0')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kr0')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr0')][0],
                                             s=kinetics[3][kinetics[2].index('kr0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr0')][0],
                                         scale=kinetics[3][kinetics[2].index('kr0')][1]
                                         - kinetics[3][kinetics[2].index('kr0')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr0')][0],
                                            kinetics[3][kinetics[2].index('kr0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr0')][0],
                                          scale=kinetics[3][kinetics[2].index('kr0')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr0')][0],
                                         s=kinetics[3][kinetics[2].index('kr0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kr0:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kr1:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kr1')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kr1')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr1')][0],
                                             scale=kinetics[3][kinetics[2].index('kr1')][1]
                                             - kinetics[3][kinetics[2].index('kr1')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr1')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kr1')][0],
                                                kinetics[3][kinetics[2].index('kr1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr1')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr1')][0],
                                              scale=kinetics[3][kinetics[2].index('kr1')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kr1')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr1')][0],
                                             s=kinetics[3][kinetics[2].index('kr1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr1')][0],
                                         scale=kinetics[3][kinetics[2].index('kr1')][1]
                                         - kinetics[3][kinetics[2].index('kr1')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr1')][0],
                                            kinetics[3][kinetics[2].index('kr1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr1')][0],
                                          scale=kinetics[3][kinetics[2].index('kr1')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr1')][0],
                                         s=kinetics[3][kinetics[2].index('kr1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kr1:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kr2:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kr2')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kr2')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr2')][0],
                                             scale=kinetics[3][kinetics[2].index('kr2')][1]
                                             - kinetics[3][kinetics[2].index('kr2')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr2')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kr2')][0],
                                                kinetics[3][kinetics[2].index('kr2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr2')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr2')][0],
                                              scale=kinetics[3][kinetics[2].index('kr2')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kr2')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr2')][0],
                                             s=kinetics[3][kinetics[2].index('kr2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr2')][0],
                                         scale=kinetics[3][kinetics[2].index('kr2')][1]
                                         - kinetics[3][kinetics[2].index('kr2')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr2')][0],
                                            kinetics[3][kinetics[2].index('kr2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr2')][0],
                                          scale=kinetics[3][kinetics[2].index('kr2')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr2')][0],
                                         s=kinetics[3][kinetics[2].index('kr2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kr2:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kr3:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kr3')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kr3')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr3')][0],
                                             scale=kinetics[3][kinetics[2].index('kr3')][1]
                                             - kinetics[3][kinetics[2].index('kr3')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr3')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kr3')][0],
                                                kinetics[3][kinetics[2].index('kr3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr3')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr3')][0],
                                              scale=kinetics[3][kinetics[2].index('kr3')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kr3')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr3')][0],
                                             s=kinetics[3][kinetics[2].index('kr3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr3')][0],
                                         scale=kinetics[3][kinetics[2].index('kr3')][1]
                                         - kinetics[3][kinetics[2].index('kr3')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr3')][0],
                                            kinetics[3][kinetics[2].index('kr3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr3')][0],
                                          scale=kinetics[3][kinetics[2].index('kr3')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr3')][0],
                                         s=kinetics[3][kinetics[2].index('kr3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kr3:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kc0:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kc0')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kc0')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc0')][0],
                                             scale=kinetics[3][kinetics[2].index('kc0')][1]
                                             - kinetics[3][kinetics[2].index('kc0')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc0')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kc0')][0],
                                                kinetics[3][kinetics[2].index('kc0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc0')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc0')][0],
                                              scale=kinetics[3][kinetics[2].index('kc0')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kc0')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc0')][0],
                                             s=kinetics[3][kinetics[2].index('kc0')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc0')][0],
                                         scale=kinetics[3][kinetics[2].index('kc0')][1]
                                         - kinetics[3][kinetics[2].index('kc0')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc0')][0],
                                            kinetics[3][kinetics[2].index('kc0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc0')][0],
                                          scale=kinetics[3][kinetics[2].index('kc0')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc0')][0],
                                         s=kinetics[3][kinetics[2].index('kc0')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kc0:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kc1:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kc1')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kc1')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc1')][0],
                                             scale=kinetics[3][kinetics[2].index('kc1')][1]
                                             - kinetics[3][kinetics[2].index('kc1')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc1')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kc1')][0],
                                                kinetics[3][kinetics[2].index('kc1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc1')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc1')][0],
                                              scale=kinetics[3][kinetics[2].index('kc1')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kc1')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc1')][0],
                                             s=kinetics[3][kinetics[2].index('kc1')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc1')][0],
                                         scale=kinetics[3][kinetics[2].index('kc1')][1]
                                         - kinetics[3][kinetics[2].index('kc1')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc1')][0],
                                            kinetics[3][kinetics[2].index('kc1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc1')][0],
                                          scale=kinetics[3][kinetics[2].index('kc1')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc1')][0],
                                         s=kinetics[3][kinetics[2].index('kc1')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kc1:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kc2:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kc2')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kc2')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc2')][0],
                                             scale=kinetics[3][kinetics[2].index('kc2')][1]
                                             - kinetics[3][kinetics[2].index('kc2')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc2')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kc2')][0],
                                                kinetics[3][kinetics[2].index('kc2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc2')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc2')][0],
                                              scale=kinetics[3][kinetics[2].index('kc2')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kc2')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc2')][0],
                                             s=kinetics[3][kinetics[2].index('kc2')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc2')][0],
                                         scale=kinetics[3][kinetics[2].index('kc2')][1]
                                         - kinetics[3][kinetics[2].index('kc2')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc2')][0],
                                            kinetics[3][kinetics[2].index('kc2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc2')][0],
                                          scale=kinetics[3][kinetics[2].index('kc2')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc2')][0],
                                         s=kinetics[3][kinetics[2].index('kc2')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kc2:
-                ant_str += '\n'
+                param_str += '\n'
 
             for each in kc3:
 
                 if type(kinetics[1]) is list:
 
                     if kinetics[1][kinetics[2].index('kc3')] == 'trivial':
-                        ant_str += each + ' = 1\n'
+                        param_str += each + ' = 1\n'
 
                     if kinetics[1][kinetics[2].index('kc3')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc3')][0],
                                             scale=kinetics[3][kinetics[2].index('kc3')][1]
                                             - kinetics[3][kinetics[2].index('kc3')][0])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc3')] == 'loguniform':
                         const = loguniform.rvs(kinetics[3][kinetics[2].index('kc3')][0],
                                                kinetics[3][kinetics[2].index('kc3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc3')] == 'normal':
                         while True:
                             const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc3')][0],
                                              scale=kinetics[3][kinetics[2].index('kc3')][1])
                             if const >= 0:
-                                ant_str += each + ' = ' + str(const) + '\n'
+                                param_str += each + ' = ' + str(const) + '\n'
                                 break
 
                     if kinetics[1][kinetics[2].index('kc3')] == 'lognormal':
                         const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc3')][0],
                                             s=kinetics[3][kinetics[2].index('kc3')][1])
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc3')][0],
                                         scale=kinetics[3][kinetics[2].index('kc3')][1]
                                         - kinetics[3][kinetics[2].index('kc3')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kc3')][0],
                                            kinetics[3][kinetics[2].index('kc3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc3')][0],
                                          scale=kinetics[3][kinetics[2].index('kc3')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc3')][0],
                                         s=kinetics[3][kinetics[2].index('kc3')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kc3:
-                ant_str += '\n'
-
-            if 'deg' in kinetics[2]:
-
-                for _ in floating_ids:
-
-                    if type(kinetics[1]) is list:
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                            ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                            const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                                scale=kinetics[3][kinetics[2].index('deg')][1]
-                                                - kinetics[3][kinetics[2].index('deg')][0])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                            const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                                   kinetics[3][kinetics[2].index('deg')][1])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                            while True:
-                                const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                                 scale=kinetics[3][kinetics[2].index('deg')][1])
-                                if const >= 0:
-                                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                    break
-
-                        if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                            const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                                s=kinetics[3][kinetics[2].index('deg')][1])
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    parameter_index += 1
-
-                ant_str += '\n'
+                param_str += '\n'
 
     if kinetics[0] == 'hanekom':
 
@@ -6807,37 +6595,40 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         ks = []
         kp = []
 
-        reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
+
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
 
             v.append('v' + str(reaction_index))
             keq.append('keq' + str(reaction_index))
 
-            ant_str += 'J' + str(reaction_index) + ': '
+            rxn_str += 'J' + str(reaction_index) + ': '
             if r[0] == TReactionType.UNIUNI:
                 # UniUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')/(1 + S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + enzyme_end
                         ks.append('ks_' + str(reaction_index) + '_' + str(r[1][0]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')/(1 + S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + enzyme_end
                         k.append('k_' + str(reaction_index) + '_' + str(r[1][0]))
 
                 else:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(1-(S' \
                             + str(r[2][0]) + '/S' + str(r[1][0]) \
                             + ')/keq' + str(reaction_index) + ')/(1 + S' + str(r[1][0]) \
@@ -6848,7 +6639,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         kp.append('kp_' + str(reaction_index) + '_' + str(r[2][0]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(1-(S' \
                             + str(r[2][0]) + '/S' + str(r[1][0]) \
                             + ')/keq' + str(reaction_index) + ')/(1 + S' + str(r[1][0]) \
@@ -6860,17 +6651,17 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][1]) + ')/(1 + S' \
                             + str(r[1][0]) + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) \
@@ -6882,7 +6673,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         ks.append('ks_' + str(reaction_index) + '_' + str(r[1][1]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][1]) + ')/(1 + S' \
                             + str(r[1][0]) + '/k_' + str(reaction_index) + '_' + str(r[1][0]) \
@@ -6895,7 +6686,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 else:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
@@ -6912,7 +6703,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         kp.append('kp_' + str(reaction_index) + '_' + str(r[2][0]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
@@ -6930,24 +6721,24 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')/(1 + S' \
                             + str(r[1][0]) + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) \
                             + ')' + enzyme_end
                         ks.append('ks_' + str(reaction_index) + '_' + str(r[1][0]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')/(1 + S' \
                             + str(r[1][0]) + '/k_' + str(reaction_index) + '_' + str(r[1][0]) \
                             + ')' + enzyme_end
@@ -6955,7 +6746,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 else:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(1-(S' \
                             + str(r[2][0]) + '*S' + str(r[2][1]) \
                             + '/S' + str(r[1][0]) + ')/keq' + str(reaction_index) + ')/(1 + S' \
@@ -6971,7 +6762,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         kp.append('kp_' + str(reaction_index) + '_' + str(r[2][1]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][0]) + ')*(1-(S' \
                             + str(r[2][0]) + '*S' + str(r[2][1]) \
                             + '/S' + str(r[1][0]) + ')/keq' + str(reaction_index) + ')/(1 + S' \
@@ -6988,19 +6779,19 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][1]) + ')/((1 + S' \
@@ -7011,7 +6802,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         ks.append('ks_' + str(reaction_index) + '_' + str(r[1][1]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][1]) + ')/((1 + S' \
@@ -7023,7 +6814,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
                 else:
                     if 'ks' in kinetics[2] and 'kp' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/ks_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/ks_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
@@ -7041,7 +6832,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         kp.append('kp_' + str(reaction_index) + '_' + str(r[2][1]))
 
                     if 'k' in kinetics[2]:
-                        ant_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
+                        rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(S' + str(r[1][0]) + '/k_' \
                                    + str(reaction_index) + '_' \
                             + str(r[1][0]) + ')*(S' + str(r[1][1]) \
                             + '/k_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + '*(1-(S' \
@@ -7058,395 +6849,323 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         k.append('k_' + str(reaction_index) + '_' + str(r[2][0]))
                         k.append('k_' + str(reaction_index) + '_' + str(r[2][1]))
 
-            ant_str += '\n'
-        ant_str += '\n'
-
-        parameter_index = None
-        if 'deg' in kinetics[2]:
-            reaction_index += 1
-            parameter_index = reaction_index
-            for sp in floating_ids:
-                ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) \
-                           + '*' + 'S' + str(sp) + '\n'
-                reaction_index += 1
-                
-        ant_str += '\n'
+            rxn_str += '\n'
+        rxn_str += '\n'
 
         for each in v:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('v')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                         scale=kinetics[3][kinetics[2].index('v')][1]
                                         - kinetics[3][kinetics[2].index('v')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                            kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                          scale=kinetics[3][kinetics[2].index('v')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('v')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                         s=kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                     scale=kinetics[3][kinetics[2].index('v')][1]
                                     - kinetics[3][kinetics[2].index('v')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                        kinetics[3][kinetics[2].index('v')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                      scale=kinetics[3][kinetics[2].index('v')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                     s=kinetics[3][kinetics[2].index('v')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if v:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in keq:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('keq')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('keq')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('keq')][0],
                                         scale=kinetics[3][kinetics[2].index('keq')][1]
                                         - kinetics[3][kinetics[2].index('keq')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('keq')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('keq')][0],
                                            kinetics[3][kinetics[2].index('keq')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('keq')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('keq')][0],
                                          scale=kinetics[3][kinetics[2].index('keq')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('keq')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('keq')][0],
                                         s=kinetics[3][kinetics[2].index('keq')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('keq')][0],
                                     scale=kinetics[3][kinetics[2].index('keq')][1]
                                     - kinetics[3][kinetics[2].index('keq')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('keq')][0],
                                        kinetics[3][kinetics[2].index('keq')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('keq')][0],
                                      scale=kinetics[3][kinetics[2].index('keq')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('keq')][0],
                                     s=kinetics[3][kinetics[2].index('keq')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if keq:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in k:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('k')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                         scale=kinetics[3][kinetics[2].index('k')][1]
                                         - kinetics[3][kinetics[2].index('k')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
                                            kinetics[3][kinetics[2].index('k')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('k')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                          scale=kinetics[3][kinetics[2].index('k')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('k')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
                                         s=kinetics[3][kinetics[2].index('k')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                     scale=kinetics[3][kinetics[2].index('k')][1]
                                     - kinetics[3][kinetics[2].index('k')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
                                        kinetics[3][kinetics[2].index('k')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
                                      scale=kinetics[3][kinetics[2].index('k')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
                                     s=kinetics[3][kinetics[2].index('k')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if k:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in ks:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('ks')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('ks')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ks')][0],
                                         scale=kinetics[3][kinetics[2].index('ks')][1]
                                         - kinetics[3][kinetics[2].index('ks')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ks')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('ks')][0],
                                            kinetics[3][kinetics[2].index('ks')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ks')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('ks')][0],
                                          scale=kinetics[3][kinetics[2].index('ks')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('ks')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ks')][0],
                                         s=kinetics[3][kinetics[2].index('ks')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ks')][0],
                                     scale=kinetics[3][kinetics[2].index('ks')][1]
                                     - kinetics[3][kinetics[2].index('ks')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('ks')][0],
                                        kinetics[3][kinetics[2].index('ks')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('ks')][0],
                                      scale=kinetics[3][kinetics[2].index('ks')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ks')][0],
                                     s=kinetics[3][kinetics[2].index('ks')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if ks:
-            ant_str += '\n'
+            param_str += '\n'
             
         for each in kp:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kp')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kp')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kp')][0],
                                         scale=kinetics[3][kinetics[2].index('kp')][1]
                                         - kinetics[3][kinetics[2].index('kp')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kp')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kp')][0],
                                            kinetics[3][kinetics[2].index('kp')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kp')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kp')][0],
                                          scale=kinetics[3][kinetics[2].index('kp')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kp')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kp')][0],
                                         s=kinetics[3][kinetics[2].index('kp')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kp')][0],
                                     scale=kinetics[3][kinetics[2].index('kp')][1]
                                     - kinetics[3][kinetics[2].index('kp')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kp')][0],
                                        kinetics[3][kinetics[2].index('kp')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kp')][0],
                                      scale=kinetics[3][kinetics[2].index('kp')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kp')][0],
                                     s=kinetics[3][kinetics[2].index('kp')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kp:
-            ant_str += '\n'
-
-        if 'deg' in kinetics[2]:
-
-            for _ in floating_ids:
-
-                if type(kinetics[1]) is list:
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'trivial':
-                    ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                        scale=kinetics[3][kinetics[2].index('deg')][1]
-                                        - kinetics[3][kinetics[2].index('deg')][0])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                           kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                         scale=kinetics[3][kinetics[2].index('deg')][1])
-                        if const >= 0:
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                        s=kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                parameter_index += 1
-
-            ant_str += '\n'
+            param_str += '\n'
 
     if kinetics[0] == 'lin_log':
 
         rc = []
 
-        reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
+
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
 
             rev_stoic = defaultdict(int)
             for each in r[1]:
@@ -7461,347 +7180,273 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 else:
                     rev_stoic[each] = -1
 
-            ant_str += 'J' + str(reaction_index) + ': '
+            rxn_str += 'J' + str(reaction_index) + ': '
             if r[0] == TReactionType.UNIUNI:
                 # UniUni
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
+                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                ant_str += ')'
+                rxn_str += ')'
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
+                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                ant_str += ')'
+                rxn_str += ')'
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
-                ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
+                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -2:
-                            ant_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                ant_str += ')'
+                rxn_str += ')'
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
-                ant_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
+                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
                     for each in irr_stoic:
                         if irr_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if irr_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                 else:
                     for each in rev_stoic:
                         if rev_stoic[each] == 1:
-                            ant_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == 2:
-                            ant_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' + ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -1:
-                            ant_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + 'log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
                         if rev_stoic[each] == -2:
-                            ant_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
+                            rxn_str += ' - ' + '2*log(S' + str(each) + '/rc_' + str(each) + '_' + str(reaction_index) \
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                ant_str += ')'
-            ant_str += '\n'
-        ant_str += '\n'
-
-        parameter_index = None
-        if 'deg' in kinetics[2]:
-            reaction_index += 1
-            parameter_index = reaction_index
-            for sp in floating_ids:
-                ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) + '*' \
-                           + 'S' + str(sp) + '\n'
-                reaction_index += 1
-        ant_str += '\n'
+                rxn_str += ')'
+            rxn_str += '\n'
+        rxn_str += '\n'
 
         for index, r in enumerate(reaction_list_copy):
             
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('v')] == 'trivial':
-                    ant_str += 'v' + str(index) + ' = 1\n'
+                    param_str += 'v' + str(index) + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                         scale=kinetics[3][kinetics[2].index('v')][1]
                                         - kinetics[3][kinetics[2].index('v')][0])
-                    ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                    param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                            kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                    param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('v')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                          scale=kinetics[3][kinetics[2].index('v')][1])
                         if const >= 0:
-                            ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                            param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('v')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                         s=kinetics[3][kinetics[2].index('v')][1])
-                    ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                    param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
             
             if kinetics[1] == 'trivial':
-                ant_str += 'v' + str(index) + ' = 1\n'
+                param_str += 'v' + str(index) + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                     scale=kinetics[3][kinetics[2].index('v')][1]
                                     - kinetics[3][kinetics[2].index('v')][0])
-                ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
                                        kinetics[3][kinetics[2].index('v')][1])
-                ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
                                      scale=kinetics[3][kinetics[2].index('v')][1])
                     if const >= 0:
-                        ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                        param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
                                     s=kinetics[3][kinetics[2].index('v')][1])
-                ant_str += 'v' + str(index) + ' = ' + str(const) + '\n'
+                param_str += 'v' + str(index) + ' = ' + str(const) + '\n'
         
-        ant_str += '\n'
+        param_str += '\n'
 
         for each in rc:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('rc')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('rc')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
                                         scale=kinetics[3][kinetics[2].index('rc')][1]
                                         - kinetics[3][kinetics[2].index('rc')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('rc')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('rc')][0],
                                            kinetics[3][kinetics[2].index('rc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('rc')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
                                          scale=kinetics[3][kinetics[2].index('rc')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('rc')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('rc')][0],
                                         s=kinetics[3][kinetics[2].index('rc')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
                                     scale=kinetics[3][kinetics[2].index('rc')][1]
                                     - kinetics[3][kinetics[2].index('rc')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('rc')][0],
                                        kinetics[3][kinetics[2].index('rc')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('rc')][0],
                                      scale=kinetics[3][kinetics[2].index('rc')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('rc')][0],
                                     s=kinetics[3][kinetics[2].index('rc')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if rc:
-            ant_str += '\n'
-
-        if 'deg' in kinetics[2]:
-
-            for _ in floating_ids:
-
-                if type(kinetics[1]) is list:
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'trivial':
-                    ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                        scale=kinetics[3][kinetics[2].index('deg')][1]
-                                        - kinetics[3][kinetics[2].index('deg')][0])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                           kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                         scale=kinetics[3][kinetics[2].index('deg')][1])
-                        if const >= 0:
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                        s=kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                parameter_index += 1
-
-            ant_str += '\n'
+            param_str += '\n'
 
     if 'modular' in kinetics[0]:
 
@@ -7815,28 +7460,31 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         m = []
         km = []
 
-        reaction_index = None
         for reaction_index, r in enumerate(reaction_list_copy):
 
-            ant_str += 'J' + str(reaction_index) + ': '
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            rxn_str += 'J' + str(reaction_index) + ': '
             if r[0] == TReactionType.UNIUNI:
                 # UniUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -7846,27 +7494,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                    rxn_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
 
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' - 1)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -7874,28 +7522,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + 1)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -7903,28 +7551,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -7932,28 +7580,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')^(1/2)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -7961,51 +7609,51 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     m.append('m_' + str(reaction_index) + '_' + str(r[1][0]))
                     kf.append('kf_' + str(reaction_index))
 
                 else:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8015,7 +7663,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                    rxn_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' - kr_' \
                         + str(reaction_index) + '*(S' + str(r[2][0]) + '/km_' + str(reaction_index) + '_' \
                         + str(r[2][0]) \
@@ -8024,11 +7672,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + (1 + S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + ' - 1)'
@@ -8036,11 +7684,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8048,18 +7696,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + (S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + ' + 1)'
@@ -8067,11 +7715,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8079,18 +7727,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + ')'
@@ -8098,11 +7746,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8110,18 +7758,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + ')^(1/2)'
@@ -8129,11 +7777,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8141,36 +7789,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[2][0]))
@@ -8181,24 +7829,24 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8208,7 +7856,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str = ant_str \
+                    rxn_str = rxn_str \
                         + '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(' + 'S' \
                         + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
@@ -8217,11 +7865,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' - 1)'
@@ -8229,11 +7877,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8241,18 +7889,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + 1)'
@@ -8260,11 +7908,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8272,18 +7920,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ')'
@@ -8291,11 +7939,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8303,18 +7951,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ')^(1/2)'
@@ -8322,11 +7970,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8334,36 +7982,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][1]))
@@ -8372,15 +8020,15 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     kf.append('kf_' + str(reaction_index))
 
                 else:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8390,7 +8038,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str = ant_str \
+                    rxn_str = rxn_str \
                         + '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(' + 'S' \
                         + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
@@ -8401,11 +8049,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
@@ -8415,11 +8063,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8427,18 +8075,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
@@ -8448,11 +8096,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8460,18 +8108,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
@@ -8481,11 +8129,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8493,18 +8141,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*' + '(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
@@ -8514,11 +8162,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8526,36 +8174,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][1]))
@@ -8568,24 +8216,24 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8595,27 +8243,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                    rxn_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
 
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' - 1)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8623,28 +8271,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + 1)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8652,28 +8300,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8681,28 +8329,28 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ')^(1/2)'
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8710,51 +8358,51 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     m.append('m_' + str(reaction_index) + '_' + str(r[1][0]))
                     kf.append('kf_' + str(reaction_index))
 
                 else:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8764,7 +8412,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                    rxn_str += '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' - kr_' \
                         + str(reaction_index) + '*(S' + str(r[2][0]) + '/km_' + str(reaction_index) + '_' \
                         + str(r[2][0]) + ')^m_' + str(reaction_index) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) \
@@ -8774,11 +8422,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + (1 + S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
@@ -8788,11 +8436,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8800,18 +8448,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + ' + (S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
@@ -8821,11 +8469,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8833,18 +8481,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + '*(1 + S' + str(r[2][1]) + '/km_' \
@@ -8854,11 +8502,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8866,18 +8514,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[2][0]) + '/km_' + str(reaction_index) + '_' + str(r[2][0]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[2][0]) + '*(S' + str(r[2][1]) + '/km_' \
@@ -8887,11 +8535,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -8899,36 +8547,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[2][0]))
@@ -8941,26 +8589,26 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
-                ant_str += 'S' + str(r[1][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[1][1])
-                ant_str += ' -> '
-                ant_str += 'S' + str(r[2][0])
-                ant_str += ' + '
-                ant_str += 'S' + str(r[2][1])
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
 
                 rev = reversibility()
 
                 if not rev:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -8970,7 +8618,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str = ant_str \
+                    rxn_str = rxn_str \
                         + '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(' + 'S' \
                         + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
@@ -8979,11 +8627,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' - 1)'
@@ -8991,11 +8639,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9003,18 +8651,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + 1)'
@@ -9022,11 +8670,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9034,18 +8682,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ')'
@@ -9053,11 +8701,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9065,18 +8713,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ')^(1/2)'
@@ -9084,11 +8732,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9096,36 +8744,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][1]))
@@ -9134,15 +8782,15 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     kf.append('kf_' + str(reaction_index))
 
                 else:
-                    ant_str += '; ' + enzyme
+                    rxn_str += '; ' + enzyme
                     for i, reg in enumerate(r[3]):
                         if r[5][i] == 'a' and r[4][i] == -1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
-                            ant_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                            rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
                                 + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
@@ -9152,7 +8800,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                             kma.append('kma_' + str(reaction_index) + '_' + str(reg))
                             ro.append('ro_' + str(reaction_index) + '_' + str(reg))
 
-                    ant_str = ant_str \
+                    rxn_str = rxn_str \
                         + '(kf_' + str(reaction_index) + '*(S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                         + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(' + 'S' \
                         + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
@@ -9165,11 +8813,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[0][8:10] == 'CM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + (1 + S' + str(r[2][0]) + '/km_' \
@@ -9181,11 +8829,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9193,18 +8841,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'DM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + ' + (S' + str(r[2][0]) + '/km_' \
@@ -9215,11 +8863,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9227,18 +8875,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'SM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += '1 + S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(1 + S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + '*(1 + S' + str(r[2][0]) + '/km_' \
@@ -9250,11 +8898,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9262,18 +8910,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'FM':
 
                         if 's' in r[5]:
-                            ant_str += '/((('
+                            rxn_str += '/((('
                         else:
-                            ant_str += '/(('
+                            rxn_str += '/(('
 
-                        ant_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
+                        rxn_str += 'S' + str(r[1][0]) + '/km_' + str(reaction_index) \
                             + '_' + str(r[1][0]) + ')^m_' + str(reaction_index) + '_' + str(r[1][0]) + '*(S' \
                             + str(r[1][1]) + '/km_' + str(reaction_index) + '_' + str(r[1][1]) + ')^m_' \
                             + str(reaction_index) + '_' + str(r[1][1]) + '*(S' + str(r[2][0]) + '/km_' \
@@ -9284,11 +8932,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += ' + (S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += ' + (kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's':
@@ -9296,36 +8944,36 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
                         else:
-                            ant_str += enzyme_end
+                            rxn_str += enzyme_end
 
                     if kinetics[0][8:10] == 'PM':
 
                         num_s = r[5].count('s')
 
                         if 's' in r[5]:
-                            ant_str += '/('
+                            rxn_str += '/('
 
                         for i, reg in enumerate(r[3]):
 
                             if r[5][i] == 's' and r[4][i] == -1:
-                                ant_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
+                                rxn_str += '(S' + str(reg) + '/kms_' + str(reaction_index) + '_' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if r[5][i] == 's' and r[4][i] == 1:
-                                ant_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
+                                rxn_str += '(kms_' + str(reaction_index) + '_' + str(reg) + '/S' + str(reg) \
                                          + ')^ms_' + str(reaction_index) + '_' + str(reg)
 
                             if (i + 1) < num_s:
-                                ant_str += ' + '
+                                rxn_str += ' + '
 
                             if r[5][i] == 's':
                                 ms.append('ms_' + str(reaction_index) + '_' + str(reg))
                                 kms.append('kms_' + str(reaction_index) + '_' + str(reg))
 
                         if 's' in r[5]:
-                            ant_str += ')' + enzyme_end
+                            rxn_str += ')' + enzyme_end
 
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][0]))
                     km.append('km_' + str(reaction_index) + '_' + str(r[1][1]))
@@ -9338,626 +8986,657 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     kf.append('kf_' + str(reaction_index))
                     kr.append('kr_' + str(reaction_index))
 
-            ant_str += '\n'
-
-        parameter_index = None
-        if 'deg' in kinetics[2]:
-            reaction_index += 1
-            parameter_index = reaction_index
-            for sp in floating_ids:
-                ant_str += 'J' + str(reaction_index) + ': S' + str(sp) + ' ->; ' + 'k' + str(reaction_index) + '*' \
-                           + 'S' + str(sp) + '\n'
-                reaction_index += 1
-            ant_str += '\n'
+            rxn_str += '\n'
+        rxn_str += '\n'
 
         for each in ro:
 
             if type(kinetics[1]) is list:
 
                 if 'ro' in kinetics[2] and kinetics[1][kinetics[2].index('ro')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 else:
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ro')][0],
                                         scale=kinetics[3][kinetics[2].index('ro')][1]
                                         - kinetics[3][kinetics[2].index('ro')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             else:
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ro')][0],
                                     scale=kinetics[3][kinetics[2].index('ro')][1]
                                     - kinetics[3][kinetics[2].index('ro')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         for each in kf:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kf')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                         scale=kinetics[3][kinetics[2].index('kf')][1]
                                         - kinetics[3][kinetics[2].index('kf')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                            kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kf')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                          scale=kinetics[3][kinetics[2].index('kf')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kf')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                         s=kinetics[3][kinetics[2].index('kf')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                     scale=kinetics[3][kinetics[2].index('kf')][1]
                                     - kinetics[3][kinetics[2].index('kf')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
                                        kinetics[3][kinetics[2].index('kf')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                      scale=kinetics[3][kinetics[2].index('kf')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
                                     s=kinetics[3][kinetics[2].index('kf')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kf:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kr:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kr')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                         scale=kinetics[3][kinetics[2].index('kr')][1]
                                         - kinetics[3][kinetics[2].index('kr')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                            kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kr')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                          scale=kinetics[3][kinetics[2].index('kr')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kr')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                         s=kinetics[3][kinetics[2].index('kr')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                     scale=kinetics[3][kinetics[2].index('kr')][1]
                                     - kinetics[3][kinetics[2].index('kr')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
                                        kinetics[3][kinetics[2].index('kr')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                      scale=kinetics[3][kinetics[2].index('kr')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
                                     s=kinetics[3][kinetics[2].index('kr')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kr:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in km:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('km')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('km')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('km')][0],
                                         scale=kinetics[3][kinetics[2].index('km')][1]
                                         - kinetics[3][kinetics[2].index('km')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('km')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('km')][0],
                                            kinetics[3][kinetics[2].index('km')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('km')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('km')][0],
                                          scale=kinetics[3][kinetics[2].index('km')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('km')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0],
                                         s=kinetics[3][kinetics[2].index('km')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('km')][0],
                                     scale=kinetics[3][kinetics[2].index('km')][1]
                                     - kinetics[3][kinetics[2].index('km')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('km')][0],
                                        kinetics[3][kinetics[2].index('km')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('km')][0],
                                      scale=kinetics[3][kinetics[2].index('km')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('km')][0],
                                     s=kinetics[3][kinetics[2].index('km')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if km:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kma:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kma')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kma')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kma')][0],
                                         scale=kinetics[3][kinetics[2].index('kma')][1]
                                         - kinetics[3][kinetics[2].index('kma')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kma')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kma')][0],
                                            kinetics[3][kinetics[2].index('kma')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kma')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kma')][0],
                                          scale=kinetics[3][kinetics[2].index('kma')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kma')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kma')][0],
                                         s=kinetics[3][kinetics[2].index('kma')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kma')][0],
                                     scale=kinetics[3][kinetics[2].index('kma')][1]
                                     - kinetics[3][kinetics[2].index('kma')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kma')][0],
                                        kinetics[3][kinetics[2].index('kma')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kma')][0],
                                      scale=kinetics[3][kinetics[2].index('kma')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kma')][0],
                                     s=kinetics[3][kinetics[2].index('kma')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kma:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in kms:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('kms')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('kms')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kms')][0],
                                         scale=kinetics[3][kinetics[2].index('kms')][1]
                                         - kinetics[3][kinetics[2].index('kms')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kms')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('kms')][0],
                                            kinetics[3][kinetics[2].index('kms')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('kms')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('kms')][0],
                                          scale=kinetics[3][kinetics[2].index('kms')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('kms')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kms')][0],
                                         s=kinetics[3][kinetics[2].index('kms')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kms')][0],
                                     scale=kinetics[3][kinetics[2].index('kms')][1]
                                     - kinetics[3][kinetics[2].index('kms')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('kms')][0],
                                        kinetics[3][kinetics[2].index('kms')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('kms')][0],
                                      scale=kinetics[3][kinetics[2].index('kms')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kms')][0],
                                     s=kinetics[3][kinetics[2].index('kms')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if kms:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in m:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('m')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('m')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
                                         scale=kinetics[3][kinetics[2].index('m')][1]
                                         - kinetics[3][kinetics[2].index('m')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('m')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('m')][0],
                                            kinetics[3][kinetics[2].index('m')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('m')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
                                          scale=kinetics[3][kinetics[2].index('m')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('m')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('m')][0],
                                         s=kinetics[3][kinetics[2].index('m')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
                                     scale=kinetics[3][kinetics[2].index('m')][1]
                                     - kinetics[3][kinetics[2].index('m')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('m')][0],
                                        kinetics[3][kinetics[2].index('m')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('m')][0],
                                      scale=kinetics[3][kinetics[2].index('m')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('m')][0],
                                     s=kinetics[3][kinetics[2].index('m')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if m:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in ma:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('ma')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('ma')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ma')][0],
                                         scale=kinetics[3][kinetics[2].index('ma')][1]
                                         - kinetics[3][kinetics[2].index('ma')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ma')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('ma')][0],
                                            kinetics[3][kinetics[2].index('ma')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ma')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('ma')][0],
                                          scale=kinetics[3][kinetics[2].index('ma')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('ma')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ma')][0],
                                         s=kinetics[3][kinetics[2].index('ma')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ma')][0],
                                     scale=kinetics[3][kinetics[2].index('ma')][1]
                                     - kinetics[3][kinetics[2].index('ma')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('ma')][0],
                                        kinetics[3][kinetics[2].index('ma')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('ma')][0],
                                      scale=kinetics[3][kinetics[2].index('ma')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ma')][0],
                                     s=kinetics[3][kinetics[2].index('ma')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if ma:
-            ant_str += '\n'
+            param_str += '\n'
 
         for each in ms:
 
             if type(kinetics[1]) is list:
 
                 if kinetics[1][kinetics[2].index('ms')] == 'trivial':
-                    ant_str += each + ' = 1\n'
+                    param_str += each + ' = 1\n'
 
                 if kinetics[1][kinetics[2].index('ms')] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ms')][0],
                                         scale=kinetics[3][kinetics[2].index('ms')][1]
                                         - kinetics[3][kinetics[2].index('ms')][0])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ms')] == 'loguniform':
                     const = loguniform.rvs(kinetics[3][kinetics[2].index('ms')][0],
                                            kinetics[3][kinetics[2].index('ms')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1][kinetics[2].index('ms')] == 'normal':
                     while True:
                         const = norm.rvs(loc=kinetics[3][kinetics[2].index('ms')][0],
                                          scale=kinetics[3][kinetics[2].index('ms')][1])
                         if const >= 0:
-                            ant_str += each + ' = ' + str(const) + '\n'
+                            param_str += each + ' = ' + str(const) + '\n'
                             break
 
                 if kinetics[1][kinetics[2].index('ms')] == 'lognormal':
                     const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ms')][0],
                                         s=kinetics[3][kinetics[2].index('ms')][1])
-                    ant_str += each + ' = ' + str(const) + '\n'
+                    param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'trivial':
-                ant_str += each + ' = 1\n'
+                param_str += each + ' = 1\n'
 
             if kinetics[1] == 'uniform':
                 const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ms')][0],
                                     scale=kinetics[3][kinetics[2].index('ms')][1]
                                     - kinetics[3][kinetics[2].index('ms')][0])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'loguniform':
                 const = loguniform.rvs(kinetics[3][kinetics[2].index('ms')][0],
                                        kinetics[3][kinetics[2].index('ms')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
             if kinetics[1] == 'normal':
                 while True:
                     const = norm.rvs(loc=kinetics[3][kinetics[2].index('ms')][0],
                                      scale=kinetics[3][kinetics[2].index('ms')][1])
                     if const >= 0:
-                        ant_str += each + ' = ' + str(const) + '\n'
+                        param_str += each + ' = ' + str(const) + '\n'
                         break
 
             if kinetics[1] == 'lognormal':
                 const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ms')][0],
                                     s=kinetics[3][kinetics[2].index('ms')][1])
-                ant_str += each + ' = ' + str(const) + '\n'
+                param_str += each + ' = ' + str(const) + '\n'
 
         if ms:
-            ant_str += '\n'
+            param_str += '\n'
 
-        if 'deg' in kinetics[2]:
+    if source_nodes or sink_nodes:
+        reaction_index += 1
 
-            for _ in floating_ids:
+    if source_nodes:
+        for each in source_nodes:
+            rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; syn' + str(each) + '\n'
+            reaction_index += 1
+        rxn_str += '\n'
 
-                if type(kinetics[1]) is list:
+    if sink_nodes:
+        for each in sink_nodes:
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + 'deg' + str(each) + '*' + 'S' \
+                       + str(each) + '\n'
+            reaction_index += 1
+        rxn_str += '\n'
 
-                    if kinetics[1][kinetics[2].index('deg')] == 'trivial':
-                        ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'uniform':
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                            scale=kinetics[3][kinetics[2].index('deg')][1]
-                                            - kinetics[3][kinetics[2].index('deg')][0])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'loguniform':
-                        const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                               kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'normal':
-                        while True:
-                            const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                             scale=kinetics[3][kinetics[2].index('deg')][1])
-                            if const >= 0:
-                                ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                                break
-
-                    if kinetics[1][kinetics[2].index('deg')] == 'lognormal':
-                        const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                            s=kinetics[3][kinetics[2].index('deg')][1])
-                        ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'trivial':
-                    ant_str += 'deg' + str(parameter_index) + ' = 1\n'
-
-                if kinetics[1] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                        scale=kinetics[3][kinetics[2].index('deg')][1]
-                                        - kinetics[3][kinetics[2].index('deg')][0])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('deg')][0],
-                                           kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                if kinetics[1] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('deg')][0],
-                                         scale=kinetics[3][kinetics[2].index('deg')][1])
-                        if const >= 0:
-                            ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('deg')][0],
-                                        s=kinetics[3][kinetics[2].index('deg')][1])
-                    ant_str += 'deg' + str(parameter_index) + ' = ' + str(const) + '\n'
-
-                parameter_index += 1
-
-            ant_str += '\n'
-
-    def get_i_cvalue(ic_ind):
-
-        ic = None
+    for i in range(n_species):
         if ic_params == 'trivial':
-            ic = 1
+            ic_str += 'S' + str(i) + ' = 1\n'
         if isinstance(ic_params, list) and ic_params[0] == 'uniform':
             ic = uniform.rvs(loc=ic_params[1], scale=ic_params[2]-ic_params[1])
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
         if isinstance(ic_params, list) and ic_params[0] == 'loguniform':
             ic = loguniform.rvs(ic_params[1], ic_params[2])
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
         if isinstance(ic_params, list) and ic_params[0] == 'normal':
             ic = norm.rvs(loc=ic_params[1], scale=ic_params[2])
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
         if isinstance(ic_params, list) and ic_params[0] == 'lognormal':
             ic = lognorm.rvs(scale=ic_params[1], s=ic_params[2])
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
         if isinstance(ic_params, list) and ic_params[0] == 'list':
-            ic = ic_params[1][ic_ind]
+            ic = ic_params[1][i]
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
         if ic_params is None:
             ic = uniform.rvs(loc=0, scale=10)
+            ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
 
-        return ic
-
-    for index, b in enumerate(boundary_ids):
-        i_cvalue = get_i_cvalue(b, )
-        ant_str += 'S' + str(b) + ' = ' + str(i_cvalue) + '\n'
-
-    if boundary_ids:
-        ant_str += '\n'
-    for index, b in enumerate(floating_ids):
-        i_cvalue = get_i_cvalue(b)
-        ant_str += 'S' + str(b) + ' = ' + str(i_cvalue) + '\n'
+    # if add_enzyme:
+    #     ant_str += '\n'
+    #     if isinstance(add_enzyme, bool) or add_enzyme == 'trivial':
+    #         for index, r in enumerate(reaction_list_copy):
+    #             ant_str += 'E' + str(index) + ' = 1\n'
+    #
+    #     if isinstance(add_enzyme, list):
+    #         for index, r in enumerate(reaction_list_copy):
+    #             if add_enzyme[0] == 'uniform':
+    #                 enz = uniform.rvs(loc=add_enzyme[1], scale=add_enzyme[2]-add_enzyme[1])
+    #                 ant_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+    #             if add_enzyme[0] == 'loguniform':
+    #                 enz = loguniform.rvs(add_enzyme[1], add_enzyme[2])
+    #                 ant_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+    #             if add_enzyme[0] == 'normal':
+    #                 enz = norm.rvs(loc=add_enzyme[1], scale=add_enzyme[2])
+    #                 ant_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+    #             if add_enzyme[0] == 'lognormal':
+    #                 enz = lognorm.rvs(scale=add_enzyme[1], s=add_enzyme[2])
+    #                 ant_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
 
     if add_enzyme:
-        ant_str += '\n'
-        for index, r in enumerate(reaction_list_copy):
-            ant_str += 'E' + str(index) + ' = 1\n'
+        ic_str += '\n'
+        if isinstance(add_enzyme, bool) or add_enzyme == 'trivial':
+            for index, r in enumerate(reaction_list_copy):
+                ic_str += 'E' + str(index) + ' = 1\n'
+
+        if isinstance(add_enzyme, list):
+            for index, r in enumerate(reaction_list_copy):
+                if add_enzyme[0] == 'uniform':
+                    enz = uniform.rvs(loc=add_enzyme[1], scale=add_enzyme[2]-add_enzyme[1])
+                    ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+                if add_enzyme[0] == 'loguniform':
+                    enz = loguniform.rvs(add_enzyme[1], add_enzyme[2])
+                    ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+                if add_enzyme[0] == 'normal':
+                    enz = norm.rvs(loc=add_enzyme[1], scale=add_enzyme[2])
+                    ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+                if add_enzyme[0] == 'lognormal':
+                    enz = lognorm.rvs(scale=add_enzyme[1], s=add_enzyme[2])
+                    ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
+
+    if source_nodes:
+
+        if source == 'trivial':
+            for each in source_nodes:
+                param_str += 'deg' + str(each) + ' = 1\n'
+
+        if isinstance(source, list):
+            for each in source_nodes:
+                if source[1] == 'uniform':
+                    enz = uniform.rvs(loc=source[2], scale=source[3]-source[2])
+                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+                if source[1] == 'loguniform':
+                    enz = loguniform.rvs(source[2], source[3])
+                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+                if source[1] == 'normal':
+                    enz = norm.rvs(loc=source[2], scale=source[3])
+                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+                if source[1] == 'lognormal':
+                    enz = lognorm.rvs(scale=source[2], s=source[3])
+                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+
+        param_str += '\n'
+
+    if sink_nodes:
+
+        if sink == 'trivial':
+            for each in sink_nodes:
+                param_str += 'deg' + str(each) + ' = 1\n'
+
+        if isinstance(sink, list):
+            for each in sink_nodes:
+                if sink[1] == 'uniform':
+                    enz = uniform.rvs(loc=sink[2], scale=sink[3]-sink[2])
+                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+                if sink[1] == 'loguniform':
+                    enz = loguniform.rvs(sink[2], sink[3])
+                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+                if sink[1] == 'normal':
+                    enz = norm.rvs(loc=sink[2], scale=sink[3])
+                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+                if sink[1] == 'lognormal':
+                    enz = lognorm.rvs(scale=sink[2], s=sink[3])
+                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+
+        param_str += '\n'
+
+    # print(ant_str)
+    print()
+    print('--------------------------------------')
+    # print(reaction_index)
+    print()
+    # print(declaration_str)
+    # print(rxn_str)
+    # print(param_str)
+
+    ant_str = rxn_str + param_str + ic_str
+
+    print(ant_str)
 
     return ant_str
 
