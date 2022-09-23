@@ -68,7 +68,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
           joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
           kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
           ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
-          mass_balanced=False, independent_sampling=False, source=None, sink=None, network_attempts=100,
+          mass_balanced=False, independent_sampling=False, constants=True, source=None, sink=None, network_attempts=100,
           distribution_attempts=100):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
@@ -113,6 +113,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param independent_sampling: Forces both distributions to be sampled independently.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -349,7 +350,8 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                                                                               group_name + '_' + str(i) + '.png'),
                                          net_layout)
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, source, sink)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -477,11 +479,11 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         return output_str
 
 
-def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist,
-                    output_dir, rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg,
-                    mass_violating_reactions, connected, dist_plots, net_plots, net_layout, edge_type,
-                    mass_balanced, input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out,
-                    edge_ev_in, independent_sampling, source, sink, network_attempts, distribution_attempts):
+def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
+                    rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
+                    connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out, pmf_in,
+                    pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, constants, source,
+                    sink, network_attempts, distribution_attempts):
 
     in_samples = []
     out_samples = []
@@ -555,7 +557,8 @@ def generate_models(i, n_models, group_name, add_enzyme, n_species, n_reactions,
                                                                               group_name + '_' + str(i) + '.png'),
                                          net_layout)
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, source, sink)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -680,8 +683,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
            kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
            ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
-           mass_balanced=False, independent_sampling=False, source=None, sink=None, network_attempts=100,
-          distribution_attempts=100):
+           mass_balanced=False, independent_sampling=False, constants=True, source=None, sink=None,
+           network_attempts=100, distribution_attempts=100):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
     truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
@@ -726,6 +729,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param independent_sampling: Forces both distributions to be sampled independently.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -884,11 +888,11 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         buildNetworks.generate_distributions(n_species, in_dist, out_dist, joint_dist, min_freq, in_range,
                                              out_range, joint_range)
 
-    args_list = [(i, n_models, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
+    args_list = [(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
                   rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
                   connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out,
-                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, source, sink,
-                  network_attempts, distribution_attempts)
+                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, constants,
+                  source, sink, network_attempts, distribution_attempts)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
@@ -1357,7 +1361,8 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     pool.close()
 
 
-def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, source, sink):
+def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, constants,
+                       source, sink):
 
     reg_check = True
 
@@ -1425,7 +1430,8 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
                                 if elem:
                                     rl[-1][-1].append(int(elem))
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, source, sink)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
 
         anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
@@ -1441,7 +1447,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
               add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
-              n_cpus=cpu_count()-1, source=None, sink=None):
+              n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1461,6 +1467,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -1595,7 +1602,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         nets_list.append([int(item.split('_')[-1].split('.')[0]), item])
     nets_list.sort()
 
-    args_list = [(net[0], nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, source, sink)
+    args_list = [(net[0], nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, constants,
+                  source, sink)
                  for net in nets_list if net not in anti_inds]
 
     pool = Pool(n_cpus)
@@ -1604,7 +1612,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
 
 
 def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
-                    net_layout):
+                    net_layout, constants, source, sink):
 
     rl, el = buildNetworks.generate_simple_linear(n_species)
 
@@ -1654,7 +1662,8 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
 
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
@@ -1670,7 +1679,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
            kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, net_layout='default',
-           n_cpus=cpu_count()-1):
+           n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
     """
     Generates a collection of UNI-UNI linear models.
 
@@ -1689,6 +1698,15 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
+        reactions.
+    :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
+        reactions.
     """
 
     if net_plots and not found_pydot:
@@ -1774,7 +1792,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
                         "Consider starting over and overwriting them all.")
 
     args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
-                  net_layout) for i in range(n_models) if i not in net_inds]
+                  net_layout, constants, source, sink) for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_linear, args_list)
@@ -1782,7 +1800,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
 
 def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycles, kinetics, rev_prob, ic_params,
-                    output_dir, net_plots, net_layout):
+                    output_dir, net_plots, net_layout, constants, source, sink):
 
     rl, el = buildNetworks.generate_simple_cyclic(min_species, max_species, n_cycles)
 
@@ -1831,7 +1849,8 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
 
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
@@ -1847,7 +1866,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
            max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=False, net_layout='default', n_cpus=cpu_count()-1):
+           net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
     """
     Generates a collection of UNI-UNI cyclic models.
 
@@ -1868,6 +1887,15 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
+        reactions.
+    :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
+        reactions.
     """
 
     if net_plots and not found_pydot:
@@ -1953,7 +1981,8 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                         "Consider starting over and overwriting them all.")
 
     args_list = [(i, group_name, add_enzyme, min_species, max_species, n_cycles, kinetics, rev_prob,
-                  ic_params, output_dir, net_plots, net_layout) for i in range(n_models) if i not in net_inds]
+                  ic_params, output_dir, net_plots, net_layout, constants, source, sink)
+                 for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_cyclic, args_list)
@@ -1961,7 +1990,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
 
 def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
-                      net_layout, seeds, path_probs, tips):
+                      net_layout, seeds, path_probs, tips, constants, source, sink):
 
     rl, el = buildNetworks.generate_simple_branched(n_species, seeds, path_probs, tips)
 
@@ -2011,7 +2040,8 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
             graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
                             prog=net_layout)
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme)
+        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
+                                                    sink)
 
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
@@ -2027,7 +2057,8 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1, 
              n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0, 
-             ic_params=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1):
+             ic_params=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=True, source=None,
+             sink=None):
     """
     Generates a collection of UNI-UNI branched models from a set of seed nodes.
 
@@ -2050,6 +2081,15 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
+        reactions.
+    :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
+        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
+        reactions.
     """
 
     if net_plots and not found_pydot:
@@ -2138,7 +2178,8 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                         "Consider starting over and overwriting them all.")
 
     args_list = [(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic_params, output_dir, net_plots,
-                  net_layout, seeds, path_probs, tips) for i in range(n_models) if i not in net_inds]
+                  net_layout, seeds, path_probs, tips, constants, source, sink)
+                 for i in range(n_models) if i not in net_inds]
 
     pool = Pool(n_cpus)
     pool.starmap(generate_branched, args_list)

@@ -4153,7 +4153,7 @@ def remove_boundary_nodes(st):
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
 
 
-def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme, source, sink):
+def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme, constants, source, sink):
 
     n_species = reaction_list[0]
     reaction_list_copy = deepcopy(reaction_list)
@@ -4180,7 +4180,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             reactant2 = reaction_list_copy[index][1][1]
             st[reactant2, index] += -1
             product = reaction_list_copy[index][2][0]
-            st[product, index] = 1
+            st[product, index] += 1
             if reactant1 == product:
                 mass_violators.append(reactant1)
             if reactant2 == product:
@@ -4266,23 +4266,25 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if item not in boundary_ids and item not in floating_ids:
                     boundary_ids.append(item)
 
-    # if source is not None:
-    if len(original_source_nodes) >= source[0]:
-        source_nodes = original_source_nodes
-    else:
-        source_nodes = original_source_nodes + random.sample(list(floating_ids),
-                                                             source[0] - len(original_source_nodes))
+    source_nodes = None
+    sink_nodes = None
+    if not constants:
+        if len(original_source_nodes) >= source[0]:
+            source_nodes = original_source_nodes
+        else:
+            source_nodes = original_source_nodes + random.sample(list(floating_ids),
+                                                                 source[0] - len(original_source_nodes))
 
-    if len(original_sink_nodes) >= sink[0]:
-        sink_nodes = original_sink_nodes
-    else:
-        sink_nodes = original_sink_nodes + random.sample(list(floating_ids), sink[0] - len(original_sink_nodes))
+        if len(original_sink_nodes) >= sink[0]:
+            sink_nodes = original_sink_nodes
+        else:
+            sink_nodes = original_sink_nodes + random.sample(list(floating_ids), sink[0] - len(original_sink_nodes))
 
-    source_nodes.sort()
-    sink_nodes.sort()
+        source_nodes.sort()
+        sink_nodes.sort()
 
-    boundary_ids = []
-    floating_ids = [i for i in range(n_species)]
+        boundary_ids = []
+        floating_ids = [i for i in range(n_species)]
 
     enzyme = ''
     enzyme_end = ''
@@ -4294,6 +4296,26 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     rxn_str = ''
     param_str = ''
     ic_str = ''
+
+    if constants:
+        if len(floating_ids) > 0:
+            rxn_str += 'var ' + 'S' + str(floating_ids[0])
+            for index in floating_ids[1:]:
+                rxn_str += ', ' + 'S' + str(index)
+            rxn_str += '\n'
+
+        if 'modular' in kinetics[0]:
+            for each in reaction_list_copy:
+                for item in each[3]:
+                    if item not in boundary_ids and item not in floating_ids:
+                        boundary_ids.append(item)
+
+        if len(boundary_ids) > 0:
+            rxn_str += 'ext ' + 'S' + str(boundary_ids[0])
+            for index in boundary_ids[1:]:
+                rxn_str += ', ' + 'S' + str(index)
+            rxn_str += '\n'
+        rxn_str += '\n'
 
     def reversibility():
 
