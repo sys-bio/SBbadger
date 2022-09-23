@@ -4161,7 +4161,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     # Remove the first entry in the list which is the number of species
     reaction_list_copy.pop(0)
     st = np.zeros((n_species, len(reaction_list_copy)))
-    mass_violators = []
+    # mass_violators = []
 
     for index, r in enumerate(reaction_list_copy):
         if r[0] == TReactionType.UNIUNI:
@@ -4170,8 +4170,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[reactant, index] = -1
             product = reaction_list_copy[index][2][0]
             st[product, index] = 1
-            if reactant == product:
-                mass_violators.append(reactant)
+            # if reactant == product:
+            #     mass_violators.append(reactant)
 
         if r[0] == TReactionType.BIUNI:
             # BiUni
@@ -4181,10 +4181,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[reactant2, index] += -1
             product = reaction_list_copy[index][2][0]
             st[product, index] += 1
-            if reactant1 == product:
-                mass_violators.append(reactant1)
-            if reactant2 == product:
-                mass_violators.append(reactant2)
+            # if reactant1 == product:
+            #     mass_violators.append(reactant1)
+            # if reactant2 == product:
+            #     mass_violators.append(reactant2)
 
         if r[0] == TReactionType.UNIBI:
             # UniBi
@@ -4194,10 +4194,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[product1, index] += 1
             product2 = reaction_list_copy[index][2][1]
             st[product2, index] += 1
-            if reactant == product1:
-                mass_violators.append(reactant)
-            if reactant == product2:
-                mass_violators.append(reactant)
+            # if reactant == product1:
+            #     mass_violators.append(reactant)
+            # if reactant == product2:
+            #     mass_violators.append(reactant)
 
         if r[0] == TReactionType.BIBI:
             # BiBi
@@ -4209,14 +4209,14 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             st[product1, index] += 1
             product2 = reaction_list_copy[index][2][1]
             st[product2, index] += 1
-            if reactant1 == product1:
-                mass_violators.append(reactant1)
-            if reactant1 == product2:
-                mass_violators.append(reactant1)
-            if reactant2 == product1:
-                mass_violators.append(reactant2)
-            if reactant2 == product2:
-                mass_violators.append(reactant2)
+            # if reactant1 == product1:
+            #     mass_violators.append(reactant1)
+            # if reactant1 == product2:
+            #     mass_violators.append(reactant1)
+            # if reactant2 == product1:
+            #     mass_violators.append(reactant2)
+            # if reactant2 == product2:
+            #     mass_violators.append(reactant2)
 
     dims = st.shape
 
@@ -4239,9 +4239,11 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 minus_coeff = minus_coeff + 1
             if st[r, c] > 0:
                 plus_coeff = plus_coeff + 1
-        if plus_coeff == 0 and minus_coeff == 0 and r not in mass_violators:
+        if plus_coeff == 0 and minus_coeff == 0:  # and r not in mass_violators:
             # No reaction attached to this species
             orphan_species.append(r)
+            original_source_nodes.append(r)
+            original_sink_nodes.append(r)
         if plus_coeff == 0 and minus_coeff != 0:
             # Species is a source
 
@@ -4258,7 +4260,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             count_boundary_species = count_boundary_species + 1
 
     floating_ids = np.delete(species_ids, indexes + orphan_species, axis=0)
-    boundary_ids = indexes
+    boundary_ids = indexes + orphan_species
 
     if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative':
         for each in reaction_list_copy:
