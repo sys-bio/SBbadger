@@ -287,7 +287,8 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             rl_failed_count += 1
             if rl_failed_count == network_attempts:
                 ant_str = "Network construction failed on this attempt, consider revising your settings."
-                anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_error_message_' + str(i)
+                                        + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
                 break
@@ -305,7 +306,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             i += 1
             continue
 
-        net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+        net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
                 if j == 0:
@@ -338,22 +339,22 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 for each in edges:
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                                prog=net_layout)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
             else:
                 if found_pydot:
-                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
                                                       + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
-                                                                              group_name + '_' + str(i) + '.png'),
-                                         net_layout)
+                                                                              group_name + '_net_fig_' + str(i)
+                                                                              + '.png'), net_layout)
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
                                                     sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -381,7 +382,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' out edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_in'
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i) + '_in'
                                          + '.png'))
                 plt.close()
 
@@ -394,8 +395,8 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' in edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out' + '.png'))
                 plt.close()
 
             if in_samples and out_samples:
@@ -434,8 +435,8 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 ax.set_xticklabels(x0)
                 ax.legend()
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out_in'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out_in' + '.png'))
                 plt.close()
 
             if joint_samples:
@@ -455,11 +456,11 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 ax1.set_ylabel("In-Edge Degree")
                 ax1.set_zlabel("Number of Nodes")
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_joint' + '.png'))
                 plt.close()
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
 
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
@@ -702,7 +703,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             if rl_failed_count == network_attempts:
 
                 ant_str = "Network construction failed on this attempt, consider revising your settings."
-                anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+                anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_error_message_' + str(i)
+                                        + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
                 break
@@ -720,7 +722,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             i += 1
             continue
 
-        net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+        net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
                 if j == 0:
@@ -753,22 +755,22 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 for each in edges:
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                                prog=net_layout)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
             else:
                 if found_pydot:
-                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i)
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
                                                       + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
-                                                                              group_name + '_' + str(i) + '.png'),
-                                         net_layout)
+                                                                              group_name + '_net_fig_' + str(i)
+                                                                              + '.png'), net_layout)
 
         ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
                                                     sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.cvs')
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist0_' + str(i) + '.csv')
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -796,7 +798,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' out edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_in'
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i) + '_in'
                                          + '.png'))
                 plt.close()
 
@@ -809,8 +811,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' in edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out' + '.png'))
                 plt.close()
 
             if in_samples and out_samples:
@@ -849,8 +851,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 ax.set_xticklabels(x0)
                 ax.legend()
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out_in'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out_in' + '.png'))
                 plt.close()
 
             if joint_samples:
@@ -870,11 +872,11 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 ax1.set_ylabel("In-Edge Degree")
                 ax1.set_zlabel("Number of Nodes")
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_joint' + '.png'))
                 plt.close()
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
 
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
@@ -998,7 +1000,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                                            pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
                                            independent_sampling, distribution_attempts)
 
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_' + str(i) + '.csv')
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -1026,7 +1028,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' out edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_in'
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i) + '_in'
                                          + '.png'))
                 plt.close()
 
@@ -1039,8 +1041,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                 plt.ylabel("Number of Nodes")
                 plt.xticks(x)
                 plt.title(group_name + '_' + str(i) + ' in edges')
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out' + '.png'))
                 plt.close()
 
             if in_samples and out_samples:
@@ -1079,8 +1081,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                 ax.set_xticklabels(x0)
                 ax.legend()
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_out_in'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_out_in' + '.png'))
                 plt.close()
 
             if joint_samples:
@@ -1100,8 +1102,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
                 ax1.set_ylabel("In-Edge Degree")
                 ax1.set_zlabel("Number of Nodes")
 
-                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_' + str(i) + '_joint'
-                                         + '.png'))
+                plt.savefig(os.path.join(output_dir, group_name, 'dist_figs', group_name + '_dist_fig_' + str(i)
+                                         + '_joint' + '.png'))
                 plt.close()
 
         i += 1
@@ -1278,11 +1280,12 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                 if not rl[0]:
 
                     ant_str = "Network construction failed on this attempt, consider revising your settings."
-                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind) + '.txt')
+                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_error_message_' + str(ind)
+                                           + '.txt')
                     with open(net_dir, 'w') as f:
                         f.write(ant_str)
                 else:
-                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind) + '.txt')
+                    net_dir = os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(ind) + '.txt')
                     with open(net_dir, 'w') as f:
                         for j, each in enumerate(rl):
                             if j == 0:
@@ -1315,14 +1318,14 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                         for each in edges:
                             graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_' + str(ind)
-                                                     + '.png'), prog=net_layout)
+                        graph.write_png(os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_'
+                                                     + str(ind) + '.png'), prog=net_layout)
                     else:
                         if found_pydot:
                             reaction_network_fig(
-                                os.path.join(directory, group_name, 'networks', group_name + '_' + str(ind)
+                                os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(ind)
                                              + '.csv'), os.path.join(directory, group_name, 'net_figs',
-                                                                     group_name + '_' + str(ind) + '.png'),
+                                                                     group_name + '_net_fig_' + str(ind) + '.png'),
                                 net_layout)
 
 
@@ -1499,7 +1502,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             if mod_check and 'modular' not in kinetics[0]:
                 reg_check = False
                 ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(ind) + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
 
@@ -1511,7 +1514,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             if gma_check and kinetics[0] != 'gma':
                 reg_check = False
                 ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(ind) + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
 
@@ -1523,7 +1526,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             if sc_check and kinetics[0] != 'saturating_cooperative':
                 reg_check = False
                 ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(ind) + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
 
@@ -1555,11 +1558,11 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
                 ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants,
                                                             source, sink)
 
-                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.txt')
+                anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(ind) + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
 
-                sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(ind) + '.sbml')
+                sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_sbml_' + str(ind) + '.sbml')
                 antimony.loadAntimonyString(ant_str)
                 sbml = antimony.getSBMLString()
                 with open(sbml_dir, 'w') as f:
@@ -1687,12 +1690,12 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         if not rl[0]:
 
             ant_str = "Network construction failed on this attempt, consider revising your settings."
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
 
-            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
             with open(net_dir, 'w') as f:
                 for j, each in enumerate(rl):
                     if j == 0:
@@ -1713,8 +1716,8 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
             if net_plots == 'reaction' and found_pydot:
                 reaction_network_fig(
-                    os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
-                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                    os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv'),
+                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i) + '.png'),
                     net_layout)
 
             if net_plots == 'edge' and found_pydot:
@@ -1729,17 +1732,17 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
                 for each in edges:
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) 
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i) 
                                              + '.png'), prog=net_layout)
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants,
                                                         source, sink)
 
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
 
-            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
             antimony.loadAntimonyString(ant_str)
             sbml = antimony.getSBMLString()
             with open(sbml_dir, 'w') as f:
@@ -1869,11 +1872,11 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         if not rl[0]:
 
             ant_str = "Network construction failed on this attempt, consider revising your settings."
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
-            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
             with open(net_dir, 'w') as f:
                 for j, each in enumerate(rl):
                     if j == 0:
@@ -1894,8 +1897,8 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
             if net_plots == 'reaction' and found_pydot:
                 reaction_network_fig(
-                    os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
-                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                    os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv'),
+                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i) + '.png'),
                     net_layout)
 
             if net_plots == 'edge' and found_pydot:
@@ -1910,17 +1913,17 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                 for each in edges:
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                                prog=net_layout)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants,
                                                         source, sink)
 
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
 
-            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
             antimony.loadAntimonyString(ant_str)
             sbml = antimony.getSBMLString()
             with open(sbml_dir, 'w') as f:
@@ -2052,12 +2055,12 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         if not rl[0]:
 
             ant_str = "Network construction failed on this attempt, consider revising your settings."
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
 
-            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv')
+            net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
             with open(net_dir, 'w') as f:
                 for j, each in enumerate(rl):
                     if j == 0:
@@ -2078,8 +2081,8 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
 
             if net_plots == 'reaction' and found_pydot:
                 reaction_network_fig(
-                    os.path.join(output_dir, group_name, 'networks', group_name + '_' + str(i) + '.csv'),
-                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
+                    os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv'),
+                    os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i) + '.png'),
                     net_layout)
 
             if net_plots == 'edge' and found_pydot:
@@ -2094,17 +2097,17 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                 for each in edges:
                     graph.add_edge(pydot.Edge(each[0], each[1]))
 
-                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_' + str(i) + '.png'),
-                                prog=net_layout)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
 
             ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants,
                                                         source, sink)
 
-            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.txt')
+            anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
 
-            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.sbml')
+            sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
             antimony.loadAntimonyString(ant_str)
             sbml = antimony.getSBMLString()
             with open(sbml_dir, 'w') as f:
