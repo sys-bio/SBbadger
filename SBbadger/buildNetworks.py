@@ -9595,7 +9595,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     ant_str = rxn_str + param_str + ic_str
 
-    return ant_str
+    return ant_str, source_nodes, sink_nodes
 
 
 def generate_simple_linear(n_species):

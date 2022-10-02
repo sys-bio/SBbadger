@@ -18,14 +18,28 @@ if found_pydot:
     import pydot
 
 
-def reaction_network_fig(net_path, fig_path, layout):
+def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
+
+    if not source_nodes:
+        source_nodes = []
+    if not sink_nodes:
+        sink_nodes = []
 
     if layout == 'default':
         layout = 'dot'
     graph = pydot.Dot(graph_type="digraph")
     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
     ind = 0
-    r_nodes = []
+
+    for each in source_nodes:
+        graph.add_node(pydot.Node('So' + str(each), shape="point", style="filled", fillcolor="green",
+                                  height="0.1", width="0.1"))
+        graph.add_edge(pydot.Edge('So' + str(each), str(each)))
+    for each in sink_nodes:
+        graph.add_node(pydot.Node('Si' + str(each), shape="point", style="filled", fillcolor="red",
+                                  height="0.1", width="0.1"))
+        graph.add_edge(pydot.Edge(str(each), 'Si' + str(each)))
+
     with open(net_path, 'r') as network:
         lines = network.readlines()
         for i, line in enumerate(lines):
@@ -57,7 +71,6 @@ def reaction_network_fig(net_path, fig_path, layout):
                         graph.add_edge(pydot.Edge(ls1[1], 'R' + str(ind), arrowhead='none'))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[1]))
-                    r_nodes.append('R' + str(ind))
                     ind += 1
 
     graph.write_png(fig_path, prog=layout)
@@ -309,6 +322,14 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             i += 1
             continue
 
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
+
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
@@ -347,17 +368,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             else:
                 if found_pydot:
                     reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
-                                                      + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
-                                                                              group_name + '_net_fig_' + str(i) 
-                                                                              + '.png'), net_layout)
-
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
-        with open(anti_dir, 'w') as f:
-            f.write(ant_str)
-
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
+                                                      + '.csv'),
+                                         os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
+                                                      + str(i) + '.png'),
+                                         net_layout, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -517,6 +531,14 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 
     if rl[0]:
 
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
+
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
@@ -555,17 +577,10 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
             else:
                 if found_pydot:
                     reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
-                                                      + '.csv'), os.path.join(output_dir, group_name, 'net_figs',
-                                                                              group_name + '_net_fig_' + str(i)
-                                                                              + '.png'), net_layout)
-
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
-        with open(anti_dir, 'w') as f:
-            f.write(ant_str)
-
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
+                                                      + '.csv'),
+                                         os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
+                                                      + str(i) + '.png'),
+                                         net_layout, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -1136,7 +1151,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
                       mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                      network_attempts):
+                      network_attempts, constants):
 
     out_dist = False
     in_dist = False
@@ -1201,14 +1216,16 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                                   rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
                                                   edge_type, mass_balanced, connected)
 
-    if not rl[0]:
+    outgoing = set()
+    incoming = set()
 
+    if not rl[0]:
         ant_str = "Network construction failed on this attempt, consider revising your settings."
         anti_dir = os.path.join(directory, group_name, 'networks', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
-        net_dir = os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(i) + '.txt')
+        net_dir = os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
                 if j == 0:
@@ -1220,12 +1237,24 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                         else:
                             f.write(',(')
                             for m, every in enumerate(item):
+                                if k == 1:
+                                    if not constants:
+                                        outgoing.add(every)
+                                if k == 2:
+                                    if not constants:
+                                        incoming.add(every)
                                 if m == 0:
                                     f.write(str(every))
                                 else:
                                     f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
+
+    source_nodes = outgoing - incoming
+    sink_nodes = incoming - outgoing
+
+    source_nodes = list(source_nodes)
+    sink_nodes = list(sink_nodes)
 
     if net_plots:
 
@@ -1245,17 +1274,17 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                          + '.png'), prog=net_layout)
         else:
             if found_pydot:
-                reaction_network_fig(
-                    os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(i)
-                                 + '.csv'), os.path.join(directory, group_name, 'net_figs',
-                                                         group_name + '_net_fig_' + str(i) + '.png'),
-                    net_layout)
+                reaction_network_fig(os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(i)
+                                                  + '.csv'),
+                                     os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                                  + '.png'),
+                                     net_layout, source_nodes, sink_nodes)
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, connected=True, edge_type='generic', mod_reg=None, gma_reg=None,
              sc_reg=None, rxn_prob=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
-             mass_balanced=False, network_attempts=100):
+             mass_balanced=False, network_attempts=100, constants=True):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -1279,6 +1308,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     """
 
     if net_plots and not found_pydot:
@@ -1355,7 +1385,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
     args_list = [(dist[0], dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
                   mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                  network_attempts)
+                  network_attempts, constants)
                  for dist in dists_list if dist not in net_inds]
 
     pool = Pool(n_cpus)
@@ -1597,7 +1627,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
                         "Consider starting over and overwriting them all.")
 
     path = os.path.join(directory, group_name, 'networks')
-    nets_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'txt']
+    nets_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'csv']
 
     nets_list = []
     for item in nets_files:
@@ -1625,6 +1655,13 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
+
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
 
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
@@ -1645,31 +1682,29 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                             f.write(')')
                 f.write('\n')
 
-        if net_plots == 'reaction' and found_pydot:
-            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
-                                              + '.csv'), os.path.join(output_dir, group_name, 'net_figs', group_name
-                                                                      + '_net_fig_' + str(i) + '.png'), net_layout)
+        if net_plots:
 
-        if net_plots == 'edge' and found_pydot:
-            if net_layout == 'default':
-                net_layout = 'dot'
-            edges = []
-            for each in el:
-                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+            if net_plots == 'edge' and found_pydot:
+                if net_layout == 'default':
+                    net_layout = 'dot'
+                edges = []
+                for each in el:
+                    edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-            graph = pydot.Dot(graph_type="digraph")
-            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-            for each in edges:
-                graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
-                                         + '.png'), prog=net_layout)
+                graph = pydot.Dot(graph_type="digraph")
+                graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                for each in edges:
+                    graph.add_edge(pydot.Edge(each[0], each[1]))
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
-
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
-        with open(anti_dir, 'w') as f:
-            f.write(ant_str)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
+            else:
+                if found_pydot:
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
+                                                      + '.csv'),
+                                         os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
+                                                      + str(i) + '.png'),
+                                         net_layout, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1729,6 +1764,12 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if source is None:
+        source = [0, 'loguniform', 0.01, 100]
+
+    if sink is None:
+        sink = [0, 'loguniform', 0.01, 100]
 
     net_files = []
     anti_files = []
@@ -1813,6 +1854,13 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
+
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
+
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
             for j, each in enumerate(rl):
@@ -1832,31 +1880,29 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                             f.write(')')
                 f.write('\n')
 
-        if net_plots == 'reaction' and found_pydot:
-            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
-                                              + '.csv'), os.path.join(output_dir, group_name, 'net_figs', group_name
-                                                                      + '_net_fig_' + str(i) + '.png'), net_layout)
+        if net_plots:
 
-        if net_plots == 'edge' and found_pydot:
-            if net_layout == 'default':
-                net_layout = 'dot'
-            edges = []
-            for each in el:
-                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+            if net_plots == 'edge' and found_pydot:
+                if net_layout == 'default':
+                    net_layout = 'dot'
+                edges = []
+                for each in el:
+                    edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-            graph = pydot.Dot(graph_type="digraph", layout="neato")
-            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-            for each in edges:
-                graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
-                                         + '.png'), prog=net_layout)
+                graph = pydot.Dot(graph_type="digraph")
+                graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                for each in edges:
+                    graph.add_edge(pydot.Edge(each[0], each[1]))
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
-
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
-        with open(anti_dir, 'w') as f:
-            f.write(ant_str)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
+            else:
+                if found_pydot:
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
+                                                      + '.csv'),
+                                         os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
+                                                      + str(i) + '.png'),
+                                         net_layout, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1918,6 +1964,12 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         if not verbose_exceptions:
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
+
+    if source is None:
+        source = [0, 'loguniform', 0.01, 100]
+
+    if sink is None:
+        sink = [0, 'loguniform', 0.01, 100]
 
     net_files = []
     anti_files = []
@@ -2003,6 +2055,12 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
+
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        with open(anti_dir, 'w') as f:
+            f.write(ant_str)
 
         net_dir = os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i) + '.csv')
         with open(net_dir, 'w') as f:
@@ -2023,31 +2081,29 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                             f.write(')')
                 f.write('\n')
 
-        if net_plots == 'reaction' and found_pydot:
-            reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
-                                              + '.csv'), os.path.join(output_dir, group_name, 'net_figs', group_name
-                                                                      + '_net_fig_' + str(i) + '.png'), net_layout)
+        if net_plots:
 
-        if net_plots == 'edge' and found_pydot:
-            if net_layout == 'default':
-                net_layout = 'dot'
-            edges = []
-            for each in el:
-                edges.append(('S' + str(each[0]), 'S' + str(each[1])))
+            if net_plots == 'edge' and found_pydot:
+                if net_layout == 'default':
+                    net_layout = 'dot'
+                edges = []
+                for each in el:
+                    edges.append(('S' + str(each[0]), 'S' + str(each[1])))
 
-            graph = pydot.Dot(graph_type="digraph")
-            graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
-            for each in edges:
-                graph.add_edge(pydot.Edge(each[0], each[1]))
-            graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
-                                         + '.png'), prog=net_layout)
+                graph = pydot.Dot(graph_type="digraph")
+                graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+                for each in edges:
+                    graph.add_edge(pydot.Edge(each[0], each[1]))
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
-
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
-        with open(anti_dir, 'w') as f:
-            f.write(ant_str)
+                graph.write_png(os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
+                                             + '.png'), prog=net_layout)
+            else:
+                if found_pydot:
+                    reaction_network_fig(os.path.join(output_dir, group_name, 'networks', group_name + '_net_' + str(i)
+                                                      + '.csv'),
+                                         os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
+                                                      + str(i) + '.png'),
+                                         net_layout, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -2115,6 +2171,12 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
 
     if path_probs is None:
         path_probs = [0.1, 0.8, 0.1]
+
+    if source is None:
+        source = [0, 'loguniform', 0.01, 100]
+
+    if sink is None:
+        sink = [0, 'loguniform', 0.01, 100]
 
     net_files = []
     anti_files = []
