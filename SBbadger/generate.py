@@ -565,7 +565,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
-        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist0_' + str(i) + '.csv')
+        dist_dir = os.path.join(output_dir, group_name, 'distributions', group_name + '_dist_' + str(i) + '.csv')
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
