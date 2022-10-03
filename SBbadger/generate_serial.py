@@ -249,6 +249,12 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     if not constants and sink is None:
         sink = [0, 'loguniform', 0.01, 100]
 
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 100]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 100]
+
     num_existing_models = 0
     path = os.path.join(output_dir, group_name, '')
     if overwrite:
@@ -665,6 +671,12 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
 
     if not constants and sink is None:
         sink = [0, 'loguniform', 0.01, 100]
+
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 100]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 100]
 
     num_existing_models = 0
     path = os.path.join(output_dir, group_name, '')
@@ -1657,6 +1669,12 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     if sink is None:
         sink = [0, 'loguniform', 0.01, 100]
 
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 100]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 100]
+
     net_files = []
     anti_files = []
     sbml_files = []
@@ -1847,6 +1865,12 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
     if sink is None:
         sink = [0, 'loguniform', 0.01, 100]
+
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 100]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 100]
 
     net_files = []
     anti_files = []
@@ -2043,6 +2067,12 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
 
     if sink is None:
         sink = [0, 'loguniform', 0.01, 100]
+
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 100]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 100]
 
     net_files = []
     anti_files = []
