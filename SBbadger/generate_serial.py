@@ -1138,8 +1138,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, connected=True, edge_type='generic', mod_reg=None, gma_reg=None,
-             sc_reg=None, rxn_prob=None, net_plots=False, net_layout='dot', mass_balanced=False, network_attempts=100,
-             constants=True):
+             sc_reg=None, rxn_prob=None, net_plots=False, net_layout='dot', mass_balanced=False, network_attempts=100):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -1162,7 +1161,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     """
 
     if net_plots and not found_pydot:
@@ -1226,7 +1224,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
         else:
             os.makedirs(os.path.join(directory, group_name, 'networks'))
             os.makedirs(os.path.join(directory, group_name, 'net_figs'))
-            # os.makedirs(os.path.join(directory, group_name, 'dot_files'))
 
     net_inds = [int(nf.split('_')[-1].split('.')[0]) for nf in net_files]
     path = os.path.join(directory, group_name, 'distributions')
@@ -1304,8 +1301,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                                                           n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
                                                           mass_violating_reactions, edge_type, mass_balanced,
                                                           connected)
-            outgoing = set()
-            incoming = set()
 
             if not rl[0]:
 
@@ -1327,24 +1322,12 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                                 else:
                                     f.write(',(')
                                     for m, every in enumerate(item):
-                                        if k == 1:
-                                            if not constants:
-                                                outgoing.add(every)
-                                        if k == 2:
-                                            if not constants:
-                                                incoming.add(every)
                                         if m == 0:
                                             f.write(str(every))
                                         else:
                                             f.write(':' + str(every))
                                     f.write(')')
                         f.write('\n')
-
-            source_nodes = outgoing - incoming
-            sink_nodes = incoming - outgoing
-
-            source_nodes = list(source_nodes)
-            sink_nodes = list(sink_nodes)
 
             if net_plots:
 
@@ -1369,7 +1352,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                                          + '.csv'),
                             os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_' + str(ind)
                                          + '.png'),
-                            net_layout, source_nodes, sink_nodes)
+                            net_layout, [], [])
 
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 

@@ -5544,7 +5544,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[1][kinetics[2].index('kf')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                             scale=kinetics[3][kinetics[2].index('kf')][1]
-                                                  - kinetics[3][kinetics[2].index('kf')][0])
+                                            - kinetics[3][kinetics[2].index('kf')][0])
                         param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
@@ -5571,7 +5571,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
                                         scale=kinetics[3][kinetics[2].index('kf')][1]
-                                              - kinetics[3][kinetics[2].index('kf')][0])
+                                        - kinetics[3][kinetics[2].index('kf')][0])
                     param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
@@ -5605,7 +5605,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[1][kinetics[2].index('kr')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                             scale=kinetics[3][kinetics[2].index('kr')][1]
-                                                  - kinetics[3][kinetics[2].index('kr')][0])
+                                            - kinetics[3][kinetics[2].index('kr')][0])
                         param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
@@ -5632,7 +5632,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
                                         scale=kinetics[3][kinetics[2].index('kr')][1]
-                                              - kinetics[3][kinetics[2].index('kr')][0])
+                                        - kinetics[3][kinetics[2].index('kr')][0])
                     param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':
@@ -5666,7 +5666,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                     if kinetics[1][kinetics[2].index('kc')] == 'uniform':
                         const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                             scale=kinetics[3][kinetics[2].index('kc')][1]
-                                                  - kinetics[3][kinetics[2].index('kc')][0])
+                                            - kinetics[3][kinetics[2].index('kc')][0])
                         param_str += each + ' = ' + str(const) + '\n'
 
                     if kinetics[1][kinetics[2].index('kc')] == 'loguniform':
@@ -5693,7 +5693,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 if kinetics[1] == 'uniform':
                     const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
                                         scale=kinetics[3][kinetics[2].index('kc')][1]
-                                              - kinetics[3][kinetics[2].index('kc')][0])
+                                        - kinetics[3][kinetics[2].index('kc')][0])
                     param_str += each + ' = ' + str(const) + '\n'
 
                 if kinetics[1] == 'loguniform':

@@ -1163,7 +1163,7 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
                       mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                      network_attempts, constants):
+                      network_attempts):
 
     out_dist = False
     in_dist = False
@@ -1228,9 +1228,6 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                                   rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
                                                   edge_type, mass_balanced, connected)
 
-    outgoing = set()
-    incoming = set()
-
     if not rl[0]:
         ant_str = "Network construction failed on this attempt, consider revising your settings."
         anti_dir = os.path.join(directory, group_name, 'networks', group_name + '_error_message_' + str(i) + '.txt')
@@ -1249,24 +1246,12 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                         else:
                             f.write(',(')
                             for m, every in enumerate(item):
-                                if k == 1:
-                                    if not constants:
-                                        outgoing.add(every)
-                                if k == 2:
-                                    if not constants:
-                                        incoming.add(every)
                                 if m == 0:
                                     f.write(str(every))
                                 else:
                                     f.write(':' + str(every))
                             f.write(')')
                 f.write('\n')
-
-    source_nodes = outgoing - incoming
-    sink_nodes = incoming - outgoing
-
-    source_nodes = list(source_nodes)
-    sink_nodes = list(sink_nodes)
 
     if net_plots:
 
@@ -1290,13 +1275,13 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                                   + '.csv'),
                                      os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
                                                   + '.png'),
-                                     net_layout, source_nodes, sink_nodes)
+                                     net_layout, [], [])
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, connected=True, edge_type='generic', mod_reg=None, gma_reg=None,
              sc_reg=None, rxn_prob=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
-             mass_balanced=False, network_attempts=100, constants=True):
+             mass_balanced=False, network_attempts=100):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -1320,7 +1305,6 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     """
 
     if net_plots and not found_pydot:
@@ -1397,7 +1381,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
     args_list = [(dist[0], dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
                   mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                  network_attempts, constants)
+                  network_attempts)
                  for dist in dists_list if dist not in net_inds]
 
     pool = Pool(n_cpus)
