@@ -1390,7 +1390,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
 
 def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, constants,
-                       source, sink):
+                       source, sink, net_plots, net_layout):
 
     reg_check = True
 
@@ -1458,12 +1458,20 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
                                 if elem:
                                     rl[-1][-1].append(int(elem))
 
-        ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants, source,
-                                                    sink)
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                              add_enzyme, constants, source, sink)
 
         anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
+
+        if not constants and net_plots != 'edge' and found_pydot:
+            reaction_network_fig(
+                os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(i)
+                             + '.csv'),
+                os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_'
+                             + str(i) + '.png'),
+                net_layout, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1475,7 +1483,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
               add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
-              n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
+              n_cpus=cpu_count()-1, constants=True, source=None, sink=None, net_plots=True, net_layout='default'):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1504,6 +1512,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
+    :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     """
 
     if kinetics is None:
@@ -1637,7 +1647,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     nets_list.sort()
 
     args_list = [(net[0], nets_list, directory, group_name, add_enzyme, kinetics, rev_prob, ic_params, constants,
-                  source, sink)
+                  source, sink, net_plots, net_layout)
                  for net in nets_list if net not in anti_inds]
 
     pool = Pool(n_cpus)

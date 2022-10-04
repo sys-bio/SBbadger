@@ -1357,7 +1357,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
               add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
-              constants=True, source=None, sink=None):
+              constants=True, source=None, sink=None, net_plots=True, net_layout='default'):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1385,6 +1385,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
+    :param net_plots: Generate network plots.
+    :param net_layout: Set layout for network plots.
     """
 
     if kinetics is None:
@@ -1507,6 +1509,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     nets_files = [fi for fi in os.listdir(path) if os.path.isfile(os.path.join(path, fi)) and fi[-3:] == 'csv']
     nets_list = []
     for item in nets_files:
+        print(item)
         nets_list.append([int(item.split('_')[-1].split('.')[0]), item])
     nets_list.sort()
 
@@ -1581,12 +1584,22 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
                                         if elem:
                                             rl[-1][-1].append(int(elem))
 
-                ant_str = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob, add_enzyme, constants,
-                                                            source, sink)
+                ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
+                                                                                      add_enzyme, constants, source,
+                                                                                      sink)
 
                 anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(ind) + '.txt')
                 with open(anti_dir, 'w') as f:
                     f.write(ant_str)
+
+                if not constants and net_plots != 'edge' and found_pydot:
+
+                    reaction_network_fig(
+                        os.path.join(directory, group_name, 'networks', group_name + '_net_' + str(ind)
+                                     + '.csv'),
+                        os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_'
+                                     + str(ind) + '.png'),
+                        net_layout, source_nodes, sink_nodes)
 
                 sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_sbml_' + str(ind) + '.sbml')
                 antimony.loadAntimonyString(ant_str)
