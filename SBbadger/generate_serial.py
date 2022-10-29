@@ -107,7 +107,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
@@ -126,11 +126,11 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param independent_sampling: Forces both distributions to be sampled independently.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
@@ -141,7 +141,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -244,16 +244,16 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                         "Please revise these frequency distributions.")
 
     if not constants and source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if not constants and sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
 
     if isinstance(source, int):
-        source = [source, 'loguniform', 0.01, 100]
+        source = [source, 'loguniform', 0.01, 1]
 
     if isinstance(sink, int):
-        sink = [sink, 'loguniform', 0.01, 100]
+        sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
     path = os.path.join(output_dir, group_name, '')
@@ -532,7 +532,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation analysis.
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
     :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
@@ -549,11 +549,11 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param independent_sampling: Forces both distributions to be sampled independently.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
@@ -564,7 +564,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -667,16 +667,16 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                         "Please revise these frequency distributions.")
 
     if not constants and source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if not constants and sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
 
     if isinstance(source, int):
-        source = [source, 'loguniform', 0.01, 100]
+        source = [source, 'loguniform', 0.01, 1]
 
     if isinstance(sink, int):
-        sink = [sink, 'loguniform', 0.01, 100]
+        sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
     path = os.path.join(output_dir, group_name, '')
@@ -1366,7 +1366,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param group_name: Name of the group the models belong too and the directory they will be placed in.
     :param overwrite: Overwrite the models in output_dir/models/group_name.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
@@ -1378,11 +1378,11 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param ic_params: Describes the initial condition sampling distributions. Ultimately defaults to ['uniform', 0, 10]
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     :param net_plots: Generate network plots.
@@ -1390,7 +1390,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     """
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -1463,10 +1463,16 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         raise Exception('Your reversibility probability is not between 0 and 1')
 
     if not constants and source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if not constants and sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
 
     anti_files = []
     sbml_files = []
@@ -1622,7 +1628,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param n_models: Number of models to produce.
     :param n_species: Number of species per model.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1631,11 +1637,11 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param net_layout: Set layout for network plots.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     """
@@ -1644,7 +1650,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -1660,16 +1666,16 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
         raise Exception('Your reversibility probability is not between 0 and 1')
 
     if source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
 
     if isinstance(source, int):
-        source = [source, 'loguniform', 0.01, 100]
+        source = [source, 'loguniform', 0.01, 1]
 
     if isinstance(sink, int):
-        sink = [sink, 'loguniform', 0.01, 100]
+        sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
     anti_files = []
@@ -1819,7 +1825,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param n_cycles: Number of cycles per model.
     :param n_models: Number of models to produce.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1828,11 +1834,11 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param net_layout: Set layout for network plots.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     """
@@ -1841,7 +1847,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -1857,16 +1863,16 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
         raise Exception('Your reversibility probability is not between 0 and 1')
 
     if source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
 
     if isinstance(source, int):
-        source = [source, 'loguniform', 0.01, 100]
+        source = [source, 'loguniform', 0.01, 1]
 
     if isinstance(sink, int):
-        sink = [sink, 'loguniform', 0.01, 100]
+        sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
     anti_files = []
@@ -2018,7 +2024,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         [branch, grow, combine] = [0.1, 0.8, 0.1].
     :param tips: Confines branching, growth, and converging to the tip of the stems.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
-        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -2027,11 +2033,11 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param net_layout: Set layout for network plots.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
         reactions.
     :param sink: Describes the number of sink nodes (nodes with degradation reactions) and the associated parameter
-        distributions. Defaults to [0, 'loguniform', 0.01, 100] where the first position holds the minimum number and
+        distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     """
@@ -2040,7 +2046,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         print('The pydot package was not found and network figures will not be produced.')
 
     if kinetics is None:
-        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 100], [0.01, 100], [0.01, 100]]]
+        kinetics = ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
 
     valid_kinetics = ['mass_action', 'hanekom', 'lin_log', 'modular_CM', 'modular_DM', 'modular_SM', 'modular_FM',
                       'modular_PM', 'gma', 'saturating_cooperative']
@@ -2059,16 +2065,16 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
         path_probs = [0.1, 0.8, 0.1]
 
     if source is None:
-        source = [0, 'loguniform', 0.01, 100]
+        source = [0, 'loguniform', 0.01, 1]
 
     if sink is None:
-        sink = [0, 'loguniform', 0.01, 100]
+        sink = [0, 'loguniform', 0.01, 1]
 
     if isinstance(source, int):
-        source = [source, 'loguniform', 0.01, 100]
+        source = [source, 'loguniform', 0.01, 1]
 
     if isinstance(sink, int):
-        sink = [sink, 'loguniform', 0.01, 100]
+        sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
     anti_files = []
