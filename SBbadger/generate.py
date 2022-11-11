@@ -135,7 +135,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param independent_sampling: Forces both distributions to be sampled independently.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -773,7 +776,10 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
     :param connected: Forces networks to be fully connected.
     :param independent_sampling: Forces both distributions to be sampled independently.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -1536,7 +1542,10 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param rev_prob: Describes the probability that a reaction is reversible.
     :param ic_params: Describes the initial condition sampling distributions. Defaults to ['uniform', 0, 10]
     :param n_cpus: Provides the number of cores to be used in parallel.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -1792,7 +1801,10 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -2010,7 +2022,10 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -2232,7 +2247,10 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param n_cpus: Provides the number of cores to be used in parallel.
-    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to True.
+    :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
+        If constants=None the number of boundary nodes will be happenstance.
+        If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
