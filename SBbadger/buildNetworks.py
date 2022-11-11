@@ -4318,7 +4318,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         boundary_ids = deepcopy(source_nodes)
         boundary_ids.extend(deepcopy(sink_nodes))
         boundary_ids.sort()
-        floating_ids = [i for i in range(n_species) if i not in boundary_ids]
+        floating_ids = [i for i in range(n_species)]
 
         if len(floating_ids) > 0:
             rxn_str += 'var ' + 'S' + str(floating_ids[0])

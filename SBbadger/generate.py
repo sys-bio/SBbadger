@@ -90,7 +90,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
           joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
           kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
           ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
-          mass_balanced=False, independent_sampling=False, constants=True, source=None, sink=None, network_attempts=100,
+          mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None, network_attempts=100,
           distribution_attempts=100):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
@@ -727,7 +727,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
            kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
            ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
-           mass_balanced=False, independent_sampling=False, constants=True, source=None, sink=None,
+           mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
            network_attempts=100, distribution_attempts=100):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
@@ -1516,7 +1516,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
               add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
-              n_cpus=cpu_count()-1, constants=True, source=None, sink=None, net_plots=True, net_layout='default'):
+              n_cpus=cpu_count()-1, constants=None, source=None, sink=None, net_plots=True, net_layout='default'):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1773,7 +1773,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
            kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, net_layout='default',
-           n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
+           n_cpus=cpu_count()-1, constants=None, source=None, sink=None):
     """
     Generates a collection of UNI-UNI linear models.
 
@@ -1989,7 +1989,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
            max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=True, source=None, sink=None):
+           net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=None, source=None, sink=None):
     """
     Generates a collection of UNI-UNI cyclic models.
 
@@ -2208,7 +2208,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1, 
              n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0, 
-             ic_params=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=True, source=None,
+             ic_params=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1, constants=None, source=None,
              sink=None):
     """
     Generates a collection of UNI-UNI branched models from a set of seed nodes.
