@@ -18,7 +18,7 @@ if found_pydot:
     import pydot
 
 
-def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
+def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, sink_nodes):
 
     if not source_nodes:
         source_nodes = []
@@ -31,14 +31,23 @@ def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
     ind = 0
 
-    for each in source_nodes:
-        graph.add_node(pydot.Node('So' + str(each), shape="point", style="filled", fillcolor="green",
-                                  height="0.1", width="0.1"))
-        graph.add_edge(pydot.Edge('So' + str(each), str(each)))
-    for each in sink_nodes:
-        graph.add_node(pydot.Node('Si' + str(each), shape="point", style="filled", fillcolor="red",
-                                  height="0.1", width="0.1"))
-        graph.add_edge(pydot.Edge(str(each), 'Si' + str(each)))
+    if constants == False:
+        for each in source_nodes:
+            graph.add_node(pydot.Node('So' + str(each), shape="point", style="filled", fillcolor="green",
+                                      height="0.1", width="0.1"))
+            graph.add_edge(pydot.Edge('So' + str(each), str(each)))
+        for each in sink_nodes:
+            graph.add_node(pydot.Node('Si' + str(each), shape="point", style="filled", fillcolor="red",
+                                      height="0.1", width="0.1"))
+            graph.add_edge(pydot.Edge(str(each), 'Si' + str(each)))
+
+    if constants == True:
+        for each in source_nodes:
+            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="green"))
+            graph.add_edge(pydot.Edge('B' + str(each), str(each)))
+        for each in sink_nodes:
+            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="red"))
+            graph.add_edge(pydot.Edge(str(each), 'B' + str(each)))
 
     with open(net_path, 'r') as network:
         lines = network.readlines()
@@ -245,16 +254,28 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         raise Exception("The total in-edges do not match the total out-edges. "
                         "Please revise these frequency distributions.")
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
@@ -377,7 +398,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -586,7 +607,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -871,16 +892,28 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         raise Exception("The total in-edges do not match the total out-edges. "
                         "Please revise these frequency distributions.")
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
@@ -1275,7 +1308,7 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
                                                   + '.csv'),
                                      os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_' + str(i)
                                                   + '.png'),
-                                     net_layout, [], [])
+                                     net_layout, None, [], [])
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
@@ -1471,7 +1504,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
                              + '.csv'),
                 os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_'
                              + str(i) + '.png'),
-                net_layout, source_nodes, sink_nodes)
+                net_layout, constants, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1589,16 +1622,28 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     anti_files = []
@@ -1716,7 +1761,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1777,16 +1822,28 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
@@ -1920,7 +1977,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -1983,16 +2040,28 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
@@ -2127,7 +2196,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
         antimony.loadAntimonyString(ant_str)
@@ -2196,16 +2265,28 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     if path_probs is None:
         path_probs = [0.1, 0.8, 0.1]
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []

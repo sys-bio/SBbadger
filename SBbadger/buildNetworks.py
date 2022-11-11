@@ -4270,7 +4270,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     source_nodes = None
     sink_nodes = None
-    if not constants:
+
+    if constants == False:
         if len(original_source_nodes) >= source[0]:
             source_nodes = original_source_nodes
         else:
@@ -4299,7 +4300,40 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     param_str = ''
     ic_str = ''
 
-    if constants:
+    if constants == True:
+        if len(original_source_nodes) >= source[0]:
+            source_nodes = original_source_nodes
+        else:
+            source_nodes = original_source_nodes + random.sample(list(floating_ids),
+                                                                 source[0] - len(original_source_nodes))
+
+        if len(original_sink_nodes) >= sink[0]:
+            sink_nodes = original_sink_nodes
+        else:
+            sink_nodes = original_sink_nodes + random.sample(list(floating_ids), sink[0] - len(original_sink_nodes))
+
+        source_nodes.sort()
+        sink_nodes.sort()
+
+        boundary_ids = deepcopy(source_nodes)
+        boundary_ids.extend(deepcopy(sink_nodes))
+        boundary_ids.sort()
+        floating_ids = [i for i in range(n_species) if i not in boundary_ids]
+
+        if len(floating_ids) > 0:
+            rxn_str += 'var ' + 'S' + str(floating_ids[0])
+            for index in floating_ids[1:]:
+                rxn_str += ', ' + 'S' + str(index)
+            rxn_str += '\n'
+
+        if len(boundary_ids) > 0:
+            rxn_str += 'ext ' + 'B' + str(boundary_ids[0])
+            for index in boundary_ids[1:]:
+                rxn_str += ', ' + 'B' + str(index)
+            rxn_str += '\n'
+        rxn_str += '\n'
+
+    if constants == None:
         if len(floating_ids) > 0:
             rxn_str += 'var ' + 'S' + str(floating_ids[0])
             for index in floating_ids[1:]:
@@ -4318,6 +4352,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 rxn_str += ', ' + 'S' + str(index)
             rxn_str += '\n'
         rxn_str += '\n'
+
 
     def reversibility():
 
@@ -9470,16 +9505,30 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     if source_nodes or sink_nodes:
         reaction_index += 1
 
-    if source_nodes:
+    if constants == False and source_nodes:
         for each in source_nodes:
             rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; syn' + str(each) + '\n'
             reaction_index += 1
         rxn_str += '\n'
 
-    if sink_nodes:
+    if constants == False and sink_nodes:
         for each in sink_nodes:
             rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + 'deg' + str(each) + '*' + 'S' \
                        + str(each) + '\n'
+            reaction_index += 1
+        rxn_str += '\n'
+
+    if constants == True and source_nodes:
+        for each in source_nodes:
+            rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; syn' + str(each) \
+                       + ' * B' + str(each) + '\n'
+            reaction_index += 1
+        rxn_str += '\n'
+
+    if constants == True and sink_nodes:
+        for each in sink_nodes:
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; deg' + str(each) \
+                       + ' * S' + str(each) + '\n'
             reaction_index += 1
         rxn_str += '\n'
 

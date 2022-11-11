@@ -243,16 +243,28 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         raise Exception("The total in-edges do not match the total out-edges. "
                         "Please revise these frequency distributions.")
 
-    if not constants and source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if not constants and sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
@@ -666,16 +678,28 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         raise Exception("The total in-edges do not match the total out-edges. "
                         "Please revise these frequency distributions.")
 
-    if not constants and source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if not constants and sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     num_existing_models = 0
@@ -1462,16 +1486,28 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if not constants and source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if not constants and sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     anti_files = []
@@ -1665,16 +1701,28 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
@@ -1862,16 +1910,28 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
             sys.tracebacklimit = 0
         raise Exception('Your reversibility probability is not between 0 and 1')
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
@@ -2064,16 +2124,28 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     if path_probs is None:
         path_probs = [0.1, 0.8, 0.1]
 
-    if source is None:
+    if constants == False and source is None:
         source = [0, 'loguniform', 0.01, 1]
 
-    if sink is None:
+    if constants == False and sink is None:
         sink = [0, 'loguniform', 0.01, 1]
 
-    if isinstance(source, int):
+    if constants == False and isinstance(source, int):
         source = [source, 'loguniform', 0.01, 1]
 
-    if isinstance(sink, int):
+    if constants == False and isinstance(sink, int):
+        sink = [sink, 'loguniform', 0.01, 1]
+
+    if constants == True and source is None:
+        source = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and sink is None:
+        sink = [0, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(source, int):
+        source = [source, 'loguniform', 0.01, 1]
+
+    if constants == True and isinstance(sink, int):
         sink = [sink, 'loguniform', 0.01, 1]
 
     net_files = []
