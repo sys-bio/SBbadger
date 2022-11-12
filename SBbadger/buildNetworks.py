@@ -787,7 +787,7 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
 
 
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg, gma_reg, 
-                       sc_reg, mass_violating_reactions, edge_type, mass_balanced, connected):
+                       sc_reg, mass_violating_reactions, unaffected_nodes, edge_type, mass_balanced, connected):
 
     in_nodes_count = []
     if bool(in_samples):
@@ -1107,6 +1107,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
+                if not mass_violating_reactions and reactant in {product1, product2}:
+                    pick_continued += 1
+                    continue
+
                 if mass_balanced:
 
                     res_result, s_mat_c = consistency_check([reactant], [product1, product2])
@@ -1115,10 +1119,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         continue
                     else:
                         s_matrix = s_mat_c
-
-                if not mass_violating_reactions and reactant in {product1, product2}:
-                    pick_continued += 1
-                    continue
 
                 mod_species = []
                 reg_signs = []
@@ -1194,18 +1194,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     pick_continued += 1
                     continue
 
-                if mass_balanced:
+                if {reactant1, reactant2} == {product1, product2}:
+                    pick_continued += 1
+                    continue
 
+                if not unaffected_nodes:
+                    intersect = {reactant1, reactant2}.intersection({product1, product2})
+                    if len(intersect) > 0:
+                        pick_continued += 1
+                        continue
+
+                if mass_balanced:
                     res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
                     if not res_result:
                         pick_continued += 1
                         continue
                     else:
                         s_matrix = s_mat_c
-
-                if {reactant1, reactant2} == {product1, product2}:
-                    pick_continued += 1
-                    continue
 
                 mod_species = []
                 reg_signs = []
@@ -1231,6 +1236,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reaction_list2.append([[reactant1, reactant2], [product1, product2]])
 
                 if edge_type == 'generic':
+
                     edge_list.append((reactant1, product1))
                     edge_list.append((reactant2, product1))
                     edge_list.append((reactant1, product2))
@@ -1374,7 +1380,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         continue
 
                     if mass_balanced:
-
                         res_result, s_mat_c = consistency_check([reactant], [product])
                         if not res_result:
                             pick_continued += 1
@@ -1423,7 +1428,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         continue
 
                     if mass_balanced:
-
                         res_result, s_mat_c = consistency_check([reactant], [product])
                         if not res_result:
                             pick_continued += 1
@@ -1486,18 +1490,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -1551,18 +1554,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -1637,18 +1639,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -1712,18 +1713,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -1808,18 +1808,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -1895,18 +1900,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2038,7 +2048,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         continue
 
                     if mass_balanced:
-
                         res_result, s_mat_c = consistency_check([reactant], [product])
                         if not res_result:
                             pick_continued += 1
@@ -2131,7 +2140,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         continue
 
                     if mass_balanced:
-
                         res_result, s_mat_c = consistency_check([reactant], [product])
                         if not res_result:
                             pick_continued += 1
@@ -2196,18 +2204,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2306,18 +2313,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2390,18 +2396,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2511,18 +2516,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2616,18 +2620,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -2760,18 +2769,23 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if mass_balanced:
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
 
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
+                    if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
                         if not res_result:
                             pick_continued += 1
                             continue
                         else:
                             s_matrix = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3120,6 +3134,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
@@ -3127,10 +3145,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3258,6 +3272,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if not mass_violating_reactions and product in {reactant1, reactant2}:
+                        pick_continued += 1
+                        continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product])
@@ -3265,10 +3283,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if not mass_violating_reactions and product in {reactant1, reactant2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3384,6 +3398,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
@@ -3391,10 +3409,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3542,6 +3556,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if not mass_violating_reactions and reactant in {product1, product2}:
+                        pick_continued += 1
+                        continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant], [product1, product2])
@@ -3549,10 +3567,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if not mass_violating_reactions and reactant in {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3690,6 +3704,16 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
@@ -3697,10 +3721,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []
@@ -3873,6 +3893,16 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
+                    if {reactant1, reactant2} == {product1, product2}:
+                        pick_continued += 1
+                        continue
+
+                    if not unaffected_nodes:
+                        intersect = {reactant1, reactant2}.intersection({product1, product2})
+                        if len(intersect) > 0:
+                            pick_continued += 1
+                            continue
+
                     s_matrix_temp = None
                     if mass_balanced:
                         res_result, s_mat_c = consistency_check([reactant1, reactant2], [product1, product2])
@@ -3880,10 +3910,6 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                             pick_continued += 1
                             continue
                         s_matrix_temp = s_mat_c
-
-                    if {reactant1, reactant2} == {product1, product2}:
-                        pick_continued += 1
-                        continue
 
                     mod_species = []
                     reg_signs = []

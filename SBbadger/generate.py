@@ -87,9 +87,9 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
 
 def model(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_species=10,
           n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None,
-          joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
-          kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
-          ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
+          joint_range=None, min_freq=1.0, mass_violating_reactions=True, unaffected_nodes=True, connected=True,
+          edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None,
+          rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='default', str_format='ant',
           mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None, network_attempts=100,
           distribution_attempts=100):
     """
@@ -115,6 +115,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param joint_range: The degree range for the joint distribution (must be symmetrical, see examples).
     :param min_freq: Sets the minimum number (expected value) of nodes (species) that must be in each degree bin.
     :param mass_violating_reactions: Allow apparent mass violating reactions such as A + B -> A.
+    :param unaffected_nodes: Allow reactions in which some species is left unchanged such as A + B -> A + C.
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
@@ -346,7 +347,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                       rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                                                      edge_type, mass_balanced, connected)
+                                                      unaffected_nodes, edge_type, mass_balanced, connected)
 
         if not rl[0]:
             i += 1
@@ -526,9 +527,9 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
 def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
                     rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                    connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out, pmf_in,
-                    pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, constants, source,
-                    sink, network_attempts, distribution_attempts):
+                    unaffected_nodes, connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced,
+                    input_case, pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in,
+                    independent_sampling, constants, source, sink, network_attempts, distribution_attempts):
 
     in_samples = []
     out_samples = []
@@ -557,7 +558,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 
         rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                   rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                                                  edge_type, mass_balanced, connected)
+                                                  unaffected_nodes, edge_type, mass_balanced, connected)
 
     if rl[0]:
 
@@ -727,9 +728,9 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
-           joint_range=None, min_freq=1.0, mass_violating_reactions=True, connected=True, edge_type='generic',
-           kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0,
-           ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
+           joint_range=None, min_freq=1.0, mass_violating_reactions=True, unaffected_nodes=True, connected=True,
+           edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None,
+           rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
            mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
            network_attempts=100, distribution_attempts=100):
     """
@@ -756,6 +757,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param joint_range: The degree range for the joint distribution (must be symmetrical, see examples).
     :param min_freq: Sets the minimum number (expected value) of nodes (species) that must be in each degree bin.
     :param mass_violating_reactions: Allow apparent mass violating reactions such as A + B -> A.
+    :param unaffected_nodes: Allow reactions in which some species is left unchanged such as A + B -> A + C.
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Defaults to
@@ -958,9 +960,9 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
 
     args_list = [(i, group_name, add_enzyme, n_species, n_reactions, kinetics, in_dist, out_dist, output_dir,
                   rxn_prob, rev_prob, joint_dist, ic_params, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                  connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case, pmf_out,
-                  pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling, constants,
-                  source, sink, network_attempts, distribution_attempts)
+                  unaffected_nodes, connected, dist_plots, net_plots, net_layout, edge_type, mass_balanced, input_case,
+                  pmf_out, pmf_in, pmf_joint, range_out, range_in, edge_ev_out, edge_ev_in, independent_sampling,
+                  constants, source, sink, network_attempts, distribution_attempts)
                  for i in range(num_existing_models, n_models)]
 
     pool = Pool(n_cpus)
@@ -1201,8 +1203,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 
 def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
-                      mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                      network_attempts):
+                      mass_violating_reactions, unaffected_nodes, connected, edge_type, net_plots, net_layout,
+                      mass_balanced, network_attempts):
 
     out_dist = False
     in_dist = False
@@ -1265,7 +1267,7 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
 
         rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
                                                   rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                                                  edge_type, mass_balanced, connected)
+                                                  unaffected_nodes, edge_type, mass_balanced, connected)
 
     if not rl[0]:
         ant_str = "Network construction failed on this attempt, consider revising your settings."
@@ -1318,8 +1320,8 @@ def generate_networks(i, dists_list, directory, group_name, n_reactions, rxn_pro
 
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
-             mass_violating_reactions=True, connected=True, edge_type='generic', mod_reg=None, gma_reg=None,
-             sc_reg=None, rxn_prob=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
+             mass_violating_reactions=True, unaffected_nodes=True, connected=True, edge_type='generic', mod_reg=None,
+             gma_reg=None, sc_reg=None, rxn_prob=None, net_plots=False, net_layout='default', n_cpus=cpu_count()-1,
              mass_balanced=False, network_attempts=100):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
@@ -1331,6 +1333,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param overwrite: Overwrite the models in output_dir/models/group_name.
     :param n_reactions: Specifies the minimum number of reactions per model. Only valid in the completely random case.
     :param mass_violating_reactions: Allow apparent mass violating reactions such as A + B -> A.
+    :param unaffected_nodes: Allow reactions in which some species is left unchanged such as A + B -> A + C.
     :param edge_type: Determines how the edges are counted against the frequency distributions.
         Current options are 'generic' and 'metabolic'.
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
@@ -1419,8 +1422,8 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     dists_list.sort()
 
     args_list = [(dist[0], dists_list, directory, group_name, n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
-                  mass_violating_reactions, connected, edge_type, net_plots, net_layout, mass_balanced,
-                  network_attempts)
+                  mass_violating_reactions, unaffected_nodes, connected, edge_type, net_plots, net_layout,
+                  mass_balanced, network_attempts)
                  for dist in dists_list if dist not in net_inds]
 
     pool = Pool(n_cpus)
