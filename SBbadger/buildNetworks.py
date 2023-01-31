@@ -9528,6 +9528,9 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         if ms:
             param_str += '\n'
 
+    Bsource = []
+    Bsink = []
+    print(source)
     if source_nodes or sink_nodes:
         reaction_index += 1
 
@@ -9546,6 +9549,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     if constants == True and source_nodes:
         for each in source_nodes:
+            Bsource.append('B' + str(each))
             rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; syn' + str(each) \
                        + ' * B' + str(each) + '\n'
             reaction_index += 1
@@ -9553,6 +9557,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     if constants == True and sink_nodes:
         for each in sink_nodes:
+            Bsink.append('B' + str(each))
             rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; deg' + str(each) \
                        + ' * S' + str(each) + '\n'
             reaction_index += 1
@@ -9579,6 +9584,50 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         if ic_params is None:
             ic = uniform.rvs(loc=0, scale=10)
             ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
+
+    if len(Bsource) > 0 or len(Bsink) > 0:
+        ic_str += '\n'
+
+    for each in Bsource:
+        if ic_params == 'trivial':
+            ic_str += each + ' = 1\n'
+        if isinstance(source, list) and source[1] == 'uniform':
+            ic = uniform.rvs(loc=source[2], scale=source[3]-source[3])
+            ic_str += each + ' = ' + str(ic) + '\n'
+        if isinstance(source, list) and source[1] == 'loguniform':
+            ic = loguniform.rvs(source[2], source[3])
+            ic_str += each + ' = ' + str(ic) + '\n'
+        if isinstance(source, list) and source[1] == 'normal':
+            ic = norm.rvs(loc=source[2], scale=source[3])
+            ic_str += each + ' = ' + str(ic) + '\n'
+        if isinstance(source, list) and source[1] == 'lognormal':
+            ic = lognorm.rvs(scale=source[2], s=source[3])
+            ic_str += each + ' = ' + str(ic) + '\n'
+        if source is None:
+            ic = uniform.rvs(loc=0, scale=10)
+            ic_str += each + ' = ' + str(ic) + '\n'
+
+    for each in Bsink:
+        ic_str += each + ' = 0\n'
+
+    # for each in Bsink:
+    #     if sink == 'trivial':
+    #         ic_str += each + ' = 1\n'
+    #     if isinstance(sink, list) and sink[1] == 'uniform':
+    #         ic = uniform.rvs(loc=sink[2], scale=sink[3]-sink[2])
+    #         ic_str += each + ' = ' + str(ic) + '\n'
+    #     if isinstance(sink, list) and sink[1] == 'loguniform':
+    #         ic = loguniform.rvs(sink[2], sink[3])
+    #         ic_str += each + ' = ' + str(ic) + '\n'
+    #     if isinstance(sink, list) and sink[1] == 'normal':
+    #         ic = norm.rvs(loc=sink[2], scale=sink[3])
+    #         ic_str += each + ' = ' + str(ic) + '\n'
+    #     if isinstance(sink, list) and sink[1] == 'lognormal':
+    #         ic = lognorm.rvs(scale=sink[2], s=sink[3])
+    #         ic_str += each + ' = ' + str(ic) + '\n'
+    #     if sink is None:
+    #         ic = uniform.rvs(loc=0, scale=10)
+    #         ic_str += each + ' = ' + str(ic) + '\n'
 
     # if add_enzyme:
     #     ant_str += '\n'
