@@ -9530,7 +9530,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     Bsource = []
     Bsink = []
-    print(source)
     if source_nodes or sink_nodes:
         reaction_index += 1
 
