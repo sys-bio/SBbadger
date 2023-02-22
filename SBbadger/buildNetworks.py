@@ -4379,7 +4379,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             rxn_str += '\n'
         rxn_str += '\n'
 
-
     def reversibility():
 
         rev1 = False

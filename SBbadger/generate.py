@@ -355,7 +355,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -508,7 +508,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                                          + '_joint' + '.png'))
                 plt.close()
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
 
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
@@ -564,7 +564,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
 
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -717,7 +717,7 @@ def generate_models(i, group_name, add_enzyme, n_species, n_reactions, kinetics,
                                          + '_joint' + '.png'))
                 plt.close()
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
 
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
@@ -1447,7 +1447,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
     if mod_check and 'modular' not in kinetics[0]:
         reg_check = False
         ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -1459,7 +1459,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
     if gma_check and kinetics[0] != 'gma':
         reg_check = False
         ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -1471,7 +1471,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
     if sc_check and kinetics[0] != 'saturating_cooperative':
         reg_check = False
         ant_str = "This model contains regulators that are not accounted for in the selected kinetics."
-        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -1503,7 +1503,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
 
-        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -1515,7 +1515,7 @@ def generate_rate_laws(i, nets_list, directory, group_name, add_enzyme, kinetics
                              + str(i) + '.png'),
                 net_layout, constants, source_nodes, sink_nodes)
 
-        sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
         with open(sbml_dir, 'w') as f:
@@ -1720,14 +1720,14 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
     if not rl[0]:
 
         ant_str = "Network construction failed on this attempt, consider revising your settings."
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
 
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
 
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -1775,7 +1775,7 @@ def generate_linear(i, group_name, add_enzyme, n_species, kinetics, rev_prob, ic
                                                       + str(i) + '.png'),
                                          net_layout, constants, source_nodes, sink_nodes)
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
         with open(sbml_dir, 'w') as f:
@@ -1940,14 +1940,14 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
     if not rl[0]:
 
         ant_str = "Network construction failed on this attempt, consider revising your settings."
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
 
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -1994,7 +1994,7 @@ def generate_cyclic(i, group_name, add_enzyme, min_species, max_species, n_cycle
                                                       + str(i) + '.png'),
                                          net_layout, constants, source_nodes, sink_nodes)
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
         with open(sbml_dir, 'w') as f:
@@ -2162,14 +2162,14 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
     if not rl[0]:
 
         ant_str = "Network construction failed on this attempt, consider revising your settings."
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_error_message_' + str(i) + '.txt')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
     else:
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
                                                                               add_enzyme, constants, source, sink)
 
-        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_ant_' + str(i) + '.txt')
+        anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
 
@@ -2216,7 +2216,7 @@ def generate_branched(i, group_name, add_enzyme, n_species, kinetics, rev_prob, 
                                                       + str(i) + '.png'),
                                          net_layout, constants, source_nodes, sink_nodes)
 
-        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_sbml_' + str(i) + '.sbml')
+        sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
         antimony.loadAntimonyString(ant_str)
         sbml = antimony.getSBMLString()
         with open(sbml_dir, 'w') as f:
