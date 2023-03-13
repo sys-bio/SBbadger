@@ -4681,19 +4681,25 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
             ro = []
             kma = []
             ma = []
-
+            print()
             for reaction_index, r in enumerate(reaction_list_copy):
+                print(r)
+
+                enzyme = ''
+                enzyme_end = ''
 
                 if add_enzyme and not allo_reg:
+                    print(1)
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
 
                 if add_enzyme and allo_reg and not r[3]:
+                    print(2)
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
 
                 if not add_enzyme and allo_reg and r[3]:
-
+                    print(3)
                     enzyme = '('
 
                     for i, reg in enumerate(r[3]):
@@ -4716,6 +4722,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                     enzyme_end = ')'
 
                 if add_enzyme and allo_reg and r[3]:
+                    print(4)
                     enzyme = 'E' + str(reaction_index) + '*('
 
                     for i, reg in enumerate(r[3]):
