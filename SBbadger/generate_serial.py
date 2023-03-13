@@ -16,7 +16,7 @@ if found_pydot:
     import pydot
 
 
-def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
+def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, sink_nodes):
 
     if not source_nodes:
         source_nodes = []
@@ -29,14 +29,23 @@ def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
     ind = 0
 
-    for each in source_nodes:
-        graph.add_node(pydot.Node('So' + str(each), shape="point", style="filled", fillcolor="green",
-                                  height="0.1", width="0.1"))
-        graph.add_edge(pydot.Edge('So' + str(each), str(each)))
-    for each in sink_nodes:
-        graph.add_node(pydot.Node('Si' + str(each), shape="point", style="filled", fillcolor="red",
-                                  height="0.1", width="0.1"))
-        graph.add_edge(pydot.Edge(str(each), 'Si' + str(each)))
+    if constants == False:
+        for each in source_nodes:
+            graph.add_node(pydot.Node('So' + str(each), shape="point", style="filled", fillcolor="green",
+                                      height="0.1", width="0.1"))
+            graph.add_edge(pydot.Edge('So' + str(each), str(each)))
+        for each in sink_nodes:
+            graph.add_node(pydot.Node('Si' + str(each), shape="point", style="filled", fillcolor="red",
+                                      height="0.1", width="0.1"))
+            graph.add_edge(pydot.Edge(str(each), 'Si' + str(each)))
+
+    if constants == True:
+        for each in source_nodes:
+            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="green"))
+            graph.add_edge(pydot.Edge('B' + str(each), str(each)))
+        for each in sink_nodes:
+            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="red"))
+            graph.add_edge(pydot.Edge(str(each), 'B' + str(each)))
 
     with open(net_path, 'r') as network:
         lines = network.readlines()
@@ -77,10 +86,10 @@ def reaction_network_fig(net_path, fig_path, layout, source_nodes, sink_nodes):
 def model(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_species=10,
           n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None,
           joint_range=None, min_freq=1.0, mass_violating_reactions=True, unaffected_nodes=True, connected=True,
-          edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None,
-          rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot', str_format='ant',
-          mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None, network_attempts=100,
-          distribution_attempts=100):
+          edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None,
+          rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot',
+          str_format='ant', mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
+          network_attempts=100, distribution_attempts=100):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
     generation including truncation and re-normalization of the distributions, reaction selection and construction of
@@ -114,6 +123,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
     :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
     :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
+    :param allo_reg: Describes general allosteric regulation derived from the modular rate laws but applied to anything.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -123,12 +133,13 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
     :param net_layout: Set layout for network plots.
     :param str_format: Determines the format of the output string, antimony or sbml. Defaults to ant.
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
-    :param connected: Forces networks to be fully connected.
+    :param connected: Force networks to be fully connected.
     :param independent_sampling: Forces both distributions to be sampled independently.
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -172,6 +183,12 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
+
+    if allo_reg is not None:
+        if 'modular' in kinetics[0]:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('allo_reg and modular kinetics overlap. Choose only one.')
 
     if ic_params is None:
         ic_params = ['uniform', 0, 10]
@@ -217,6 +234,16 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
+
+    if allo_reg:
+        if round(sum(allo_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {allo_reg[0]} and they do not add to 1.")
+        if allo_reg[1] < 0 or allo_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {allo_reg[1]} is not between 0 and 1.")
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -335,15 +362,17 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                                                independent_sampling, distribution_attempts)
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                      rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                                                      unaffected_nodes, edge_type, mass_balanced, connected)
+                                                      rxn_prob, mod_reg, gma_reg, sc_reg, allo_reg,
+                                                      mass_violating_reactions, unaffected_nodes, edge_type,
+                                                      mass_balanced, connected)
         
         if not rl[0]:
             i += 1
             continue
 
-        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                              add_enzyme, constants, source, sink)
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                              rev_prob, add_enzyme, constants, source,
+                                                                              sink)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -391,7 +420,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -519,10 +548,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 def models(verbose_exceptions=False, output_dir='models', group_name='test', overwrite=True, n_models=1, n_species=10, 
            n_reactions=None, in_dist='random', out_dist='random', joint_dist=None, in_range=None, out_range=None, 
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, unaffected_nodes=True, connected=True,
-           edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None,
-           rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot', mass_balanced=False,
-           independent_sampling=False, constants=None, source=None, sink=None, network_attempts=100,
-           distribution_attempts=100):
+           edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None,
+           rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot',
+           mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
+           network_attempts=100, distribution_attempts=100):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
     truncation and re-normalization of the distributions, reaction selection and construction of the network, and the
@@ -554,6 +583,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
     :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
     :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
+    :param allo_reg: Describes general allosteric regulation derived from the modular rate laws but applied to anything.
     :param rxn_prob: Describes the reaction probabilities. Defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -567,7 +597,8 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -611,6 +642,12 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
+
+    if allo_reg is not None:
+        if 'modular' in kinetics[0]:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('allo_reg and modular kinetics overlap. Choose only one.')
 
     if ic_params is None:
         ic_params = ['uniform', 0, 10]
@@ -656,6 +693,16 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
+
+    if allo_reg:
+        if round(sum(allo_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {allo_reg[0]} and they do not add to 1.")
+        if allo_reg[1] < 0 or allo_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {allo_reg[1]} is not between 0 and 1.")
 
     if rev_prob < 0 or rev_prob > 1:
         if not verbose_exceptions:
@@ -773,15 +820,17 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                                                independent_sampling, distribution_attempts)
 
             rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions,
-                                                      rxn_prob, mod_reg, gma_reg, sc_reg, mass_violating_reactions,
-                                                      unaffected_nodes, edge_type, mass_balanced, connected)
+                                                      rxn_prob, mod_reg, gma_reg, sc_reg, allo_reg,
+                                                      mass_violating_reactions, unaffected_nodes, edge_type,
+                                                      mass_balanced, connected)
 
         if not rl[0]:
             i += 1
             continue
 
-        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                              add_enzyme, constants, source, sink)
+        ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                              rev_prob, add_enzyme, constants, source,
+                                                                              sink)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -829,7 +878,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                                                       + '.csv'),
                                          os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                                       + str(i) + '.png'),
-                                         net_layout, source_nodes, sink_nodes)
+                                         net_layout, constants, source_nodes, sink_nodes)
 
         with open(dist_dir, 'w') as f:
             f.write('out distribution\n')
@@ -1170,8 +1219,8 @@ def distributions(verbose_exceptions=False, output_dir='models', group_name='tes
 
 def networks(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, n_reactions=None, 
              mass_violating_reactions=True, unaffected_nodes=True, connected=True, edge_type='generic', mod_reg=None,
-             gma_reg=None, sc_reg=None, rxn_prob=None, net_plots=False, net_layout='dot', mass_balanced=False,
-             network_attempts=100):
+             gma_reg=None, sc_reg=None, allo_reg=None, rxn_prob=None, net_plots=False, net_layout='dot',
+             mass_balanced=False, network_attempts=100):
     """
     Generates a collection of reaction networks. This function requires the existence of previously generated 
     frequency distributions.
@@ -1188,12 +1237,13 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
     :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
     :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
+    :param allo_reg: Describes general allosteric regulation derived from the modular rate laws but applied to anything.
     :param rxn_prob: Describes the reaction probabilities. Ultimately defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05].
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     :param mass_balanced: Enforces consistency of the stoichiometric matrix.
-    :param connected: Forces networks to be fully connected.
+    :param connected: Force networks to be fully connected.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
     """
 
@@ -1235,6 +1285,16 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
             if not verbose_exceptions:
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
+
+    if allo_reg:
+        if round(sum(allo_reg[0]), 10) != 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your stated modular regulator probabilities are {allo_reg[0]} and they do not add to 1.")
+        if allo_reg[1] < 0 or allo_reg[1] > 1:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception(f"Your positive (vs negative) probability is {allo_reg[1]} is not between 0 and 1.")
 
     net_files = []
     if overwrite:
@@ -1332,7 +1392,7 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                     break
 
                 rl, el = buildNetworks.generate_reactions(in_samples, out_samples, joint_samples, n_species,
-                                                          n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg,
+                                                          n_reactions, rxn_prob, mod_reg, gma_reg, sc_reg, allo_reg,
                                                           mass_violating_reactions, unaffected_nodes, edge_type,
                                                           mass_balanced, connected)
 
@@ -1386,12 +1446,12 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                                          + '.csv'),
                             os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_' + str(ind)
                                          + '.png'),
-                            net_layout, [], [])
+                            net_layout, None, [], [])
 
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
-              add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, rxn_prob=None, rev_prob=0, ic_params=None,
-              constants=None, source=None, sink=None, net_plots=True, net_layout='default'):
+              add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None, rxn_prob=None, rev_prob=0,
+              ic_params=None, constants=None, source=None, sink=None, net_plots=True, net_layout='default'):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1406,6 +1466,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param mod_reg: Describes the modular modifiers. Only valid for modular rate-laws.
     :param gma_reg: Describes the generalized mass-action (gma) modifiers. Only valid for gma rate-laws.
     :param sc_reg: Describes the saturating and cooperative (sc) modifiers. Only valid for sc rate-laws.
+    :param allo_reg: Describes general allosteric regulation derived from the modular rate laws but applied to anything.
     :param rxn_prob: Describes the reaction probabilities. Ultimately defaults to
         [UniUni, BiUni, UniBi, BiBI] = [0.35, 0.3, 0.3, 0.05]
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1413,7 +1474,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -1454,6 +1516,12 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
             sys.tracebacklimit = 0
         raise Exception('Regulators are relevant only to saturating-cooperative kinetics.\n'
                         'Please reset the run with appropriate parameters.')
+
+    if allo_reg is not None:
+        if 'modular' in kinetics[0]:
+            if not verbose_exceptions:
+                sys.tracebacklimit = 0
+            raise Exception('allo_reg and modular kinetics overlap. Choose only one.')
 
     if ic_params is None:
         ic_params = ['uniform', 0, 10]
@@ -1642,9 +1710,9 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
                                         if elem:
                                             rl[-1][-1].append(int(elem))
 
-                ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                                      add_enzyme, constants, source,
-                                                                                      sink)
+                ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                                      rev_prob, add_enzyme, constants,
+                                                                                      source, sink)
 
                 anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.ant')
                 with open(anti_dir, 'w') as f:
@@ -1657,7 +1725,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
                                      + '.csv'),
                         os.path.join(directory, group_name, 'net_figs', group_name + '_net_fig_'
                                      + str(ind) + '.png'),
-                        net_layout, source_nodes, sink_nodes)
+                        net_layout, constants, source_nodes, sink_nodes)
 
                 sbml_dir = os.path.join(directory, group_name, 'sbml', group_name + '_' + str(ind) + '.xml')
                 antimony.loadAntimonyString(ant_str)
@@ -1668,8 +1736,8 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
 
 
 def linear(verbose_exceptions=False, output_dir='models', group_name='linear', overwrite=True, n_models=1, n_species=10, 
-           kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False, net_layout='dot',
-           constants=None, source=None, sink=None):
+           kinetics=None, allo_reg=None, add_enzyme=False, rev_prob=0, ic_params=None, net_plots=False,
+           net_layout='dot', constants=None, source=None, sink=None):
     """
     Generates a collection of linear models.
 
@@ -1681,6 +1749,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param n_species: Number of species per model.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
+    :param allo_reg: This is a future feature.
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1690,7 +1759,8 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -1819,8 +1889,9 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
-            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                                  add_enzyme, constants, source, sink)
+            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                                  rev_prob, add_enzyme, constants,
+                                                                                  source, sink)
 
             anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
             with open(anti_dir, 'w') as f:
@@ -1868,7 +1939,7 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
                                          + '.csv'),
                             os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                          + str(i) + '.png'),
-                            net_layout, source_nodes, sink_nodes)
+                            net_layout, constants, source_nodes, sink_nodes)
 
             sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
             antimony.loadAntimonyString(ant_str)
@@ -1879,8 +1950,8 @@ def linear(verbose_exceptions=False, output_dir='models', group_name='linear', o
 
 
 def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', overwrite=True, min_species=10,
-           max_species=20, n_cycles=1, n_models=1, kinetics=None, add_enzyme=False, rev_prob=0, ic_params=None,
-           net_plots=False, net_layout='dot', constants=None, source=None, sink=None):
+           max_species=20, n_cycles=1, n_models=1, kinetics=None, allo_reg=None, add_enzyme=False, rev_prob=0,
+           ic_params=None, net_plots=False, net_layout='dot', constants=None, source=None, sink=None):
     """
     Generates a collection of cyclic models.
 
@@ -1894,6 +1965,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param n_models: Number of models to produce.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
+    :param allo_reg: This is a future feature.
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -1903,7 +1975,8 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -2032,8 +2105,9 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
-            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                                  add_enzyme, constants, source, sink)
+            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                                  rev_prob, add_enzyme, constants,
+                                                                                  source, sink)
 
             anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
             with open(anti_dir, 'w') as f:
@@ -2081,7 +2155,7 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
                                          + '.csv'),
                             os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                          + str(i) + '.png'),
-                            net_layout, source_nodes, sink_nodes)
+                            net_layout, constants, source_nodes, sink_nodes)
 
             sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
             antimony.loadAntimonyString(ant_str)
@@ -2092,8 +2166,8 @@ def cyclic(verbose_exceptions=False, output_dir='models', group_name='cyclic', o
 
 
 def branched(verbose_exceptions=False, output_dir='models', group_name='branched', overwrite=True, n_models=1,
-             n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, add_enzyme=False, rev_prob=0,
-             ic_params=None, net_plots=False, net_layout='dot', constants=None, source=None, sink=None):
+             n_species=20, seeds=1, path_probs=None, tips=False, kinetics=None, allo_reg=None, add_enzyme=False,
+             rev_prob=0, ic_params=None, net_plots=False, net_layout='dot', constants=None, source=None, sink=None):
     """
     Generates a collection of branching/converging models from a set of seed nodes.
 
@@ -2109,6 +2183,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param tips: Confines branching, growth, and converging to the tip of the stems.
     :param kinetics: Describes the desired rate-laws and parameter ranges. Ultimately defaults to
         ['mass_action', 'loguniform', ['kf', 'kr', 'kc'], [[0.01, 1], [0.01, 1], [0.01, 1]]]
+    :param allo_reg: This is a future feature.
     :param add_enzyme: Add a multiplicative parameter to the rate-law that may be used for perturbation
         analysis.
     :param rev_prob: Describes the probability that a reaction is reversible.
@@ -2118,7 +2193,8 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
     :param constants: Use constants for boundary nodes instead of syn and deg reactions. Defaults to None.
         If constants=None the number of boundary nodes will be happenstance.
         If constants=False a minimum number of source and sink edges can be set via the source and sink arguments
-        If constants=True a minimum number of source and sink boundary nodes can be set via the source and sink arguments
+        If constants=True a minimum number of source and sink boundary nodes can be set via the source
+        and sink arguments
     :param source: Describes the number of source nodes (nodes with synthesis reactions) and the associated parameter
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary source nodes will always have synthesis
@@ -2250,8 +2326,9 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
             with open(anti_dir, 'w') as f:
                 f.write(ant_str)
         else:
-            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, rev_prob,
-                                                                                  add_enzyme, constants, source, sink)
+            ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
+                                                                                  rev_prob, add_enzyme, constants,
+                                                                                  source, sink)
 
             anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
             with open(anti_dir, 'w') as f:
@@ -2299,7 +2376,7 @@ def branched(verbose_exceptions=False, output_dir='models', group_name='branched
                                          + '.csv'),
                             os.path.join(output_dir, group_name, 'net_figs', group_name + '_net_fig_'
                                          + str(i) + '.png'),
-                            net_layout, source_nodes, sink_nodes)
+                            net_layout, constants, source_nodes, sink_nodes)
 
             sbml_dir = os.path.join(output_dir, group_name, 'sbml', group_name + '_' + str(i) + '.xml')
             antimony.loadAntimonyString(ant_str)

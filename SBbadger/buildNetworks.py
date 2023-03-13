@@ -787,7 +787,8 @@ def generate_samples(n_species, in_dist, out_dist, joint_dist, input_case, pmf_o
 
 
 def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reactions, rxn_prob, mod_reg, gma_reg, 
-                       sc_reg, mass_violating_reactions, unaffected_nodes, edge_type, mass_balanced, connected):
+                       sc_reg, allo_reg, mass_violating_reactions, unaffected_nodes, edge_type, mass_balanced,
+                       connected):
 
     in_nodes_count = []
     if bool(in_samples):
@@ -952,6 +953,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            allo_num = 0
+            if allo_reg:
+                allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -988,6 +993,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 reg_signs = []
                 reg_type = []
 
+                if allo_reg:
+                    mod_species = random.sample(nodes_list, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                    reg_type = ['allo' for _ in mod_species]
+
                 if mod_reg:
                     mod_species = random.sample(nodes_list, mod_num)
                     reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1011,6 +1021,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     node_set.add(reactant)
                     node_set.add(product)
                     node_set.update(mod_species)
+                    
                 if edge_type == 'metabolic':
                     edge_list.append((reactant, product))
                     node_set.add(reactant)
@@ -1045,6 +1056,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 mod_species = []
                 reg_signs = []
                 reg_type = []
+
+                if allo_reg:
+                    mod_species = random.sample(nodes_list, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                    reg_type = ['allo' for _ in mod_species]
 
                 if mod_reg:
                     mod_species = random.sample(nodes_list, mod_num)
@@ -1123,6 +1139,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 mod_species = []
                 reg_signs = []
                 reg_type = []
+
+                if allo_reg:
+                    mod_species = random.sample(nodes_list, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                    reg_type = ['allo' for _ in mod_species]
 
                 if mod_reg:
                     mod_species = random.sample(nodes_list, mod_num)
@@ -1215,6 +1236,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 mod_species = []
                 reg_signs = []
                 reg_type = []
+
+                if allo_reg:
+                    mod_species = random.sample(nodes_list, allo_num)
+                    reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                    reg_type = ['allo' for _ in mod_species]
 
                 if mod_reg:
                     mod_species = random.sample(nodes_list, mod_num)
@@ -1345,6 +1371,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            allo_num = 0
+            if allo_reg:
+                allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -1363,14 +1393,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if max(in_nodes_count) < (1 + mod_num + gma_num + sc_num):
+                    if max(in_nodes_count) < (1 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product = random.choices(in_nodes_list, prob_in)[0]
 
                     reactant = random.choice(in_nodes_list)
@@ -1391,6 +1421,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1406,7 +1441,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         reg_signs = [random.choices([1, -1], [sc_reg[1], 1 - sc_reg[1]])[0] for _ in mod_species]
                         reg_type = ['sc' for _ in mod_species]
 
-                    in_nodes_count[product] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     reaction_list.append([rt, [reactant], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product]])
 
@@ -1439,6 +1474,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1469,14 +1509,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if max(in_nodes_count) < (2 + mod_num + gma_num + sc_num):
+                    if max(in_nodes_count) < (2 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product = random.choices(in_nodes_list, prob_in)[0]
 
                     reactant1 = random.choice(in_nodes_list)
@@ -1506,6 +1546,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1521,7 +1566,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         reg_signs = [random.choices([1, -1], [sc_reg[1], 1 - sc_reg[1]])[0] for _ in mod_species]
                         reg_type = ['sc' for _ in mod_species]
 
-                    in_nodes_count[product] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     reaction_list.append([rt, [reactant1, reactant2], [product], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product]])
 
@@ -1570,6 +1615,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1609,24 +1659,24 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(1 for each in in_nodes_count if each >= (1 + mod_num + gma_num + sc_num)) < 2 \
-                            and max(in_nodes_count) < (2 + 2 * mod_num + 2 * gma_num + 2 * sc_num):
+                    if sum(1 for each in in_nodes_count if each >= (1 + allo_num + mod_num + gma_num + sc_num)) < 2 \
+                            and max(in_nodes_count) < (2 + 2 * allo_num + 2 * mod_num + 2 * gma_num + 2 * sc_num):
                         pick_continued += 1
                         continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product1] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product1] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
-                    in_nodes_count_copy[product1] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count_copy[product1] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     sum_in_copy = sum(in_nodes_count_copy)
                     prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
                     product2 = random.choices(in_nodes_list, prob_in_copy)[0]
-                    while in_nodes_count_copy[product2] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count_copy[product2] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product2 = random.choices(in_nodes_list, prob_in_copy)[0]
 
                     reactant = random.choice(in_nodes_list)
@@ -1655,6 +1705,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1670,8 +1725,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         reg_signs = [random.choices([1, -1], [sc_reg[1], 1 - sc_reg[1]])[0] for _ in mod_species]
                         reg_type = ['sc' for _ in mod_species]
 
-                    in_nodes_count[product1] -= (1 + mod_num + gma_num + sc_num)
-                    in_nodes_count[product2] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product1] -= (1 + allo_num + mod_num + gma_num + sc_num)
+                    in_nodes_count[product2] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant], [product1, product2]])
 
@@ -1729,6 +1784,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1769,24 +1829,24 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(1 for each in in_nodes_count if each >= (2 + mod_num + gma_num + sc_num)) < 2 \
-                            and max(in_nodes_count) < (4 + 2 * mod_num + 2 * gma_num + 2 * sc_num):
+                    if sum(1 for each in in_nodes_count if each >= (2 + allo_num + mod_num + gma_num + sc_num)) < 2 \
+                            and max(in_nodes_count) < (4 + 2 * allo_num + 2 * mod_num + 2 * gma_num + 2 * sc_num):
                         pick_continued += 1
                         continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product1] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product1] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
-                    in_nodes_count_copy[product1] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count_copy[product1] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     sum_in_copy = sum(in_nodes_count_copy)
                     prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
                     product2 = random.choices(in_nodes_list, prob_in_copy)[0]
-                    while in_nodes_count_copy[product2] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count_copy[product2] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     reactant1 = random.choice(in_nodes_list)
@@ -1830,6 +1890,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -1845,8 +1910,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         reg_signs = [random.choices([1, -1], [sc_reg[1], 1 - sc_reg[1]])[0] for _ in mod_species]
                         reg_type = ['sc' for _ in mod_species]
 
-                    in_nodes_count[product1] -= (2 + mod_num + gma_num + sc_num)
-                    in_nodes_count[product2] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product1] -= (2 + allo_num + mod_num + gma_num + sc_num)
+                    in_nodes_count[product2] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     reaction_list.append([rt, [reactant1, reactant2], [product1, product2],
                                           mod_species, reg_signs, reg_type])
                     reaction_list2.append([[reactant1, reactant2], [product1, product2]])
@@ -1921,6 +1986,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
@@ -2015,6 +2085,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            allo_num = 0
+            if allo_reg:
+                allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -2033,7 +2107,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(out_nodes_count) < (1 + mod_num + gma_num + sc_num):
+                    if sum(out_nodes_count) < (1 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
@@ -2058,6 +2132,25 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy = deepcopy(out_nodes_count)
+                            out_nodes_count_copy[reactant] -= 1
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 1
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -2151,6 +2244,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2180,7 +2278,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(out_nodes_count) < (2 + mod_num + gma_num + sc_num):
+                    if sum(out_nodes_count) < (2 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
@@ -2219,6 +2317,24 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy[reactant2] -= 1
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 1
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -2329,6 +2445,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2370,9 +2491,9 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 if edge_type == 'generic':
 
                     cont = False
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (1 + mod_num + gma_num + sc_num):
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (1 + allo_num + mod_num + gma_num + sc_num):
                         cont = True
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (mod_num + gma_num + sc_num - 1) \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (allo_num + mod_num + gma_num + sc_num - 1) \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 1:
                         cont = True
                     if not cont:
@@ -2411,6 +2532,27 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy = deepcopy(out_nodes_count)
+                            out_nodes_count_copy[reactant] -= 2
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                while out_nodes_count_copy[new_mod] < 2:
+                                    new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 2
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -2532,6 +2674,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -2572,14 +2719,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 if edge_type == 'generic':
 
                     cont = False
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (2 + mod_num + gma_num + sc_num):
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (2 + allo_num + mod_num + gma_num + sc_num):
                         cont = True
 
-                    if sum(1 for each in out_nodes_count if each >= 2) >= mod_num + gma_num + sc_num \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= allo_num + mod_num + gma_num + sc_num \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 1:
                         cont = True
 
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (mod_num + gma_num + sc_num - 2) \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (allo_num + mod_num + gma_num + sc_num - 2) \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 2:
                         cont = True
 
@@ -2641,6 +2788,26 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy[reactant2] -= 2
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                while out_nodes_count_copy[new_mod] < 2:
+                                    new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 2
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -2790,6 +2957,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
@@ -2887,6 +3059,10 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
             else:
                 rt = _pick_reaction_type()
 
+            allo_num = 0
+            if allo_reg:
+                allo_num = random.choices([0, 1, 2, 3], allo_reg[0])[0]
+
             mod_num = 0
             if mod_reg:
                 mod_num = random.choices([0, 1, 2, 3], mod_reg[0])[0]
@@ -2905,18 +3081,18 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(out_nodes_count) < (1 + mod_num + gma_num + sc_num):
+                    if sum(out_nodes_count) < (1 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
-                    if max(in_nodes_count) < (1 + mod_num + gma_num + sc_num):
+                    if max(in_nodes_count) < (1 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product = random.choices(in_nodes_list, prob_in)[0]
 
                     sum_out = sum(out_nodes_count)
@@ -2938,6 +3114,25 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy = deepcopy(out_nodes_count)
+                            out_nodes_count_copy[reactant] -= 1
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 1
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -3003,7 +3198,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         onc[reactant] -= 1
                         for each in mod_species:
                             onc[each] -= 1
-                        inc[product] -= (1 + mod_num + gma_num + sc_num)
+                        inc[product] -= (1 + allo_num + mod_num + gma_num + sc_num)
 
                         closed_groups, c_groups_temp = iterative_connected_check([reactant], [product], mod_species,
                                                                                  onc, inc)
@@ -3018,7 +3213,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     if mass_balanced:
                         s_matrix = s_matrix_temp
 
-                    in_nodes_count[product] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     out_nodes_count[reactant] -= 1
                     for each in mod_species:
                         out_nodes_count[each] -= 1
@@ -3053,6 +3248,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
@@ -3102,11 +3302,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                 if edge_type == 'generic':
 
-                    if sum(out_nodes_count) < (2 + mod_num + gma_num + sc_num):
+                    if sum(out_nodes_count) < (2 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
-                    if max(in_nodes_count) < (2 + mod_num + gma_num + sc_num):
+                    if max(in_nodes_count) < (2 + allo_num + mod_num + gma_num + sc_num):
                         pick_continued += 1
                         continue
 
@@ -3123,7 +3323,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant1, reactant2], [product]] in reaction_list2:
@@ -3149,6 +3349,24 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy[reactant2] -= 1
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 1
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -3212,7 +3430,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         onc[reactant2] -= 1
                         for each in mod_species:
                             onc[each] -= 1
-                        inc[product] -= (2 + mod_num + gma_num + sc_num)
+                        inc[product] -= (2 + allo_num + mod_num + gma_num + sc_num)
 
                         closed_groups, c_groups_temp = iterative_connected_check([reactant1, reactant2], [product],
                                                                                  mod_species, onc, inc)
@@ -3227,7 +3445,7 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     if mass_balanced:
                         s_matrix = s_matrix_temp
 
-                    in_nodes_count[product] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     out_nodes_count[reactant1] -= 1
                     out_nodes_count[reactant2] -= 1
                     for each in mod_species:
@@ -3287,6 +3505,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
@@ -3355,17 +3578,17 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 if edge_type == 'generic':
 
                     cont = False
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (1 + mod_num + gma_num + sc_num):
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (1 + allo_num + mod_num + gma_num + sc_num):
                         cont = True
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (mod_num + gma_num + sc_num - 1) \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (allo_num + mod_num + gma_num + sc_num - 1) \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 1:
                         cont = True
                     if not cont:
                         pick_continued += 1
                         continue
 
-                    if sum(1 for each in in_nodes_count if each >= (1 + mod_num + gma_num + sc_num)) < 2 \
-                            and max(in_nodes_count) < (2 + 2 * mod_num + 2 * gma_num + 2 * sc_num):
+                    if sum(1 for each in in_nodes_count if each >= (1 + allo_num + mod_num + gma_num + sc_num)) < 2 \
+                            and max(in_nodes_count) < (2 + 2 * allo_num + 2 * mod_num + 2 * gma_num + 2 * sc_num):
                         pick_continued += 1
                         continue
 
@@ -3378,16 +3601,16 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product1] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product1] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
-                    in_nodes_count_copy[product1] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count_copy[product1] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     sum_in_copy = sum(in_nodes_count_copy)
                     prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
                     product2 = random.choices(in_nodes_list, prob_in_copy)[0]
-                    while in_nodes_count_copy[product2] < (1 + mod_num + gma_num + sc_num):
+                    while in_nodes_count_copy[product2] < (1 + allo_num + mod_num + gma_num + sc_num):
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant], [product1, product2]] in reaction_list2:
@@ -3413,6 +3636,27 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy = deepcopy(out_nodes_count)
+                            out_nodes_count_copy[reactant] -= 2
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                while out_nodes_count_copy[new_mod] < 2:
+                                    new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 2
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -3482,8 +3726,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         onc = deepcopy(out_nodes_count)
                         inc = deepcopy(in_nodes_count)
                         onc[reactant] -= 2
-                        inc[product1] -= (1 + mod_num + gma_num + sc_num)
-                        inc[product2] -= (1 + mod_num + gma_num + sc_num)
+                        inc[product1] -= (1 + allo_num + mod_num + gma_num + sc_num)
+                        inc[product2] -= (1 + allo_num + mod_num + gma_num + sc_num)
                         for each in mod_species:
                             onc[each] -= 2
 
@@ -3500,8 +3744,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         s_matrix = s_matrix_temp
 
                     out_nodes_count[reactant] -= 2
-                    in_nodes_count[product1] -= (1 + mod_num + gma_num + sc_num)
-                    in_nodes_count[product2] -= (1 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product1] -= (1 + allo_num + mod_num + gma_num + sc_num)
+                    in_nodes_count[product2] -= (1 + allo_num + mod_num + gma_num + sc_num)
                     for each in mod_species:
                         out_nodes_count[each] -= 2
                     reaction_list.append([rt, [reactant], [product1, product2], mod_species, reg_signs, reg_type])
@@ -3572,6 +3816,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     reg_signs = []
                     reg_type = []
 
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
+
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
                         reg_signs = [random.choices([1, -1], [mod_reg[1], 1 - mod_reg[1]])[0] for _ in mod_species]
@@ -3639,14 +3888,14 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                 if edge_type == 'generic':
 
                     cont = False
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (2 + mod_num + gma_num + sc_num):
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (2 + allo_num + mod_num + gma_num + sc_num):
                         cont = True
 
-                    if sum(1 for each in out_nodes_count if each >= 2) >= mod_num + gma_num + sc_num \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= allo_num + mod_num + gma_num + sc_num \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 1:
                         cont = True
 
-                    if sum(1 for each in out_nodes_count if each >= 2) >= (mod_num + gma_num + sc_num - 2) \
+                    if sum(1 for each in out_nodes_count if each >= 2) >= (allo_num + mod_num + gma_num + sc_num - 2) \
                             and sum(1 for each in out_nodes_count if each >= 4) >= 2:
                         cont = True
 
@@ -3654,8 +3903,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         pick_continued += 1
                         continue
 
-                    if sum(1 for each in in_nodes_count if each >= (2 + mod_num + gma_num + sc_num)) < 2 \
-                            and max(in_nodes_count) < (4 + 2 * mod_num + 2 * gma_num + 2 * sc_num):
+                    if sum(1 for each in in_nodes_count if each >= (2 + allo_num + mod_num + gma_num + sc_num)) < 2 \
+                            and max(in_nodes_count) < (4 + 2 * allo_num + 2 * mod_num + 2 * gma_num + 2 * sc_num):
                         pick_continued += 1
                         continue
 
@@ -3676,16 +3925,16 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     sum_in = sum(in_nodes_count)
                     prob_in = [x / sum_in for x in in_nodes_count]
                     product1 = random.choices(in_nodes_list, prob_in)[0]
-                    while in_nodes_count[product1] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count[product1] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product1 = random.choices(in_nodes_list, prob_in)[0]
 
                     in_nodes_count_copy = deepcopy(in_nodes_count)
-                    in_nodes_count_copy[product1] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count_copy[product1] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     sum_in_copy = sum(in_nodes_count_copy)
                     prob_in_copy = [x / sum_in_copy for x in in_nodes_count_copy]
 
                     product2 = random.choices(in_nodes_list, prob_in_copy)[0]
-                    while in_nodes_count_copy[product2] < (2 + mod_num + gma_num + sc_num):
+                    while in_nodes_count_copy[product2] < (2 + allo_num + mod_num + gma_num + sc_num):
                         product2 = random.choices(in_nodes_list, prob_in)[0]
 
                     if [[reactant1, reactant2], [product1, product2]] in reaction_list2:
@@ -3725,6 +3974,26 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        if allo_num > 0:
+                            out_nodes_count_copy[reactant2] -= 2
+                            sum_out_copy = sum(out_nodes_count_copy)
+                            prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                            while len(mod_species) < allo_num:
+                                new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                while out_nodes_count_copy[new_mod] < 2:
+                                    new_mod = random.choices(out_nodes_list, prob_out_copy)[0]
+                                if new_mod not in mod_species:
+                                    mod_species.append(new_mod)
+                                    if len(mod_species) < allo_num:
+                                        out_nodes_count_copy[mod_species[-1]] -= 2
+                                        sum_out_copy = sum(out_nodes_count_copy)
+                                        prob_out_copy = [x / sum_out_copy for x in out_nodes_count_copy]
+
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         if mod_num > 0:
@@ -3792,8 +4061,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                         inc = deepcopy(in_nodes_count)
                         onc[reactant1] -= 2
                         onc[reactant2] -= 2
-                        inc[product1] -= (2 + mod_num + gma_num + sc_num)
-                        inc[product2] -= (2 + mod_num + gma_num + sc_num)
+                        inc[product1] -= (2 + allo_num + mod_num + gma_num + sc_num)
+                        inc[product2] -= (2 + allo_num + mod_num + gma_num + sc_num)
                         for each in mod_species:
                             onc[each] -= 2
 
@@ -3812,8 +4081,8 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
 
                     out_nodes_count[reactant1] -= 2
                     out_nodes_count[reactant2] -= 2
-                    in_nodes_count[product1] -= (2 + mod_num + gma_num + sc_num)
-                    in_nodes_count[product2] -= (2 + mod_num + gma_num + sc_num)
+                    in_nodes_count[product1] -= (2 + allo_num + mod_num + gma_num + sc_num)
+                    in_nodes_count[product2] -= (2 + allo_num + mod_num + gma_num + sc_num)
                     for each in mod_species:
                         out_nodes_count[each] -= 2
                     reaction_list.append(
@@ -3914,6 +4183,11 @@ def generate_reactions(in_samples, out_samples, joint_samples, n_species, n_reac
                     mod_species = []
                     reg_signs = []
                     reg_type = []
+
+                    if allo_reg:
+                        mod_species = random.sample(nodes_list, allo_num)
+                        reg_signs = [random.choices([1, -1], [allo_reg[1], 1 - allo_reg[1]])[0] for _ in mod_species]
+                        reg_type = ['allo' for _ in mod_species]
 
                     if mod_reg:
                         mod_species = random.sample(nodes_list, mod_num)
@@ -4179,7 +4453,7 @@ def remove_boundary_nodes(st):
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
 
 
-def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme, constants, source, sink):
+def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, add_enzyme, constants, source, sink):
 
     n_species = reaction_list[0]
     reaction_list_copy = deepcopy(reaction_list)
@@ -4288,11 +4562,12 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
     floating_ids = np.delete(species_ids, indexes + orphan_species, axis=0)
     boundary_ids = indexes + orphan_species
 
-    if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative':
-        for each in reaction_list_copy:
-            for item in each[3]:
-                if item not in boundary_ids and item not in floating_ids:
-                    boundary_ids.append(item)
+    if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative' \
+            or reaction_list_copy[5][0] == 'allo':
+        for item in reaction_list_copy:
+            for every in item[3]:
+                if every not in boundary_ids and every not in floating_ids:
+                    boundary_ids.append(every)
 
     source_nodes = None
     sink_nodes = None
@@ -4393,1106 +4668,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     reaction_index = None
     
-    # ================================================================================
-
-    if kinetics[0] == 'saturating_cooperative':
-
-        v = []
-        k = []
-        n = []
-        nr = []
-        nr_sign = []
-
-        for reaction_index, r in enumerate(reaction_list_copy):
-
-            if add_enzyme:
-                enzyme = 'E' + str(reaction_index) + '*('
-                enzyme_end = ')'
-
-            rxn_str += 'J' + str(reaction_index) + ': '
-
-            if r[0] == TReactionType.UNIUNI:
-                # UniUni
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0])
-                    
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-                    
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-                    
-                    rxn_str += ')'
-
-                else:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][0]) + ')'
-                    
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
-                    
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-                    
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
-                    
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-                        
-                    rxn_str += ')'
-
-            if r[0] == TReactionType.BIUNI:
-                # BiUni
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[1][1])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][1])
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-
-                else:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][0]) + ')'
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-            # -------------------------------------------------------------------------
-
-            if r[0] == TReactionType.UNIBI:
-                # UniBi
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[2][1])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0])
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-
-                else:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][1]) + ')'
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[2][1]) + ' + ' + 'S' + str(r[2][1]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-
-            # -------------------------------------------------------------------------
-
-            if r[0] == TReactionType.BIBI:
-                # BiBi
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[1][1])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[2][1])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][1])
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-
-                else:
-                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
-                               str(reaction_index) + '_' + str(r[2][1]) + ')'
-
-                    v.append('v' + str(reaction_index))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
-                    n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
-                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
-                        nr_sign.append(r[4][i])
-
-                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + ' + 'S' + str(r[1][0]) \
-                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')' + ' * ' + '(k' \
-                               + str(reaction_index) + '_' + str(r[1][1]) + ' + ' + 'S' + str(r[1][1]) + '^n_' \
-                               + str(reaction_index) + '_' + str(r[1][1]) + ')' + ' * ' + '(k' + str(reaction_index) \
-                               + '_' + str(r[2][0]) + ' + ' + 'S' + str(r[2][0]) + '^n_' + str(reaction_index) + '_' \
-                               + str(r[2][0]) + ')' + ' * ' + '(k' + str(reaction_index) + '_' + str(r[2][1]) + ' + ' \
-                               + 'S' + str(r[2][1]) + '^n_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
-
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
-                    k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
-                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
-                        k.append('k' + str(reaction_index) + '_' + str(reg))
-
-                    rxn_str += ')'
-
-            # -------------------------------------------------------------------------
-
-            rxn_str += '\n'
-        rxn_str += '\n'
-
-        for each in n:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('n')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('n')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
-                                        scale=kinetics[3][kinetics[2].index('n')][1]
-                                        - kinetics[3][kinetics[2].index('n')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('n')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
-                                           kinetics[3][kinetics[2].index('n')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('n')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
-                                         scale=kinetics[3][kinetics[2].index('n')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('n')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
-                                        s=kinetics[3][kinetics[2].index('n')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
-                                    scale=kinetics[3][kinetics[2].index('n')][1]
-                                    - kinetics[3][kinetics[2].index('n')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
-                                       kinetics[3][kinetics[2].index('n')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
-                                     scale=kinetics[3][kinetics[2].index('n')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
-                                    s=kinetics[3][kinetics[2].index('n')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if n:
-            param_str += '\n'
-
-        for i, each in enumerate(nr):
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('nr')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('nr')] == 'uniform':
-
-                    if kinetics[3][kinetics[2].index('nr')][0] < 0:
-
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                            scale=kinetics[3][kinetics[2].index('nr')][1]
-                                            - kinetics[3][kinetics[2].index('nr')][0])
-                        param_str += each + ' = ' + str(const) + '\n'
-
-                    else:
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                            scale=kinetics[3][kinetics[2].index('nr')][1]
-                                            - kinetics[3][kinetics[2].index('nr')][0])
-                        if nr_sign[i] < 0:
-                            param_str += each + ' = -' + str(const) + '\n'
-                        else:
-                            param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('nr')] == 'loguniform':
-
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                        scale=kinetics[3][kinetics[2].index('nr')][1]
-                                        - kinetics[3][kinetics[2].index('nr')][0])
-                    if nr_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('nr')] == 'normal':
-
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                     scale=kinetics[3][kinetics[2].index('nr')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('nr')] == 'lognormal':
-
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
-                                        s=kinetics[3][kinetics[2].index('nr')][1])
-                    if nr_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-
-                if kinetics[3][kinetics[2].index('nr')][0] < 0:
-
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                        scale=kinetics[3][kinetics[2].index('nr')][1]
-                                        - kinetics[3][kinetics[2].index('nr')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                else:
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                        scale=kinetics[3][kinetics[2].index('nr')][1]
-                                        - kinetics[3][kinetics[2].index('nr')][0])
-                    if nr_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                    scale=kinetics[3][kinetics[2].index('nr')][1]
-                                    - kinetics[3][kinetics[2].index('nr')][0])
-                if nr_sign[i] < 0:
-                    param_str += each + ' = -' + str(const) + '\n'
-                else:
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-
-                const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
-                                 scale=kinetics[3][kinetics[2].index('nr')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'lognormal':
-
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
-                                    s=kinetics[3][kinetics[2].index('nr')][1])
-                if nr_sign[i] < 0:
-                    param_str += each + ' = -' + str(const) + '\n'
-                else:
-                    param_str += each + ' = ' + str(const) + '\n'
-
-        if nr:
-            param_str += '\n'
-
-        for each in v:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('v')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('v')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
-                                        scale=kinetics[3][kinetics[2].index('v')][1]
-                                        - kinetics[3][kinetics[2].index('v')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('v')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
-                                           kinetics[3][kinetics[2].index('v')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('v')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
-                                         scale=kinetics[3][kinetics[2].index('v')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('v')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
-                                        s=kinetics[3][kinetics[2].index('v')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
-                                    scale=kinetics[3][kinetics[2].index('v')][1]
-                                    - kinetics[3][kinetics[2].index('v')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
-                                       kinetics[3][kinetics[2].index('v')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
-                                     scale=kinetics[3][kinetics[2].index('v')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
-                                    s=kinetics[3][kinetics[2].index('v')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if v:
-            param_str += '\n'
-
-        for each in k:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('k')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('k')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
-                                        scale=kinetics[3][kinetics[2].index('k')][1]
-                                        - kinetics[3][kinetics[2].index('k')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('k')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
-                                           kinetics[3][kinetics[2].index('k')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('k')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
-                                         scale=kinetics[3][kinetics[2].index('k')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('k')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
-                                        s=kinetics[3][kinetics[2].index('k')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
-                                    scale=kinetics[3][kinetics[2].index('k')][1]
-                                    - kinetics[3][kinetics[2].index('k')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
-                                       kinetics[3][kinetics[2].index('k')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
-                                     scale=kinetics[3][kinetics[2].index('k')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
-                                    s=kinetics[3][kinetics[2].index('k')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if k:
-            param_str += '\n'
-
-    if kinetics[0] == 'gma':
-
-        kf = []
-        kr = []
-        kc = []
-        ko = []
-        kor = []
-        kor_sign = []
-
-        for reaction_index, r in enumerate(reaction_list_copy):
-
-            if add_enzyme:
-                enzyme = 'E' + str(reaction_index) + '*('
-                enzyme_end = ')'
-
-            rxn_str += 'J' + str(reaction_index) + ': '
-
-            if r[0] == TReactionType.UNIUNI:
-                # UniUni
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0])
-                    kc.append('kc' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                else:
-                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
-                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
-                    kf.append('kf' + str(reaction_index))
-                    kr.append('kr' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
-
-            # -------------------------------------------------------------------------
-
-            if r[0] == TReactionType.BIUNI:
-                # BiUni
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[1][1])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][1])
-                    kc.append('kc' + str(reaction_index))
-
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
-
-                else:
-                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
-                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
-                    kf.append('kf' + str(reaction_index))
-                    kr.append('kr' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
-
-            # -------------------------------------------------------------------------
-
-            if r[0] == TReactionType.UNIBI:
-                # UniBi
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[2][1])
-
-                rev = reversibility()
-
-                if not rev:
-                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0])
-                    kc.append('kc' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                else:
-                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
-                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
-                               + str(r[2][1]) + '^ko_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
-                    kf.append('kf' + str(reaction_index))
-                    kr.append('kr' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][1]))
-
-            # -------------------------------------------------------------------------
-
-            if r[0] == TReactionType.BIBI:
-                # BiBi
-                rxn_str += 'S' + str(r[1][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[1][1])
-                rxn_str += ' -> '
-                rxn_str += 'S' + str(r[2][0])
-                rxn_str += ' + '
-                rxn_str += 'S' + str(r[2][1])
-
-                rev = reversibility()
-
-                if not rev:
-                    if not rev:
-                        rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                                   str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
-                                   str(reaction_index) + '_' + str(r[1][1])
-                        kc.append('kc' + str(reaction_index))
-
-                        for i, reg in enumerate(r[3]):
-                            rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                            kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                            kor_sign.append(r[4][i])
-
-                else:
-                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
-                               str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
-                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
-                               + str(r[2][1]) + '^ko_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
-                    kf.append('kf' + str(reaction_index))
-                    kr.append('kr' + str(reaction_index))
-                    for i, reg in enumerate(r[3]):
-                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
-                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
-                        kor_sign.append(r[4][i])
-
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
-                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][1]))
-
-            # -------------------------------------------------------------------------
-
-            rxn_str += '\n'
-        rxn_str += '\n'
-
-        for each in ko:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('ko')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('ko')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
-                                        scale=kinetics[3][kinetics[2].index('ko')][1]
-                                        - kinetics[3][kinetics[2].index('ko')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('ko')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
-                                           kinetics[3][kinetics[2].index('ko')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('ko')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
-                                         scale=kinetics[3][kinetics[2].index('ko')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('ko')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
-                                        s=kinetics[3][kinetics[2].index('ko')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
-                                    scale=kinetics[3][kinetics[2].index('ko')][1]
-                                    - kinetics[3][kinetics[2].index('ko')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
-                                       kinetics[3][kinetics[2].index('ko')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
-                                     scale=kinetics[3][kinetics[2].index('ko')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
-                                    s=kinetics[3][kinetics[2].index('ko')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if ko:
-            param_str += '\n'
-
-        for i, each in enumerate(kor):
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('kor')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('kor')] == 'uniform':
-
-                    if kinetics[3][kinetics[2].index('kor')][0] < 0:
-
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                            scale=kinetics[3][kinetics[2].index('kor')][1]
-                                            - kinetics[3][kinetics[2].index('kor')][0])
-                        param_str += each + ' = ' + str(const) + '\n'
-
-                    else:
-                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                            scale=kinetics[3][kinetics[2].index('kor')][1]
-                                            - kinetics[3][kinetics[2].index('kor')][0])
-                        if kor_sign[i] < 0:
-                            param_str += each + ' = -' + str(const) + '\n'
-                        else:
-                            param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kor')] == 'loguniform':
-
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                        scale=kinetics[3][kinetics[2].index('kor')][1]
-                                        - kinetics[3][kinetics[2].index('kor')][0])
-                    if kor_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kor')] == 'normal':
-
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                     scale=kinetics[3][kinetics[2].index('kor')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kor')] == 'lognormal':
-
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
-                                        s=kinetics[3][kinetics[2].index('kor')][1])
-                    if kor_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-
-                if kinetics[3][kinetics[2].index('kor')][0] < 0:
-
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                        scale=kinetics[3][kinetics[2].index('kor')][1]
-                                        - kinetics[3][kinetics[2].index('kor')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                else:
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                        scale=kinetics[3][kinetics[2].index('kor')][1]
-                                        - kinetics[3][kinetics[2].index('kor')][0])
-                    if kor_sign[i] < 0:
-                        param_str += each + ' = -' + str(const) + '\n'
-                    else:
-                        param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                    scale=kinetics[3][kinetics[2].index('kor')][1]
-                                    - kinetics[3][kinetics[2].index('kor')][0])
-                if kor_sign[i] < 0:
-                    param_str += each + ' = -' + str(const) + '\n'
-                else:
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-
-                const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
-                                 scale=kinetics[3][kinetics[2].index('kor')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'lognormal':
-
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
-                                    s=kinetics[3][kinetics[2].index('kor')][1])
-                if kor_sign[i] < 0:
-                    param_str += each + ' = -' + str(const) + '\n'
-                else:
-                    param_str += each + ' = ' + str(const) + '\n'
-
-        if kor:
-            param_str += '\n'
-
-        for each in kf:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('kf')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('kf')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
-                                        scale=kinetics[3][kinetics[2].index('kf')][1]
-                                        - kinetics[3][kinetics[2].index('kf')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
-                                           kinetics[3][kinetics[2].index('kf')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kf')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
-                                         scale=kinetics[3][kinetics[2].index('kf')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('kf')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
-                                        s=kinetics[3][kinetics[2].index('kf')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
-                                    scale=kinetics[3][kinetics[2].index('kf')][1]
-                                    - kinetics[3][kinetics[2].index('kf')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
-                                       kinetics[3][kinetics[2].index('kf')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
-                                     scale=kinetics[3][kinetics[2].index('kf')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
-                                    s=kinetics[3][kinetics[2].index('kf')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if kf:
-            param_str += '\n'
-
-        for each in kr:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('kr')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('kr')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
-                                        scale=kinetics[3][kinetics[2].index('kr')][1]
-                                        - kinetics[3][kinetics[2].index('kr')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
-                                           kinetics[3][kinetics[2].index('kr')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kr')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
-                                         scale=kinetics[3][kinetics[2].index('kr')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('kr')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
-                                        s=kinetics[3][kinetics[2].index('kr')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
-                                    scale=kinetics[3][kinetics[2].index('kr')][1]
-                                    - kinetics[3][kinetics[2].index('kr')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
-                                       kinetics[3][kinetics[2].index('kr')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
-                                     scale=kinetics[3][kinetics[2].index('kr')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
-                                    s=kinetics[3][kinetics[2].index('kr')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if kr:
-            param_str += '\n'
-
-        for each in kc:
-
-            if type(kinetics[1]) is list:
-
-                if kinetics[1][kinetics[2].index('kc')] == 'trivial':
-                    param_str += each + ' = 1\n'
-
-                if kinetics[1][kinetics[2].index('kc')] == 'uniform':
-                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
-                                        scale=kinetics[3][kinetics[2].index('kc')][1]
-                                        - kinetics[3][kinetics[2].index('kc')][0])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kc')] == 'loguniform':
-                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
-                                           kinetics[3][kinetics[2].index('kc')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-                if kinetics[1][kinetics[2].index('kc')] == 'normal':
-                    while True:
-                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
-                                         scale=kinetics[3][kinetics[2].index('kc')][1])
-                        if const >= 0:
-                            param_str += each + ' = ' + str(const) + '\n'
-                            break
-
-                if kinetics[1][kinetics[2].index('kc')] == 'lognormal':
-                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
-                                        s=kinetics[3][kinetics[2].index('kc')][1])
-                    param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
-            if kinetics[1] == 'uniform':
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
-                                    scale=kinetics[3][kinetics[2].index('kc')][1]
-                                    - kinetics[3][kinetics[2].index('kc')][0])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'loguniform':
-                const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
-                                       kinetics[3][kinetics[2].index('kc')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-            if kinetics[1] == 'normal':
-                while True:
-                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
-                                     scale=kinetics[3][kinetics[2].index('kc')][1])
-                    if const >= 0:
-                        param_str += each + ' = ' + str(const) + '\n'
-                        break
-
-            if kinetics[1] == 'lognormal':
-                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
-                                    s=kinetics[3][kinetics[2].index('kc')][1])
-                param_str += each + ' = ' + str(const) + '\n'
-
-        if kc:
-            param_str += '\n'
+    # ===============================================================================
 
     if kinetics[0] == 'mass_action':
 
@@ -5502,13 +4678,68 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             kr = []
             kc = []
 
+            ro = []
+            kma = []
+            ma = []
+
             for reaction_index, r in enumerate(reaction_list_copy):
 
-                if add_enzyme:
+                if add_enzyme and not allo_reg:
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
 
+                if add_enzyme and allo_reg and not r[3]:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+
+                if not add_enzyme and allo_reg and r[3]:
+
+                    enzyme = '('
+
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        if r[4][i] == 1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                        kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                        ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                    enzyme += ')*('
+                    enzyme_end = ')'
+
+                if add_enzyme and allo_reg and r[3]:
+                    enzyme = 'E' + str(reaction_index) + '*('
+
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        if r[4][i] == 1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                        ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                        kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                        ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                    enzyme += ')*('
+                    enzyme_end = ')'
+
                 rxn_str += 'J' + str(reaction_index) + ': '
+
                 if r[0] == TReactionType.UNIUNI:
                     # UniUni
                     rxn_str += 'S' + str(r[1][0])
@@ -5777,6 +5008,154 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             if kc:
                 param_str += '\n'
 
+            for each in ro:
+
+                if type(allo_reg[2]) is list:
+
+                    if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    else:
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                            - allo_reg[4][allo_reg[3].index('ro')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                else:
+                    if allo_reg[2] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    else:
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                            - allo_reg[4][allo_reg[3].index('ro')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if ro:
+                param_str += '\n'
+
+            for each in kma:
+
+                if type(allo_reg[2]) is list:
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                            - allo_reg[4][allo_reg[3].index('kma')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                        const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                               allo_reg[4][allo_reg[3].index('kma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                        while True:
+                            const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                             scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                            if const >= 0:
+                                param_str += each + ' = ' + str(const) + '\n'
+                                break
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                        const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                            s=allo_reg[4][allo_reg[3].index('kma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kma:
+                param_str += '\n'
+
+            for each in ma:
+
+                if type(allo_reg[2]) is list:
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                            - allo_reg[4][allo_reg[3].index('ma')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                        const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                               allo_reg[4][allo_reg[3].index('ma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                        while True:
+                            const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                             scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                            if const >= 0:
+                                param_str += each + ' = ' + str(const) + '\n'
+                                break
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                        const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                            s=allo_reg[4][allo_reg[3].index('ma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if ma:
+                param_str += '\n'
+
         if len(kinetics[2]) == 12 or len(kinetics[2]) == 13:
 
             kf0 = []
@@ -5792,10 +5171,64 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             kr3 = []
             kc3 = []
 
+            ro = []
+            kma = []
+            ma = []
+
             for reaction_index, r in enumerate(reaction_list_copy):
 
-                if add_enzyme:
+                if add_enzyme and not allo_reg:
                     enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+
+                if add_enzyme and allo_reg and not r[3]:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+
+                if not add_enzyme and allo_reg and r[3]:
+
+                    enzyme = '('
+
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        if r[4][i] == 1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                        kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                        ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                    enzyme += ')*('
+                    enzyme_end = ')'
+
+                if add_enzyme and allo_reg and r[3]:
+                    enzyme = 'E' + str(reaction_index) + '*('
+
+                    for i, reg in enumerate(r[3]):
+                        if r[4][i] == -1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                        if r[4][i] == 1:
+                            enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                + str(reaction_index) \
+                                + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                        ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                        kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                        ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                    enzyme += ')*('
                     enzyme_end = ')'
 
                 rxn_str += 'J' + str(reaction_index) + ': '
@@ -6615,6 +6048,1667 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             if kc3:
                 param_str += '\n'
 
+            for each in ro:
+
+                if type(allo_reg[2]) is list:
+
+                    if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    else:
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                            - allo_reg[4][allo_reg[3].index('ro')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                else:
+                    if allo_reg[2] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    else:
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                            - allo_reg[4][allo_reg[3].index('ro')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if ro:
+                param_str += '\n'
+
+            for each in kma:
+
+                if type(allo_reg[2]) is list:
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                            - allo_reg[4][allo_reg[3].index('kma')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                        const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                               allo_reg[4][allo_reg[3].index('kma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                        while True:
+                            const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                             scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                            if const >= 0:
+                                param_str += each + ' = ' + str(const) + '\n'
+                                break
+
+                    if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                        const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                            s=allo_reg[4][allo_reg[3].index('kma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kma:
+                param_str += '\n'
+
+            for each in ma:
+
+                if type(allo_reg[2]) is list:
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                        param_str += each + ' = 1\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                        const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                            scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                            - allo_reg[4][allo_reg[3].index('ma')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                        const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                               allo_reg[4][allo_reg[3].index('ma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                        while True:
+                            const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                             scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                            if const >= 0:
+                                param_str += each + ' = ' + str(const) + '\n'
+                                break
+
+                    if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                        const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                            s=allo_reg[4][allo_reg[3].index('ma')][1])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if ma:
+                param_str += '\n'
+
+    if kinetics[0] == 'saturating_cooperative':
+
+        v = []
+        k = []
+        n = []
+        nr = []
+        nr_sign = []
+
+        ro = []
+        kma = []
+        ma = []
+
+        for reaction_index, r in enumerate(reaction_list_copy):
+
+            if add_enzyme and not allo_reg:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and not r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if not add_enzyme and allo_reg and r[3]:
+
+                enzyme = '('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            rxn_str += 'J' + str(reaction_index) + ': '
+
+            if r[0] == TReactionType.UNIUNI:
+                # UniUni
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0])
+                    
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+                    
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+                    
+                    rxn_str += ')' + enzyme_end
+
+                else:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][0]) + ')'
+                    
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
+                    
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+                    
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[2][0]) + ' + S' + str(r[2][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
+                    
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+                        
+                    rxn_str += ')' + enzyme_end
+
+            if r[0] == TReactionType.BIUNI:
+                # BiUni
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][1])
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[1][1]) + ' + S' + str(r[1][1]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+
+                else:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][0]) + ')'
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[1][1]) + ' + S' + str(r[1][1]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[2][0]) + ' + S' + str(r[2][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+            # -------------------------------------------------------------------------
+
+            if r[0] == TReactionType.UNIBI:
+                # UniBi
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0])
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + ' + 'S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+
+                else:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' - S' + str(r[2][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][1]) + ')'
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[2][0]) + ' + S' + str(r[2][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[2][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[2][1]) + ' + S' + str(r[2][1]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            if r[0] == TReactionType.BIBI:
+                # BiBi
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][1])
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[1][1]) + ' + S' + str(r[1][1]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][1]) + ')'
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+
+                else:
+                    rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + ' * (S' + str(r[1][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[1][1]) + ' - S' + str(r[2][0]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][0]) + ' * S' + str(r[2][1]) + '^n_' + \
+                               str(reaction_index) + '_' + str(r[2][1]) + ')'
+
+                    v.append('v' + str(reaction_index))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[1][1]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][0]))
+                    n.append('n_' + str(reaction_index) + '_' + str(r[2][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^nr_' + str(reaction_index) + '_' + str(reg)
+                        nr.append('nr_' + str(reaction_index) + '_' + str(reg))
+                        nr_sign.append(r[4][i])
+
+                    rxn_str += '/((k' + str(reaction_index) + '_' + str(r[1][0]) + ' + S' + str(r[1][0]) \
+                               + '^n_' + str(reaction_index) + '_' + str(r[1][0]) + ') * (k' \
+                               + str(reaction_index) + '_' + str(r[1][1]) + ' + S' + str(r[1][1]) + '^n_' \
+                               + str(reaction_index) + '_' + str(r[1][1]) + ') * (k' + str(reaction_index) \
+                               + '_' + str(r[2][0]) + ' + S' + str(r[2][0]) + '^n_' + str(reaction_index) + '_' \
+                               + str(r[2][0]) + ') * (k' + str(reaction_index) + '_' + str(r[2][1]) + ' + S' \
+                               + str(r[2][1]) + '^n_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
+
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[1][1]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][0]))
+                    k.append('k' + str(reaction_index) + '_' + str(r[2][1]))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * (k' + str(reaction_index) + '_' + str(reg) + ' + S' + str(reg) \
+                                   + '^nr_' + str(reaction_index) + '_' + str(reg) + ')'
+                        k.append('k' + str(reaction_index) + '_' + str(reg))
+
+                    rxn_str += ')' + enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            rxn_str += '\n'
+        rxn_str += '\n'
+
+        for each in n:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('n')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('n')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
+                                        scale=kinetics[3][kinetics[2].index('n')][1]
+                                        - kinetics[3][kinetics[2].index('n')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('n')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
+                                           kinetics[3][kinetics[2].index('n')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('n')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
+                                         scale=kinetics[3][kinetics[2].index('n')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('n')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
+                                        s=kinetics[3][kinetics[2].index('n')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
+                                    scale=kinetics[3][kinetics[2].index('n')][1]
+                                    - kinetics[3][kinetics[2].index('n')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('n')][0],
+                                       kinetics[3][kinetics[2].index('n')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('n')][0],
+                                     scale=kinetics[3][kinetics[2].index('n')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('n')][0],
+                                    s=kinetics[3][kinetics[2].index('n')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if n:
+            param_str += '\n'
+
+        for i, each in enumerate(nr):
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('nr')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('nr')] == 'uniform':
+
+                    if kinetics[3][kinetics[2].index('nr')][0] < 0:
+
+                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                            scale=kinetics[3][kinetics[2].index('nr')][1]
+                                            - kinetics[3][kinetics[2].index('nr')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    else:
+                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                            scale=kinetics[3][kinetics[2].index('nr')][1]
+                                            - kinetics[3][kinetics[2].index('nr')][0])
+                        if nr_sign[i] < 0:
+                            param_str += each + ' = -' + str(const) + '\n'
+                        else:
+                            param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('nr')] == 'loguniform':
+
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                        scale=kinetics[3][kinetics[2].index('nr')][1]
+                                        - kinetics[3][kinetics[2].index('nr')][0])
+                    if nr_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('nr')] == 'normal':
+
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                     scale=kinetics[3][kinetics[2].index('nr')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('nr')] == 'lognormal':
+
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
+                                        s=kinetics[3][kinetics[2].index('nr')][1])
+                    if nr_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+
+                if kinetics[3][kinetics[2].index('nr')][0] < 0:
+
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                        scale=kinetics[3][kinetics[2].index('nr')][1]
+                                        - kinetics[3][kinetics[2].index('nr')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                else:
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                        scale=kinetics[3][kinetics[2].index('nr')][1]
+                                        - kinetics[3][kinetics[2].index('nr')][0])
+                    if nr_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                    scale=kinetics[3][kinetics[2].index('nr')][1]
+                                    - kinetics[3][kinetics[2].index('nr')][0])
+                if nr_sign[i] < 0:
+                    param_str += each + ' = -' + str(const) + '\n'
+                else:
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+
+                const = norm.rvs(loc=kinetics[3][kinetics[2].index('nr')][0],
+                                 scale=kinetics[3][kinetics[2].index('nr')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'lognormal':
+
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('nr')][0],
+                                    s=kinetics[3][kinetics[2].index('nr')][1])
+                if nr_sign[i] < 0:
+                    param_str += each + ' = -' + str(const) + '\n'
+                else:
+                    param_str += each + ' = ' + str(const) + '\n'
+
+        if nr:
+            param_str += '\n'
+
+        for each in v:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('v')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('v')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
+                                        scale=kinetics[3][kinetics[2].index('v')][1]
+                                        - kinetics[3][kinetics[2].index('v')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('v')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
+                                           kinetics[3][kinetics[2].index('v')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('v')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
+                                         scale=kinetics[3][kinetics[2].index('v')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('v')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
+                                        s=kinetics[3][kinetics[2].index('v')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
+                                    scale=kinetics[3][kinetics[2].index('v')][1]
+                                    - kinetics[3][kinetics[2].index('v')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('v')][0],
+                                       kinetics[3][kinetics[2].index('v')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('v')][0],
+                                     scale=kinetics[3][kinetics[2].index('v')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('v')][0],
+                                    s=kinetics[3][kinetics[2].index('v')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if v:
+            param_str += '\n'
+
+        for each in k:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('k')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('k')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
+                                        scale=kinetics[3][kinetics[2].index('k')][1]
+                                        - kinetics[3][kinetics[2].index('k')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('k')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
+                                           kinetics[3][kinetics[2].index('k')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('k')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
+                                         scale=kinetics[3][kinetics[2].index('k')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('k')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
+                                        s=kinetics[3][kinetics[2].index('k')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
+                                    scale=kinetics[3][kinetics[2].index('k')][1]
+                                    - kinetics[3][kinetics[2].index('k')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('k')][0],
+                                       kinetics[3][kinetics[2].index('k')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('k')][0],
+                                     scale=kinetics[3][kinetics[2].index('k')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('k')][0],
+                                    s=kinetics[3][kinetics[2].index('k')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if k:
+            param_str += '\n'
+
+        for each in ro:
+
+            if type(allo_reg[2]) is list:
+
+                if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            else:
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if ro:
+                param_str += '\n'
+
+        for each in kma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                    - allo_reg[4][allo_reg[3].index('kma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                       allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kma:
+            param_str += '\n'
+
+        for each in ma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                    - allo_reg[4][allo_reg[3].index('ma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                       allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if ma:
+            param_str += '\n'
+
+    if kinetics[0] == 'gma':
+
+        kf = []
+        kr = []
+        kc = []
+        ko = []
+        kor = []
+        kor_sign = []
+
+        ro = []
+        kma = []
+        ma = []
+
+        for reaction_index, r in enumerate(reaction_list_copy):
+
+            if add_enzyme and not allo_reg:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and not r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if not add_enzyme and allo_reg and r[3]:
+
+                enzyme = '('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            rxn_str += 'J' + str(reaction_index) + ': '
+
+            if r[0] == TReactionType.UNIUNI:
+                # UniUni
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0])
+                    kc.append('kc' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                else:
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
+                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
+                    kf.append('kf' + str(reaction_index))
+                    kr.append('kr' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
+
+                rxn_str += enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            if r[0] == TReactionType.BIUNI:
+                # BiUni
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][1])
+                    kc.append('kc' + str(reaction_index))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
+
+                else:
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
+                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ')'
+                    kf.append('kf' + str(reaction_index))
+                    kr.append('kr' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
+
+                rxn_str += enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            if r[0] == TReactionType.UNIBI:
+                # UniBi
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0])
+                    kc.append('kc' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                else:
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
+                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
+                               + str(r[2][1]) + '^ko_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
+                    kf.append('kf' + str(reaction_index))
+                    kr.append('kr' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][1]))
+
+                rxn_str += enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            if r[0] == TReactionType.BIBI:
+                # BiBi
+                rxn_str += 'S' + str(r[1][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[1][1])
+                rxn_str += ' -> '
+                rxn_str += 'S' + str(r[2][0])
+                rxn_str += ' + '
+                rxn_str += 'S' + str(r[2][1])
+
+                rev = reversibility()
+
+                if not rev:
+                    rxn_str += '; ' + enzyme + 'kc' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][1])
+                    kc.append('kc' + str(reaction_index))
+
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
+
+                else:
+                    rxn_str += '; ' + enzyme + '(kf' + str(reaction_index) + ' * S' + str(r[1][0]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][0]) + ' * S' + str(r[1][1]) + '^ko_' + \
+                               str(reaction_index) + '_' + str(r[1][1]) + ' - ' + 'kr' + str(reaction_index) + ' * S' \
+                               + str(r[2][0]) + '^ko_' + str(reaction_index) + '_' + str(r[2][0]) + ' * S' \
+                               + str(r[2][1]) + '^ko_' + str(reaction_index) + '_' + str(r[2][1]) + ')'
+                    kf.append('kf' + str(reaction_index))
+                    kr.append('kr' + str(reaction_index))
+                    for i, reg in enumerate(r[3]):
+                        rxn_str += ' * S' + str(reg) + '^kor_' + str(reaction_index) + '_' + str(reg)
+                        kor.append('kor_' + str(reaction_index) + '_' + str(reg))
+                        kor_sign.append(r[4][i])
+
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[1][1]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][0]))
+                    ko.append('ko_' + str(reaction_index) + '_' + str(r[2][1]))
+
+                rxn_str += enzyme_end
+
+            # -------------------------------------------------------------------------
+
+            rxn_str += '\n'
+        rxn_str += '\n'
+
+        for each in ko:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('ko')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('ko')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
+                                        scale=kinetics[3][kinetics[2].index('ko')][1]
+                                        - kinetics[3][kinetics[2].index('ko')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('ko')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
+                                           kinetics[3][kinetics[2].index('ko')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('ko')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
+                                         scale=kinetics[3][kinetics[2].index('ko')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('ko')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
+                                        s=kinetics[3][kinetics[2].index('ko')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
+                                    scale=kinetics[3][kinetics[2].index('ko')][1]
+                                    - kinetics[3][kinetics[2].index('ko')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('ko')][0],
+                                       kinetics[3][kinetics[2].index('ko')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('ko')][0],
+                                     scale=kinetics[3][kinetics[2].index('ko')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('ko')][0],
+                                    s=kinetics[3][kinetics[2].index('ko')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if ko:
+            param_str += '\n'
+
+        for i, each in enumerate(kor):
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('kor')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('kor')] == 'uniform':
+
+                    if kinetics[3][kinetics[2].index('kor')][0] < 0:
+
+                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                            scale=kinetics[3][kinetics[2].index('kor')][1]
+                                            - kinetics[3][kinetics[2].index('kor')][0])
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                    else:
+                        const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                            scale=kinetics[3][kinetics[2].index('kor')][1]
+                                            - kinetics[3][kinetics[2].index('kor')][0])
+                        if kor_sign[i] < 0:
+                            param_str += each + ' = -' + str(const) + '\n'
+                        else:
+                            param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kor')] == 'loguniform':
+
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                        scale=kinetics[3][kinetics[2].index('kor')][1]
+                                        - kinetics[3][kinetics[2].index('kor')][0])
+                    if kor_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kor')] == 'normal':
+
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                     scale=kinetics[3][kinetics[2].index('kor')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kor')] == 'lognormal':
+
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
+                                        s=kinetics[3][kinetics[2].index('kor')][1])
+                    if kor_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+
+                if kinetics[3][kinetics[2].index('kor')][0] < 0:
+
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                        scale=kinetics[3][kinetics[2].index('kor')][1]
+                                        - kinetics[3][kinetics[2].index('kor')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                else:
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                        scale=kinetics[3][kinetics[2].index('kor')][1]
+                                        - kinetics[3][kinetics[2].index('kor')][0])
+                    if kor_sign[i] < 0:
+                        param_str += each + ' = -' + str(const) + '\n'
+                    else:
+                        param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                    scale=kinetics[3][kinetics[2].index('kor')][1]
+                                    - kinetics[3][kinetics[2].index('kor')][0])
+                if kor_sign[i] < 0:
+                    param_str += each + ' = -' + str(const) + '\n'
+                else:
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+
+                const = norm.rvs(loc=kinetics[3][kinetics[2].index('kor')][0],
+                                 scale=kinetics[3][kinetics[2].index('kor')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'lognormal':
+
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kor')][0],
+                                    s=kinetics[3][kinetics[2].index('kor')][1])
+                if kor_sign[i] < 0:
+                    param_str += each + ' = -' + str(const) + '\n'
+                else:
+                    param_str += each + ' = ' + str(const) + '\n'
+
+        if kor:
+            param_str += '\n'
+
+        for each in kf:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('kf')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('kf')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
+                                        scale=kinetics[3][kinetics[2].index('kf')][1]
+                                        - kinetics[3][kinetics[2].index('kf')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kf')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
+                                           kinetics[3][kinetics[2].index('kf')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kf')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
+                                         scale=kinetics[3][kinetics[2].index('kf')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('kf')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
+                                        s=kinetics[3][kinetics[2].index('kf')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
+                                    scale=kinetics[3][kinetics[2].index('kf')][1]
+                                    - kinetics[3][kinetics[2].index('kf')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('kf')][0],
+                                       kinetics[3][kinetics[2].index('kf')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kf')][0],
+                                     scale=kinetics[3][kinetics[2].index('kf')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kf')][0],
+                                    s=kinetics[3][kinetics[2].index('kf')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kf:
+            param_str += '\n'
+
+        for each in kr:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('kr')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('kr')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
+                                        scale=kinetics[3][kinetics[2].index('kr')][1]
+                                        - kinetics[3][kinetics[2].index('kr')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kr')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
+                                           kinetics[3][kinetics[2].index('kr')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kr')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
+                                         scale=kinetics[3][kinetics[2].index('kr')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('kr')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
+                                        s=kinetics[3][kinetics[2].index('kr')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
+                                    scale=kinetics[3][kinetics[2].index('kr')][1]
+                                    - kinetics[3][kinetics[2].index('kr')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('kr')][0],
+                                       kinetics[3][kinetics[2].index('kr')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kr')][0],
+                                     scale=kinetics[3][kinetics[2].index('kr')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kr')][0],
+                                    s=kinetics[3][kinetics[2].index('kr')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kr:
+            param_str += '\n'
+
+        for each in kc:
+
+            if type(kinetics[1]) is list:
+
+                if kinetics[1][kinetics[2].index('kc')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if kinetics[1][kinetics[2].index('kc')] == 'uniform':
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
+                                        scale=kinetics[3][kinetics[2].index('kc')][1]
+                                        - kinetics[3][kinetics[2].index('kc')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kc')] == 'loguniform':
+                    const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
+                                           kinetics[3][kinetics[2].index('kc')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if kinetics[1][kinetics[2].index('kc')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
+                                         scale=kinetics[3][kinetics[2].index('kc')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if kinetics[1][kinetics[2].index('kc')] == 'lognormal':
+                    const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
+                                        s=kinetics[3][kinetics[2].index('kc')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if kinetics[1] == 'uniform':
+                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
+                                    scale=kinetics[3][kinetics[2].index('kc')][1]
+                                    - kinetics[3][kinetics[2].index('kc')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'loguniform':
+                const = loguniform.rvs(kinetics[3][kinetics[2].index('kc')][0],
+                                       kinetics[3][kinetics[2].index('kc')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if kinetics[1] == 'normal':
+                while True:
+                    const = norm.rvs(loc=kinetics[3][kinetics[2].index('kc')][0],
+                                     scale=kinetics[3][kinetics[2].index('kc')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if kinetics[1] == 'lognormal':
+                const = lognorm.rvs(scale=kinetics[3][kinetics[2].index('kc')][0],
+                                    s=kinetics[3][kinetics[2].index('kc')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kc:
+            param_str += '\n'
+
+        for each in ro:
+
+            if type(allo_reg[2]) is list:
+
+                if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            else:
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if ro:
+                param_str += '\n'
+
+        for each in kma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                    - allo_reg[4][allo_reg[3].index('kma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                       allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kma:
+            param_str += '\n'
+
+        for each in ma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                    - allo_reg[4][allo_reg[3].index('ma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                       allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if ma:
+            param_str += '\n'
+
     if kinetics[0] == 'hanekom':
 
         v = []
@@ -6623,10 +7717,64 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         ks = []
         kp = []
 
+        ro = []
+        kma = []
+        ma = []
+
         for reaction_index, r in enumerate(reaction_list_copy):
 
-            if add_enzyme:
+            if add_enzyme and not allo_reg:
                 enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and not r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if not add_enzyme and allo_reg and r[3]:
+
+                enzyme = '('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
                 enzyme_end = ')'
 
             v.append('v' + str(reaction_index))
@@ -7185,14 +8333,216 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         if kp:
             param_str += '\n'
 
+        for each in ro:
+
+            if type(allo_reg[2]) is list:
+
+                if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            else:
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+        if ro:
+            param_str += '\n'
+
+        for each in kma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                    - allo_reg[4][allo_reg[3].index('kma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                       allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kma:
+            param_str += '\n'
+
+        for each in ma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                    - allo_reg[4][allo_reg[3].index('ma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                       allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if ma:
+            param_str += '\n'
+
     if kinetics[0] == 'lin_log':
 
         rc = []
 
+        ro = []
+        kma = []
+        ma = []
+
         for reaction_index, r in enumerate(reaction_list_copy):
 
-            if add_enzyme:
+            if add_enzyme and not allo_reg:
                 enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and not r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+
+            if not add_enzyme and allo_reg and r[3]:
+
+                enzyme = '('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
+                enzyme_end = ')'
+
+            if add_enzyme and allo_reg and r[3]:
+                enzyme = 'E' + str(reaction_index) + '*('
+
+                for i, reg in enumerate(r[3]):
+                    if r[4][i] == -1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+                    if r[4][i] == 1:
+                        enzyme += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
+                                  + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
+                                  + str(reaction_index) \
+                                  + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' + str(reaction_index) \
+                                  + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg)
+
+                    ma.append('ma_' + str(reaction_index) + '_' + str(reg))
+                    kma.append('kma_' + str(reaction_index) + '_' + str(reg))
+                    ro.append('ro_' + str(reaction_index) + '_' + str(reg))
+
+                enzyme += ')*('
                 enzyme_end = ')'
 
             rev_stoic = defaultdict(int)
@@ -7214,7 +8564,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][0])
                 rxn_str += ' -> '
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
@@ -7234,7 +8584,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                rxn_str += ')'
+                rxn_str += ')' + enzyme_end
 
             if r[0] == TReactionType.BIUNI:
                 # BiUni
@@ -7243,7 +8593,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][1][1])
                 rxn_str += ' -> '
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
-                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
@@ -7271,7 +8621,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                rxn_str += ')'
+                rxn_str += ')' + enzyme_end
 
             if r[0] == TReactionType.UNIBI:
                 # UniBi
@@ -7280,7 +8630,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
                 rxn_str += ' + '
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
-                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
@@ -7308,7 +8658,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                rxn_str += ')'
+                rxn_str += ')' + enzyme_end
 
             if r[0] == TReactionType.BIBI:
                 # BiBi
@@ -7319,7 +8669,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][0])
                 rxn_str += ' + '
                 rxn_str += 'S' + str(reaction_list_copy[reaction_index][2][1])
-                rxn_str += '; ' + enzyme[0:2] + 'v' + str(reaction_index) + '*(1'
+                rxn_str += '; ' + enzyme + 'v' + str(reaction_index) + '*(1'
 
                 rev = reversibility()
                 if not rev:
@@ -7351,7 +8701,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                        + ')'
                             rc.append('rc_' + str(each) + '_' + str(reaction_index))
 
-                rxn_str += ')'
+                rxn_str += ')' + enzyme_end
             rxn_str += '\n'
         rxn_str += '\n'
 
@@ -7474,6 +8824,154 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                 param_str += each + ' = ' + str(const) + '\n'
 
         if rc:
+            param_str += '\n'
+
+        for each in ro:
+
+            if type(allo_reg[2]) is list:
+
+                if 'ro' in allo_reg[3] and allo_reg[2][allo_reg[3].index('ro')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            else:
+                if allo_reg[2] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ro')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ro')][1]
+                                        - allo_reg[4][allo_reg[3].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+        if ro:
+            param_str += '\n'
+
+        for each in kma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                        - allo_reg[4][allo_reg[3].index('kma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                           allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('kma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('kma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('kma')][1]
+                                    - allo_reg[4][allo_reg[3].index('kma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('kma')][0],
+                                       allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('kma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('kma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('kma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('kma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if kma:
+            param_str += '\n'
+
+        for each in ma:
+
+            if type(allo_reg[2]) is list:
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'uniform':
+                    const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                        - allo_reg[4][allo_reg[3].index('ma')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'loguniform':
+                    const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                           allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'normal':
+                    while True:
+                        const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                         scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                        if const >= 0:
+                            param_str += each + ' = ' + str(const) + '\n'
+                            break
+
+                if allo_reg[2][allo_reg[3].index('ma')] == 'lognormal':
+                    const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                        s=allo_reg[4][allo_reg[3].index('ma')][1])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'trivial':
+                param_str += each + ' = 1\n'
+
+            if allo_reg[2] == 'uniform':
+                const = uniform.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    scale=allo_reg[4][allo_reg[3].index('ma')][1]
+                                    - allo_reg[4][allo_reg[3].index('ma')][0])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'loguniform':
+                const = loguniform.rvs(allo_reg[4][allo_reg[3].index('ma')][0],
+                                       allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+            if allo_reg[2] == 'normal':
+                while True:
+                    const = norm.rvs(loc=allo_reg[4][allo_reg[3].index('ma')][0],
+                                     scale=allo_reg[4][allo_reg[3].index('ma')][1])
+                    if const >= 0:
+                        param_str += each + ' = ' + str(const) + '\n'
+                        break
+
+            if allo_reg[2] == 'lognormal':
+                const = lognorm.rvs(scale=allo_reg[4][allo_reg[3].index('ma')][0],
+                                    s=allo_reg[4][allo_reg[3].index('ma')][1])
+                param_str += each + ' = ' + str(const) + '\n'
+
+        if ma:
             param_str += '\n'
 
     if 'modular' in kinetics[0]:
@@ -9030,14 +10528,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
                                         - kinetics[3][kinetics[2].index('ro')][0])
                     param_str += each + ' = ' + str(const) + '\n'
 
-            if kinetics[1] == 'trivial':
-                param_str += each + ' = 1\n'
-
             else:
-                const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ro')][0],
-                                    scale=kinetics[3][kinetics[2].index('ro')][1]
-                                    - kinetics[3][kinetics[2].index('ro')][0])
-                param_str += each + ' = ' + str(const) + '\n'
+                if kinetics[1] == 'trivial':
+                    param_str += each + ' = 1\n'
+
+                else:
+                    const = uniform.rvs(loc=kinetics[3][kinetics[2].index('ro')][0],
+                                        scale=kinetics[3][kinetics[2].index('ro')][1]
+                                        - kinetics[3][kinetics[2].index('ro')][0])
+                    param_str += each + ' = ' + str(const) + '\n'
+
+            if ro:
+                param_str += '\n'
 
         for each in kf:
 
@@ -9527,8 +11029,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
         if ms:
             param_str += '\n'
 
-    Bsource = []
-    Bsink = []
+    b_source = []
+    b_sink = []
     if source_nodes or sink_nodes:
         reaction_index += 1
 
@@ -9547,7 +11049,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     if constants == True and source_nodes:
         for each in source_nodes:
-            Bsource.append('B' + str(each))
+            b_source.append('B' + str(each))
             rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; syn' + str(each) \
                        + ' * B' + str(each) + '\n'
             reaction_index += 1
@@ -9555,7 +11057,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
 
     if constants == True and sink_nodes:
         for each in sink_nodes:
-            Bsink.append('B' + str(each))
+            b_sink.append('B' + str(each))
             rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; deg' + str(each) \
                        + ' * S' + str(each) + '\n'
             reaction_index += 1
@@ -9583,10 +11085,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             ic = uniform.rvs(loc=0, scale=10)
             ic_str += 'S' + str(i) + ' = ' + str(ic) + '\n'
 
-    if len(Bsource) > 0 or len(Bsink) > 0:
+    if len(b_source) > 0 or len(b_sink) > 0:
         ic_str += '\n'
 
-    for each in Bsource:
+    for each in b_source:
         if ic_params == 'trivial':
             ic_str += each + ' = 1\n'
         if isinstance(source, list) and source[1] == 'uniform':
@@ -9605,10 +11107,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, rev_prob, add_enzyme
             ic = uniform.rvs(loc=0, scale=10)
             ic_str += each + ' = ' + str(ic) + '\n'
 
-    for each in Bsink:
+    for each in b_sink:
         ic_str += each + ' = 0\n'
 
-    # for each in Bsink:
+    # for each in b_sink:
     #     if sink == 'trivial':
     #         ic_str += each + ' = 1\n'
     #     if isinstance(sink, list) and sink[1] == 'uniform':
