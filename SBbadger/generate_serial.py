@@ -235,6 +235,10 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
+    if allo_reg == True:
+        allo_reg = [[0.5, 0.5, 0, 0], 0.5, ['uniform', 'uniform', 'uniform'],
+                    ['ro', 'kma', 'ma'],
+                    [[0, 1], [0, 1], [0, 1]]]
     if allo_reg:
         if round(sum(allo_reg[0]), 10) != 1:
             if not verbose_exceptions:
@@ -694,6 +698,10 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
+    if allo_reg == True:
+        allo_reg = [[0.5, 0.5, 0, 0], 0.5, ['uniform', 'uniform', 'uniform'],
+                    ['ro', 'kma', 'ma'],
+                    [[0, 1], [0, 1], [0, 1]]]
     if allo_reg:
         if round(sum(allo_reg[0]), 10) != 1:
             if not verbose_exceptions:
@@ -1286,6 +1294,10 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
                 sys.tracebacklimit = 0
             raise Exception(f"Your positive (vs negative) probability is {sc_reg[1]} is not between 0 and 1.")
 
+    if allo_reg == True:
+        allo_reg = [[0.5, 0.5, 0, 0], 0.5, ['uniform', 'uniform', 'uniform'],
+                    ['ro', 'kma', 'ma'],
+                    [[0, 1], [0, 1], [0, 1]]]
     if allo_reg:
         if round(sum(allo_reg[0]), 10) != 1:
             if not verbose_exceptions:
