@@ -4562,12 +4562,13 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     floating_ids = np.delete(species_ids, indexes + orphan_species, axis=0)
     boundary_ids = indexes + orphan_species
 
-    if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative' \
-            or reaction_list_copy[5][0] == 'allo':
-        for item in reaction_list_copy:
-            for every in item[3]:
-                if every not in boundary_ids and every not in floating_ids:
-                    boundary_ids.append(every)
+    # if 'modular' in kinetics[0] or kinetics[0] == 'gma' or kinetics[0] == 'saturating_cooperative' \
+    #         or reaction_list_copy[5][0] == 'allo':
+
+    for item in reaction_list_copy:
+        for every in item[3]:
+            if every not in boundary_ids and every not in floating_ids:
+                boundary_ids.append(every)
 
     source_nodes = None
     sink_nodes = None
