@@ -29,6 +29,7 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
         layout = 'dot'
     graph = pydot.Dot(graph_type="digraph")
     graph.set_node_defaults(color='black', style='filled', fillcolor='#4472C4')
+    graph.set_edge_defaults(rank="same")
     ind = 0
 
     if constants == False:
@@ -43,11 +44,11 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
 
     if constants == True:
         for each in source_nodes:
-            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="green"))
-            graph.add_edge(pydot.Edge('B' + str(each), str(each)))
+            graph.add_node(pydot.Node('Bso' + str(each), label=str(each), style="filled", fillcolor="green"))
+            graph.add_edge(pydot.Edge('Bso' + str(each), str(each)))
         for each in sink_nodes:
-            graph.add_node(pydot.Node('B' + str(each), label=str(each), style="filled", fillcolor="red"))
-            graph.add_edge(pydot.Edge(str(each), 'B' + str(each)))
+            graph.add_node(pydot.Node('Bsi' + str(each), label=str(each), style="filled", fillcolor="red"))
+            graph.add_edge(pydot.Edge(str(each), 'Bsi' + str(each)))
 
     with open(net_path, 'r') as network:
         lines = network.readlines()
@@ -57,9 +58,18 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
                     ls = line.split(',')
                     ls1 = ls[1][1:-1].split(':')
                     ls2 = ls[2][1:-1].split(':')
+                    ls3 = ls[3][1:-1].split(':')
+                    ls4 = ls[4][1:-1].split(':')
 
                     if ls[0] == '0':
-                        graph.add_edge(pydot.Edge(ls1[0], ls2[0]))
+
+                        if not ls3[0]:
+                            graph.add_edge(pydot.Edge(ls1[0], ls2[0]))
+                        else:
+                            graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
+                                                      shape='point', width='0.1', height='0.1'))
+                            graph.add_edge(pydot.Edge(ls1[0], 'R' + str(ind), arrowhead='none'))
+                            graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
                     if ls[0] == '1':
                         graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
                                                   shape='point', width='0.1', height='0.1'))
@@ -72,7 +82,6 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
                         graph.add_edge(pydot.Edge(ls1[0], 'R' + str(ind), arrowhead='none'))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[1]))
-
                     if ls[0] == '3':
                         graph.add_node(pydot.Node('R' + str(ind), style="filled", fillcolor="black",
                                                   shape='point', width='0.1', height='0.1'))
@@ -80,6 +89,15 @@ def reaction_network_fig(net_path, fig_path, layout, constants, source_nodes, si
                         graph.add_edge(pydot.Edge(ls1[1], 'R' + str(ind), arrowhead='none'))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[0]))
                         graph.add_edge(pydot.Edge('R' + str(ind), ls2[1]))
+
+                    if ls3[0]:
+                        for j, each in enumerate(ls3):
+                            if ls4[j] == '1':
+                                graph.add_edge(pydot.Edge(each, 'R' + str(ind), arrowsize=0.5, color="green"))
+                            if ls4[j] == '-1':
+                                graph.add_edge(pydot.Edge(each, 'R' + str(ind), arrowsize=0.5, arrowhead="tee",
+                                                          color="red"))
+
                     ind += 1
 
     graph.write_png(fig_path, prog=layout)
