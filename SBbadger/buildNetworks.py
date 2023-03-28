@@ -11055,33 +11055,55 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     if source_nodes or sink_nodes:
         reaction_index += 1
 
+    enzyme = ''
+    enzyme_end = ''
+
+    num_syn_deg = 0
+
     if constants == False and source_nodes:
         for each in source_nodes:
-            rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; syn' + str(each) + '\n'
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+            rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
+                       + enzyme_end + '\n'
             reaction_index += 1
+            num_syn_deg += 1
         rxn_str += '\n'
 
     if constants == False and sink_nodes:
         for each in sink_nodes:
-            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + 'deg' + str(each) + '*' + 'S' \
-                       + str(each) + '\n'
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + enzyme + 'deg' + str(each) + '*' \
+                       + 'S' + str(each) + enzyme_end + '\n'
             reaction_index += 1
+            num_syn_deg += 1
         rxn_str += '\n'
 
     if constants == True and source_nodes:
         for each in source_nodes:
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
             b_source.append('B' + str(each))
-            rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; syn' + str(each) \
-                       + ' * B' + str(each) + '\n'
+            rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
+                       + str(each) + ' * B' + str(each) + enzyme_end + '\n'
             reaction_index += 1
+            num_syn_deg += 1
         rxn_str += '\n'
 
     if constants == True and sink_nodes:
         for each in sink_nodes:
+            if add_enzyme:
+                enzyme = 'E' + str(reaction_index) + '*('
+                enzyme_end = ')'
             b_sink.append('B' + str(each))
-            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; deg' + str(each) \
-                       + ' * S' + str(each) + '\n'
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; ' + enzyme + 'deg' \
+                       + str(each) + ' * S' + str(each) + enzyme_end + '\n'
             reaction_index += 1
+            num_syn_deg += 1
         rxn_str += '\n'
 
     for i in range(n_species):
@@ -11129,7 +11151,8 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
             ic_str += each + ' = ' + str(ic) + '\n'
 
     for each in b_sink:
-        ic_str += each + ' = 0\n'
+        if each not in b_source:
+            ic_str += each + ' = 0\n'
 
     # for each in b_sink:
     #     if sink == 'trivial':
@@ -11171,14 +11194,16 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     #                 enz = lognorm.rvs(scale=add_enzyme[1], s=add_enzyme[2])
     #                 ant_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
 
+    total_num_reactions = len(reaction_list_copy) + num_syn_deg
+
     if add_enzyme:
         ic_str += '\n'
         if isinstance(add_enzyme, bool) or add_enzyme == 'trivial':
-            for index, r in enumerate(reaction_list_copy):
+            for index in range(total_num_reactions):
                 ic_str += 'E' + str(index) + ' = 1\n'
 
         if isinstance(add_enzyme, list):
-            for index, r in enumerate(reaction_list_copy):
+            for index in range(total_num_reactions):
                 if add_enzyme[0] == 'uniform':
                     enz = uniform.rvs(loc=add_enzyme[1], scale=add_enzyme[2]-add_enzyme[1])
                     ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
