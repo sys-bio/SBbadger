@@ -4670,12 +4670,15 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     def source_reversibility():
 
         rev1 = False
-        if source[4] == 0:
-            pass
-        elif source[4] == 1:
-            rev1 = True
-        else:
-            rev1 = random.choices([True, False], [source[4], 1 - source[4]])[0]
+
+        if len(source) == 5:
+
+            if source[4] == 0:
+                pass
+            elif source[4] == 1:
+                rev1 = True
+            else:
+                rev1 = random.choices([True, False], [source[4], 1 - source[4]])[0]
 
         return rev1
 
