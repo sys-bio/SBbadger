@@ -4667,6 +4667,18 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
 
         return rev1
 
+    def source_reversibility():
+
+        rev1 = False
+        if source[4] == 0:
+            pass
+        elif source[4] == 1:
+            rev1 = True
+        else:
+            rev1 = random.choices([True, False], [source[4], 1 - source[4]])[0]
+
+        return rev1
+
     reaction_index = None
     
     # ===============================================================================
@@ -11059,20 +11071,39 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     enzyme_end = ''
 
     num_syn_deg = 0
+    reversed_source = []
 
     if constants == False and source_nodes:
+
         for each in source_nodes:
-            if add_enzyme:
-                enzyme = 'E' + str(reaction_index) + '*('
-                enzyme_end = ')'
-            rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
-                       + enzyme_end + '\n'
-            reaction_index += 1
-            num_syn_deg += 1
+
+            s_rev = source_reversibility()
+
+            if s_rev:
+                reversed_source.append(each)
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
+                           + ' - ' + 'deg' + str(each) + '*' + 'S' + str(each) + enzyme_end + '\n'
+                reaction_index += 1
+                num_syn_deg += 1
+
+            else:
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
+                           + enzyme_end + '\n'
+                reaction_index += 1
+                num_syn_deg += 1
+
         rxn_str += '\n'
 
     if constants == False and sink_nodes:
+
         for each in sink_nodes:
+
             if add_enzyme:
                 enzyme = 'E' + str(reaction_index) + '*('
                 enzyme_end = ')'
@@ -11083,15 +11114,34 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
         rxn_str += '\n'
 
     if constants == True and source_nodes:
+
         for each in source_nodes:
-            if add_enzyme:
-                enzyme = 'E' + str(reaction_index) + '*('
-                enzyme_end = ')'
-            b_source.append('B' + str(each))
-            rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
-                       + str(each) + ' * B' + str(each) + enzyme_end + '\n'
-            reaction_index += 1
-            num_syn_deg += 1
+
+            s_rev = source_reversibility()
+
+            if s_rev:
+                reversed_source.append(each)
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+                b_source.append('B' + str(each))
+                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
+                           + str(each) + ' * B' + str(each) + str(' - ') + 'deg' + str(each) + '*' + 'S' + str(each) \
+                           + enzyme_end + '\n'
+                reaction_index += 1
+                num_syn_deg += 1
+
+            else:
+                if add_enzyme:
+                    enzyme = 'E' + str(reaction_index) + '*('
+                    enzyme_end = ')'
+                b_source.append('B' + str(each))
+                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
+                           + str(each) + ' * B' + str(each) + enzyme_end + '\n'
+                reaction_index += 1
+                num_syn_deg += 1
+
+
         rxn_str += '\n'
 
     if constants == True and sink_nodes:
@@ -11239,6 +11289,9 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                     param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
 
         param_str += '\n'
+
+    sink_nodes = list(set(sink_nodes).union(set(reversed_source)))
+    sink_nodes.sort()
 
     if sink_nodes:
 
