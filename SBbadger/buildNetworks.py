@@ -9044,7 +9044,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
-                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
@@ -9213,7 +9213,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
-                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
@@ -9406,7 +9406,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
-                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
@@ -9588,7 +9588,7 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')/(1 + S' + str(reg) + '/kma_' \
                                 + str(reaction_index) \
-                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + ' * '
+                                + '_' + str(reg) + '))^ma_' + str(reaction_index) + '_' + str(reg) + '*'
                         if r[5][i] == 'a' and r[4][i] == 1:
                             rxn_str += '(' + 'ro_' + str(reaction_index) + '_' + str(reg) + ' + (1 - ' + 'ro_' \
                                 + str(reaction_index) + '_' + str(reg) + ')*(S' + str(reg) + '/kma_' \
@@ -11076,6 +11076,9 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     num_syn_deg = 0
     reversed_source = []
 
+    syn_params = []
+    deg_params = []
+
     if constants == False and source_nodes:
 
         for each in source_nodes:
@@ -11087,8 +11090,13 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                 if add_enzyme:
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
-                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
-                           + ' - ' + 'deg' + str(each) + '*' + 'S' + str(each) + enzyme_end + '\n'
+                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                           + str(reaction_index) + ' - ' + 'kr' + str(reaction_index) + '*' + 'S' + str(each) \
+                           + enzyme_end + '\n'
+                if 'kf' + str(reaction_index) not in syn_params:
+                    syn_params.append('kf' + str(reaction_index))
+                if 'kr' + str(reaction_index) not in deg_params:
+                    deg_params.append('kr' + str(reaction_index))
                 reaction_index += 1
                 num_syn_deg += 1
 
@@ -11096,8 +11104,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                 if add_enzyme:
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
-                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'syn' + str(each) \
-                           + enzyme_end + '\n'
+                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                           + str(reaction_index) + enzyme_end + '\n'
+                if 'kf' + str(reaction_index) not in syn_params:
+                    syn_params.append('kf' + str(reaction_index))
                 reaction_index += 1
                 num_syn_deg += 1
 
@@ -11110,8 +11120,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
             if add_enzyme:
                 enzyme = 'E' + str(reaction_index) + '*('
                 enzyme_end = ')'
-            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + enzyme + 'deg' + str(each) + '*' \
-                       + 'S' + str(each) + enzyme_end + '\n'
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + enzyme + 'kr' \
+                       + str(reaction_index) + '*' + 'S' + str(each) + enzyme_end + '\n'
+            if 'kr' + str(reaction_index) not in deg_params:
+                deg_params.append('kr' + str(reaction_index))
             reaction_index += 1
             num_syn_deg += 1
         rxn_str += '\n'
@@ -11128,9 +11140,13 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
                 b_source.append('B' + str(each))
-                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
-                           + str(each) + ' * B' + str(each) + str(' - ') + 'deg' + str(each) + '*' + 'S' + str(each) \
-                           + enzyme_end + '\n'
+                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'kf' \
+                           + str(reaction_index) + '*B' + str(each) + str(' - ') + 'kr' + str(reaction_index) \
+                           + '*' + 'S' + str(each) + enzyme_end + '\n'
+                if 'kf' + str(reaction_index) not in syn_params:
+                    syn_params.append('kf' + str(reaction_index))
+                if 'kr' + str(reaction_index) not in deg_params:
+                    deg_params.append('kr' + str(reaction_index))
                 reaction_index += 1
                 num_syn_deg += 1
 
@@ -11139,8 +11155,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                     enzyme = 'E' + str(reaction_index) + '*('
                     enzyme_end = ')'
                 b_source.append('B' + str(each))
-                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'syn' \
-                           + str(each) + ' * B' + str(each) + enzyme_end + '\n'
+                rxn_str += 'J' + str(reaction_index) + ': B' + str(each) + ' -> S' + str(each) + '; ' + enzyme + 'kf' \
+                           + str(reaction_index) + '*B' + str(each) + enzyme_end + '\n'
+                if 'kf' + str(reaction_index) not in syn_params:
+                    syn_params.append('kf' + str(reaction_index))
                 reaction_index += 1
                 num_syn_deg += 1
 
@@ -11153,8 +11171,10 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                 enzyme = 'E' + str(reaction_index) + '*('
                 enzyme_end = ')'
             b_sink.append('B' + str(each))
-            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; ' + enzyme + 'deg' \
-                       + str(each) + ' * S' + str(each) + enzyme_end + '\n'
+            rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> B' + str(each) + '; ' + enzyme + 'kr' \
+                       + str(reaction_index) + '*S' + str(each) + enzyme_end + '\n'
+            if 'kr' + str(reaction_index) not in deg_params:
+                deg_params.append('kr' + str(reaction_index))
             reaction_index += 1
             num_syn_deg += 1
         rxn_str += '\n'
@@ -11270,54 +11290,92 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
                     enz = lognorm.rvs(scale=add_enzyme[1], s=add_enzyme[2])
                     ic_str += 'E' + str(index) + ' = ' + str(enz) + '\n'
 
-    if source_nodes:
+    # if source_nodes:
 
-        if source == 'trivial':
-            for each in source_nodes:
-                param_str += 'deg' + str(each) + ' = 1\n'
+    if source == 'trivial':
+        for each in syn_params:
+            param_str += each + ' = 1\n'
 
-        if isinstance(source, list):
-            for each in source_nodes:
-                if source[1] == 'uniform':
-                    enz = uniform.rvs(loc=source[2], scale=source[3]-source[2])
-                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
-                if source[1] == 'loguniform':
-                    enz = loguniform.rvs(source[2], source[3])
-                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
-                if source[1] == 'normal':
-                    enz = norm.rvs(loc=source[2], scale=source[3])
-                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
-                if source[1] == 'lognormal':
-                    enz = lognorm.rvs(scale=source[2], s=source[3])
-                    param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+    if isinstance(source, list):
+        for each in syn_params:
+            if source[1] == 'uniform':
+                enz = uniform.rvs(loc=source[2], scale=source[3]-source[2])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if source[1] == 'loguniform':
+                enz = loguniform.rvs(source[2], source[3])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if source[1] == 'normal':
+                enz = norm.rvs(loc=source[2], scale=source[3])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if source[1] == 'lognormal':
+                enz = lognorm.rvs(scale=source[2], s=source[3])
+                param_str += each + ' = ' + str(enz) + '\n'
 
-        param_str += '\n'
+        # if source == 'trivial':
+        #     for each in source_nodes:
+        #         param_str += 'syn' + str(each) + ' = 1\n'
+        #
+        # if isinstance(source, list):
+        #     for each in source_nodes:
+        #         if source[1] == 'uniform':
+        #             enz = uniform.rvs(loc=source[2], scale=source[3]-source[2])
+        #             param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+        #         if source[1] == 'loguniform':
+        #             enz = loguniform.rvs(source[2], source[3])
+        #             param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+        #         if source[1] == 'normal':
+        #             enz = norm.rvs(loc=source[2], scale=source[3])
+        #             param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
+        #         if source[1] == 'lognormal':
+        #             enz = lognorm.rvs(scale=source[2], s=source[3])
+        #             param_str += 'syn' + str(each) + ' = ' + str(enz) + '\n'
 
-    sink_nodes = list(set(sink_nodes).union(set(reversed_source)))
-    sink_nodes.sort()
+    param_str += '\n'
 
-    if sink_nodes:
+    # sink_nodes = list(set(sink_nodes).union(set(reversed_source)))
+    # sink_nodes.sort()
 
-        if sink == 'trivial':
-            for each in sink_nodes:
-                param_str += 'deg' + str(each) + ' = 1\n'
+    # if sink_nodes:
 
-        if isinstance(sink, list):
-            for each in sink_nodes:
-                if sink[1] == 'uniform':
-                    enz = uniform.rvs(loc=sink[2], scale=sink[3]-sink[2])
-                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
-                if sink[1] == 'loguniform':
-                    enz = loguniform.rvs(sink[2], sink[3])
-                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
-                if sink[1] == 'normal':
-                    enz = norm.rvs(loc=sink[2], scale=sink[3])
-                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
-                if sink[1] == 'lognormal':
-                    enz = lognorm.rvs(scale=sink[2], s=sink[3])
-                    param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+    if sink == 'trivial':
+        for each in deg_params:
+            param_str += each + ' = 1\n'
 
-        param_str += '\n'
+    if isinstance(sink, list):
+        for each in deg_params:
+            if sink[1] == 'uniform':
+                enz = uniform.rvs(loc=sink[2], scale=sink[3] - sink[2])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if sink[1] == 'loguniform':
+                enz = loguniform.rvs(sink[2], sink[3])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if sink[1] == 'normal':
+                enz = norm.rvs(loc=sink[2], scale=sink[3])
+                param_str += each + ' = ' + str(enz) + '\n'
+            if sink[1] == 'lognormal':
+                enz = lognorm.rvs(scale=sink[2], s=sink[3])
+                param_str += each + ' = ' + str(enz) + '\n'
+
+        # if sink == 'trivial':
+        #     for each in sink_nodes:
+        #         param_str += 'deg' + str(each) + ' = 1\n'
+        #
+        # if isinstance(sink, list):
+        #     for each in sink_nodes:
+        #         if sink[1] == 'uniform':
+        #             enz = uniform.rvs(loc=sink[2], scale=sink[3]-sink[2])
+        #             param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+        #         if sink[1] == 'loguniform':
+        #             enz = loguniform.rvs(sink[2], sink[3])
+        #             param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+        #         if sink[1] == 'normal':
+        #             enz = norm.rvs(loc=sink[2], scale=sink[3])
+        #             param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+        #         if sink[1] == 'lognormal':
+        #             enz = lognorm.rvs(scale=sink[2], s=sink[3])
+        #             param_str += 'deg' + str(each) + ' = ' + str(enz) + '\n'
+
+    param_str += '\n'
 
     ant_str = rxn_str + param_str + ic_str
 
