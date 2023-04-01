@@ -4453,7 +4453,8 @@ def remove_boundary_nodes(st):
     return [np.delete(st, indexes + orphan_species, axis=0), floating_ids, boundary_ids]
 
 
-def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, add_enzyme, constants, source, sink):
+def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, add_enzyme, constants, source, sink,
+                        cobra):
 
     n_species = reaction_list[0]
     reaction_list_copy = deepcopy(reaction_list)
@@ -11079,54 +11080,107 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
     syn_params = []
     deg_params = []
 
-    if constants == False and source_nodes:
+    if cobra:
 
-        for each in source_nodes:
+        if constants == False and source_nodes:
 
-            s_rev = source_reversibility()
+            for each in source_nodes:
 
-            if s_rev:
-                reversed_source.append(each)
-                if add_enzyme:
-                    enzyme = 'E' + str(reaction_index) + '*('
-                    enzyme_end = ')'
-                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
-                           + str(reaction_index) + ' - ' + 'kr' + str(reaction_index) + '*' + 'S' + str(each) \
-                           + enzyme_end + '\n'
-                if 'kf' + str(reaction_index) not in syn_params:
-                    syn_params.append('kf' + str(reaction_index))
-                if 'kr' + str(reaction_index) not in deg_params:
-                    deg_params.append('kr' + str(reaction_index))
-                reaction_index += 1
-                num_syn_deg += 1
+                s_rev = source_reversibility()
 
-            else:
-                if add_enzyme:
-                    enzyme = 'E' + str(reaction_index) + '*('
-                    enzyme_end = ')'
-                rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
-                           + str(reaction_index) + enzyme_end + '\n'
-                if 'kf' + str(reaction_index) not in syn_params:
-                    syn_params.append('kf' + str(reaction_index))
-                reaction_index += 1
-                num_syn_deg += 1
+                if s_rev:
+                    reversed_source.append(each)
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'EX_S' + str(each) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                               + str(reaction_index) + ' - ' + 'kr' + str(reaction_index) + '*' + 'S' + str(each) \
+                               + enzyme_end + '\n'
+                    if 'kf' + str(reaction_index) not in syn_params:
+                        syn_params.append('kf' + str(reaction_index))
+                    if 'kr' + str(reaction_index) not in deg_params:
+                        deg_params.append('kr' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
 
-        rxn_str += '\n'
+                else:
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'EX_S' + str(each) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                               + str(reaction_index) + enzyme_end + '\n'
+                    if 'kf' + str(reaction_index) not in syn_params:
+                        syn_params.append('kf' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
 
-    if constants == False and sink_nodes:
-        for each in sink_nodes:
-            if each not in reversed_source:
+            rxn_str += '\n'
 
-                if add_enzyme:
-                    enzyme = 'E' + str(reaction_index) + '*('
-                    enzyme_end = ')'
-                rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + enzyme + 'kr' \
-                           + str(reaction_index) + '*' + 'S' + str(each) + enzyme_end + '\n'
-                if 'kr' + str(reaction_index) not in deg_params:
-                    deg_params.append('kr' + str(reaction_index))
-                reaction_index += 1
-                num_syn_deg += 1
-        rxn_str += '\n'
+        if constants == False and sink_nodes:
+            for each in sink_nodes:
+                if each not in reversed_source:
+
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'EX_S' + str(each) + ': S' + str(each) + ' -> ; ' + enzyme + 'kr' \
+                               + str(reaction_index) + '*' + 'S' + str(each) + enzyme_end + '\n'
+                    if 'kr' + str(reaction_index) not in deg_params:
+                        deg_params.append('kr' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
+            rxn_str += '\n'
+
+
+    else:
+        if constants == False and source_nodes:
+
+            for each in source_nodes:
+
+                s_rev = source_reversibility()
+
+                if s_rev:
+                    reversed_source.append(each)
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                               + str(reaction_index) + ' - ' + 'kr' + str(reaction_index) + '*' + 'S' + str(each) \
+                               + enzyme_end + '\n'
+                    if 'kf' + str(reaction_index) not in syn_params:
+                        syn_params.append('kf' + str(reaction_index))
+                    if 'kr' + str(reaction_index) not in deg_params:
+                        deg_params.append('kr' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
+
+                else:
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'J' + str(reaction_index) + ': -> S' + str(each) + '; ' + enzyme + 'kf' \
+                               + str(reaction_index) + enzyme_end + '\n'
+                    if 'kf' + str(reaction_index) not in syn_params:
+                        syn_params.append('kf' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
+
+            rxn_str += '\n'
+
+        if constants == False and sink_nodes:
+            for each in sink_nodes:
+                if each not in reversed_source:
+
+                    if add_enzyme:
+                        enzyme = 'E' + str(reaction_index) + '*('
+                        enzyme_end = ')'
+                    rxn_str += 'J' + str(reaction_index) + ': S' + str(each) + ' -> ; ' + enzyme + 'kr' \
+                               + str(reaction_index) + '*' + 'S' + str(each) + enzyme_end + '\n'
+                    if 'kr' + str(reaction_index) not in deg_params:
+                        deg_params.append('kr' + str(reaction_index))
+                    reaction_index += 1
+                    num_syn_deg += 1
+            rxn_str += '\n'
 
     if constants == True and source_nodes:
 
@@ -11165,8 +11219,6 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
         rxn_str += '\n'
 
     if constants == True and sink_nodes:
-        print(reversed_source)
-        print(sink_nodes)
         for each in sink_nodes:
             if each not in reversed_source:
 

@@ -106,7 +106,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
           edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None,
           rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot',
           str_format='ant', mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
-          network_attempts=100, distribution_attempts=100):
+          cobra=False, network_attempts=100, distribution_attempts=100):
     """
     Generates a single model as an Antimony or SBML string. This function runs the complete workflow for model
     generation including truncation and re-normalization of the distributions, reaction selection and construction of
@@ -166,6 +166,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
+    :param cobra: renames the synthesis and degradation (no constants) to cobra format.
     :param distribution_attempts: The number of distribution reconciliation attempts made. Defaults to 100.
     """
 
@@ -393,7 +394,7 @@ def model(verbose_exceptions=False, output_dir='models', group_name='test', over
 
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
                                                                               rev_prob, add_enzyme, constants, source,
-                                                                              sink)
+                                                                              sink, cobra)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -571,7 +572,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
            joint_range=None, min_freq=1.0, mass_violating_reactions=True, unaffected_nodes=True, connected=True,
            edge_type='generic', kinetics=None, add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None,
            rxn_prob=None, rev_prob=0, ic_params=None, dist_plots=False, net_plots=False, net_layout='dot',
-           mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None,
+           mass_balanced=False, independent_sampling=False, constants=None, source=None, sink=None, cobra=False,
            network_attempts=100, distribution_attempts=100):
     """
     Generates a collection of models. This function runs the complete workflow for model generation including
@@ -628,6 +629,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
+    :param cobra: renames the synthesis and degradation (no constants) to cobra format.
     :param network_attempts: The number of network construction attempts made. Defaults to 100.
     :param distribution_attempts: The number of distribution reconciliation attempts made. Defaults to 100.
     """
@@ -855,7 +857,7 @@ def models(verbose_exceptions=False, output_dir='models', group_name='test', ove
 
         ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
                                                                               rev_prob, add_enzyme, constants, source,
-                                                                              sink)
+                                                                              sink, cobra)
         anti_dir = os.path.join(output_dir, group_name, 'antimony', group_name + '_' + str(i) + '.ant')
         with open(anti_dir, 'w') as f:
             f.write(ant_str)
@@ -1480,7 +1482,8 @@ def networks(verbose_exceptions=False, directory='models', group_name='test', ov
 
 def rate_laws(verbose_exceptions=False, directory='models', group_name='test', overwrite=True, kinetics=None, 
               add_enzyme=False, mod_reg=None, gma_reg=None, sc_reg=None, allo_reg=None, rxn_prob=None, rev_prob=0,
-              ic_params=None, constants=None, source=None, sink=None, net_plots=True, net_layout='default'):
+              ic_params=None, constants=None, source=None, sink=None, cobra=False, net_plots=True,
+              net_layout='default'):
     """
     Generates a collection of models. This function requires the existence of previously generated networks.
 
@@ -1513,6 +1516,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
         distributions. Defaults to [0, 'loguniform', 0.01, 1] where the first position holds the minimum number and
         the last two are the distribution parameters. Note that boundary sink nodes will always have degradation
         reactions.
+    :param cobra: renames the synthesis and degradation (no constants) to cobra format.
     :param net_plots: Generate network plots.
     :param net_layout: Set layout for network plots.
     """
@@ -1741,7 +1745,7 @@ def rate_laws(verbose_exceptions=False, directory='models', group_name='test', o
 
                 ant_str, source_nodes, sink_nodes = buildNetworks.get_antimony_script(rl, ic_params, kinetics, allo_reg,
                                                                                       rev_prob, add_enzyme, constants,
-                                                                                      source, sink)
+                                                                                      source, sink, cobra)
 
                 anti_dir = os.path.join(directory, group_name, 'antimony', group_name + '_' + str(ind) + '.ant')
                 with open(anti_dir, 'w') as f:
