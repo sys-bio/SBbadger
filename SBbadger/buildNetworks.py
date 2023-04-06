@@ -11333,7 +11333,27 @@ def get_antimony_script(reaction_list, ic_params, kinetics, allo_reg, rev_prob, 
 
     for each in b_sink:
         if each not in b_source:
-            ic_str += each + ' = 0\n'
+            if ic_params == 'trivial':
+                ic_str += each + ' = 1\n'
+            if isinstance(sink, list) and sink[1] == 'uniform':
+                ic = uniform.rvs(loc=sink[2], scale=sink[3]-sink[3])
+                ic_str += each + ' = ' + str(ic) + '\n'
+            if isinstance(sink, list) and sink[1] == 'loguniform':
+                ic = loguniform.rvs(sink[2], sink[3])
+                ic_str += each + ' = ' + str(ic) + '\n'
+            if isinstance(sink, list) and sink[1] == 'normal':
+                ic = norm.rvs(loc=sink[2], scale=sink[3])
+                ic_str += each + ' = ' + str(ic) + '\n'
+            if isinstance(sink, list) and sink[1] == 'lognormal':
+                ic = lognorm.rvs(scale=sink[2], s=sink[3])
+                ic_str += each + ' = ' + str(ic) + '\n'
+            if sink is None:
+                ic = uniform.rvs(loc=0, scale=10)
+                ic_str += each + ' = ' + str(ic) + '\n'
+
+    # for each in b_sink:
+    #     if each not in b_source:
+    #         ic_str += each + ' = 0\n'
 
     # for each in b_sink:
     #     if sink == 'trivial':
