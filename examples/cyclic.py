@@ -1,5 +1,5 @@
 
-import generate
+from SBbadger import generate
 
 if __name__ == "__main__":
 
